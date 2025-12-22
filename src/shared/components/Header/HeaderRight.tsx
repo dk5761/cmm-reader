@@ -9,14 +9,9 @@ type HeaderRightProps = {
 export function HeaderRight({ children, className }: HeaderRightProps) {
   return (
     <View
-      className={className}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        minWidth: 48,
-        gap: 8,
-      }}
+      className={`flex-row items-center justify-end min-w-12 gap-2 ${
+        className ?? ""
+      }`}
     >
       {children}
     </View>

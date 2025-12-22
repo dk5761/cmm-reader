@@ -42,59 +42,27 @@ function MangaCardComponent({
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={[
-        {
-          width: "100%",
-          aspectRatio: 0.7,
-          borderRadius: 8,
-          overflow: "hidden",
-        },
-        animatedStyle,
-      ]}
+      className="w-full rounded-lg overflow-hidden"
+      style={[{ aspectRatio: 0.7 }, animatedStyle]}
     >
       <Image
         source={{ uri: coverUrl }}
-        style={{
-          width: "100%",
-          height: "100%",
-          backgroundColor: "#27272a",
-        }}
+        className="w-full h-full bg-zinc-800"
         resizeMode="cover"
       />
 
       {/* Gradient overlay - simulated with stacked views */}
-      <View
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: "60%",
-        }}
-      >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.1)" }} />
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.3)" }} />
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} />
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)" }} />
+      <View className="absolute bottom-0 left-0 right-0 h-3/5">
+        <View className="flex-1 bg-black/10" />
+        <View className="flex-1 bg-black/30" />
+        <View className="flex-1 bg-black/50" />
+        <View className="flex-1 bg-black/70" />
       </View>
 
       {/* Title */}
-      <View
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: 8,
-        }}
-      >
+      <View className="absolute bottom-0 left-0 right-0 p-2">
         <Text
-          style={{
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: "600",
-            lineHeight: 16,
-          }}
+          className="text-white text-[13px] font-semibold leading-4"
           numberOfLines={2}
         >
           {title}
@@ -103,24 +71,8 @@ function MangaCardComponent({
 
       {/* Unread badge */}
       {unreadCount && unreadCount > 0 && (
-        <View
-          style={{
-            position: "absolute",
-            top: 6,
-            right: 6,
-            backgroundColor: "#6366f1",
-            borderRadius: 4,
-            paddingHorizontal: 6,
-            paddingVertical: 2,
-          }}
-        >
-          <Text
-            style={{
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: "700",
-            }}
-          >
+        <View className="absolute top-1.5 right-1.5 bg-indigo-500 rounded px-1.5 py-0.5">
+          <Text className="text-white text-[11px] font-bold">
             {unreadCount}
           </Text>
         </View>

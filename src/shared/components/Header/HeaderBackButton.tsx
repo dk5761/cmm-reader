@@ -25,11 +25,7 @@ export function HeaderBackButton({
     <Pressable
       onPress={handlePress}
       hitSlop={8}
-      style={({ pressed }) => ({
-        opacity: pressed ? 0.6 : 1,
-        padding: 8,
-        marginLeft: -8,
-      })}
+      className="p-2 -ml-2 active:opacity-60"
     >
       <Ionicons name="chevron-back" size={24} color={tintColor} />
     </Pressable>

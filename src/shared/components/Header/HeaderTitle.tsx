@@ -10,21 +10,10 @@ export function HeaderTitle({ children, className }: HeaderTitleProps) {
   const isString = typeof children === "string";
 
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
+    <View className="flex-1 items-center justify-center">
       {isString ? (
         <Text
-          className={className}
-          style={{
-            fontSize: 18,
-            fontWeight: "600",
-            color: "#fff",
-          }}
+          className={`text-white text-lg font-semibold ${className ?? ""}`}
           numberOfLines={1}
         >
           {children}

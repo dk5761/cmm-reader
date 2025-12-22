@@ -8,14 +8,7 @@ type HeaderLeftProps = {
 
 export function HeaderLeft({ children, className }: HeaderLeftProps) {
   return (
-    <View
-      className={className}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        minWidth: 48,
-      }}
-    >
+    <View className={`flex-row items-center min-w-12 ${className ?? ""}`}>
       {children}
     </View>
   );

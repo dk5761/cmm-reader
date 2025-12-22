@@ -7,8 +7,6 @@ type TabBarConfig = {
   icons?: Record<string, keyof typeof Ionicons.glyphMap>;
   activeColor?: string;
   inactiveColor?: string;
-  backgroundColor?: string;
-  borderColor?: string;
 };
 
 const defaultIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -22,8 +20,6 @@ const defaultConfig: Required<TabBarConfig> = {
   icons: defaultIcons,
   activeColor: "#22d3ee",
   inactiveColor: "#94a3b8",
-  backgroundColor: "#1e293b",
-  borderColor: "#334155",
 };
 
 export function FloatingTabBar({
@@ -37,25 +33,10 @@ export function FloatingTabBar({
 
   return (
     <View
-      style={{
-        position: "absolute",
-        bottom: insets.bottom + 16,
-        left: 24,
-        right: 24,
-      }}
+      className="absolute left-6 right-6"
+      style={{ bottom: insets.bottom + 16 }}
     >
-      <View
-        style={{
-          flexDirection: "row",
-          backgroundColor: mergedConfig.backgroundColor,
-          borderRadius: 20,
-          borderWidth: 1,
-          borderColor: mergedConfig.borderColor,
-          height: 70,
-          alignItems: "center",
-          paddingHorizontal: 8,
-        }}
-      >
+      <View className="flex-row bg-slate-800 rounded-[8px] border border-slate-700 h-[70px] items-center px-2">
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const label = options.title ?? route.name;
@@ -81,26 +62,14 @@ export function FloatingTabBar({
             <Pressable
               key={route.key}
               onPress={onPress}
-              style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 8,
-              }}
+              className="flex-1 items-center justify-center py-2"
             >
               <Ionicons
                 name={mergedConfig.icons[route.name] ?? "help-circle"}
                 size={22}
                 color={color}
               />
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "500",
-                  marginTop: 4,
-                  color,
-                }}
-              >
+              <Text className="text-xs font-medium mt-1" style={{ color }}>
                 {label}
               </Text>
             </Pressable>

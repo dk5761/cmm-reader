@@ -15,14 +15,7 @@ export function HeaderAction({
   size = 22,
 }: HeaderActionProps) {
   return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={8}
-      style={({ pressed }) => ({
-        opacity: pressed ? 0.6 : 1,
-        padding: 8,
-      })}
-    >
+    <Pressable onPress={onPress} hitSlop={8} className="p-2 active:opacity-60">
       <Ionicons name={icon} size={size} color={tintColor} />
     </Pressable>
   );

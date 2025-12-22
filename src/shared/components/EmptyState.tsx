@@ -13,35 +13,13 @@ export function EmptyState({
   description,
 }: EmptyStateProps) {
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 32,
-      }}
-    >
+    <View className="flex-1 items-center justify-center p-8">
       <Ionicons name={icon} size={64} color="#3f3f46" />
-      <Text
-        style={{
-          color: "#a1a1aa",
-          fontSize: 18,
-          fontWeight: "600",
-          marginTop: 16,
-          textAlign: "center",
-        }}
-      >
+      <Text className="text-zinc-400 text-lg font-semibold mt-4 text-center">
         {title}
       </Text>
       {description && (
-        <Text
-          style={{
-            color: "#71717a",
-            fontSize: 14,
-            marginTop: 8,
-            textAlign: "center",
-          }}
-        >
+        <Text className="text-zinc-500 text-sm mt-2 text-center">
           {description}
         </Text>
       )}

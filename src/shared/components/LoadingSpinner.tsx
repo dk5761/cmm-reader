@@ -13,14 +13,7 @@ export function LoadingSpinner({
 }: LoadingSpinnerProps) {
   if (fullScreen) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#000",
-        }}
-      >
+      <View className="flex-1 items-center justify-center bg-black">
         <ActivityIndicator size={size} color={color} />
       </View>
     );

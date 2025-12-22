@@ -21,10 +21,9 @@ type HeaderProps = {
   children: ReactNode;
   animated?: SharedValue<number>;
   className?: string;
-  style?: object;
 };
 
-function HeaderRoot({ children, animated, className, style }: HeaderProps) {
+function HeaderRoot({ children, animated, className }: HeaderProps) {
   const insets = useSafeAreaInsets();
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -46,18 +45,13 @@ function HeaderRoot({ children, animated, className, style }: HeaderProps) {
   return (
     <HeaderContext.Provider value={{ animated }}>
       <Container
-        className={className}
+        className={`flex-row items-center px-4 pb-3 ${className ?? ""}`}
         style={[
           {
             paddingTop: insets.top,
-            flexDirection: "row",
-            alignItems: "center",
-            paddingHorizontal: 16,
-            paddingBottom: 12,
             minHeight: insets.top + 56,
           },
           animated ? animatedStyle : {},
-          style,
         ]}
       >
         {children}
