@@ -4,10 +4,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SearchBar } from "@/shared/components/SearchBar";
 import { ExtensionCard } from "../components";
 import { MOCK_EXTENSIONS } from "../data/mockData";
+import { useBrowseStore } from "../stores/useBrowseStore";
 
 export function BrowseScreen() {
   const insets = useSafeAreaInsets();
-  const [searchQuery, setSearchQuery] = useState("");
+  const { searchQuery, setSearchQuery } = useBrowseStore();
 
   const filteredExtensions = useMemo(() => {
     if (!searchQuery.trim()) return MOCK_EXTENSIONS;

@@ -1,17 +1,18 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { LibraryFilter, LibraryGrid } from "../components";
 import { EmptyState } from "@/shared/components";
 import { LIBRARY_FILTERS, MOCK_LIBRARY_DATA } from "../data/mockData";
+import { useLibraryStore } from "../stores/useLibraryStore";
 
 export function LibraryScreen() {
   const router = useRouter();
-  const [activeFilter, setActiveFilter] = useState("All");
+  const { activeCategory, setActiveCategory } = useLibraryStore();
 
-  // Filter manga based on active filter
+  // Filter manga based on active category from store
   const filteredManga = useMemo(() => {
-    if (activeFilter === "All") return MOCK_LIBRARY_DATA;
+    if (activeCategory === "All") return MOCK_LIBRARY_DATA;
 
     const statusMap: Record<string, string> = {
       Reading: "reading",
@@ -22,9 +23,9 @@ export function LibraryScreen() {
     };
 
     return MOCK_LIBRARY_DATA.filter(
-      (manga) => manga.readingStatus === statusMap[activeFilter]
+      (manga) => manga.readingStatus === statusMap[activeCategory]
     );
-  }, [activeFilter]);
+  }, [activeCategory]);
 
   const handleMangaPress = (id: string) => {
     router.push(`/manga/${id}`);
@@ -40,8 +41,8 @@ export function LibraryScreen() {
           <View className="pb-4">
             <LibraryFilter
               filters={LIBRARY_FILTERS}
-              activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
+              activeFilter={activeCategory}
+              onFilterChange={setActiveCategory}
             />
           </View>
         }
@@ -53,7 +54,7 @@ export function LibraryScreen() {
           <EmptyState
             icon="book-outline"
             title="No manga found"
-            description={`No titles in "${activeFilter}"`}
+            description={`No titles in "${activeCategory}"`}
           />
         </View>
       )}

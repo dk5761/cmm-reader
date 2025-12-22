@@ -1,17 +1,16 @@
 import { ScrollView, Pressable, Text, View } from "react-native";
-import { useCSSVariable } from "uniwind";
 
-type LibraryFilterProps = {
-  filters: string[];
-  activeFilter: string;
-  onFilterChange: (filter: string) => void;
+type LibraryFilterProps<T extends string> = {
+  filters: readonly T[];
+  activeFilter: T;
+  onFilterChange: (filter: T) => void;
 };
 
-export function LibraryFilter({
+export function LibraryFilter<T extends string>({
   filters,
   activeFilter,
   onFilterChange,
-}: LibraryFilterProps) {
+}: LibraryFilterProps<T>) {
   // We can use these if we want dynamic non-tailwind colors,
   // but className logic is easier for switching bg colors.
 

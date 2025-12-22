@@ -5,7 +5,7 @@ export const LIBRARY_FILTERS = [
   "Plan to Read",
   "On Hold",
   "Dropped",
-];
+] as const;
 
 export interface LibraryManga {
   id: string;
