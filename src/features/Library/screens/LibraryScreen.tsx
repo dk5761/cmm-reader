@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import { View } from "react-native";
+import { useRouter } from "expo-router";
 import { LibraryFilter, LibraryGrid } from "../components";
 import { EmptyState } from "@/shared/components";
 import { LIBRARY_FILTERS, MOCK_LIBRARY_DATA } from "../data/mockData";
 
 export function LibraryScreen() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState("All");
 
   // Filter manga based on active filter
@@ -25,7 +27,7 @@ export function LibraryScreen() {
   }, [activeFilter]);
 
   const handleMangaPress = (id: string) => {
-    console.log("Manga pressed:", id);
+    router.push(`/manga/${id}`);
   };
 
   return (
