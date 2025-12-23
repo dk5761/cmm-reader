@@ -7,3 +7,4 @@ export * from "./SessionWarmup";
 export { EmptyState } from "./EmptyState";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { SearchBar } from "./SearchBar";
+export { CollapsibleText } from "./CollapsibleText";

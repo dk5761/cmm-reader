@@ -172,6 +172,7 @@ export class MangaKakalotSource extends Source {
   }
 
   async getMangaDetails(url: string): Promise<MangaDetails> {
+    console.log("[MangaKakalot] getMangaDetails URL:", url);
     const html = await this.fetchHtml(url);
     const doc = this.parseHtml(html);
 
@@ -181,10 +182,27 @@ export class MangaKakalotSource extends Source {
 
     const title =
       doc.text("h1") || doc.text("h2") || doc.text(".story-info-right h1");
-    const cover =
-      doc.src("div.manga-info-pic img") ||
-      doc.src("span.info-image img") ||
-      doc.src(".story-info-left .info-image img");
+    let cover =
+      doc.attr("div.manga-info-pic img", "src") ||
+      doc.attr("div.manga-info-pic img", "data-src") ||
+      doc.attr("span.info-image img", "src") ||
+      doc.attr("span.info-image img", "data-src") ||
+      doc.attr(".story-info-left .info-image img", "src") ||
+      doc.attr(".story-info-left .info-image img", "data-src");
+
+    // Fallback: If cover is still missing, try to extract from raw HTML if possible
+    // or log it. The main view usually has the image clearly.
+    if (!cover) {
+      // Try regex on the main container just in case
+      const mainHtml =
+        doc.querySelector(".manga-info-top")?.toString() ||
+        doc.querySelector(".panel-story-info")?.toString() ||
+        "";
+      const srcMatch = mainHtml.match(/<img[^>]+src="([^"]+)"/);
+      if (srcMatch) {
+        cover = srcMatch[1];
+      }
+    }
 
     // Author: li:contains(author) a
     const author =

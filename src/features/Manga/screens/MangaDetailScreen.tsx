@@ -9,7 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCSSVariable } from "uniwind";
-import { WebViewImage } from "@/shared/components";
+import { WebViewImage, CollapsibleText } from "@/shared/components";
 import { ChapterCard, GenreChip } from "../components";
 import { useMangaDetails, useChapterList } from "../api/manga.queries";
 import { getSource } from "@/sources";
@@ -22,6 +22,8 @@ export function MangaDetailScreen() {
     sourceId: string;
     url: string;
   }>();
+
+  console.log("[MangaDetailScreen] Params:", { id, sourceId, url });
 
   const source = getSource(sourceId || "");
   const {
@@ -130,9 +132,11 @@ export function MangaDetailScreen() {
           </View>
 
           {/* Description */}
-          <Text className="text-muted text-xs mt-5 leading-5">
-            {manga.description}
-          </Text>
+          <CollapsibleText
+            text={manga.description || ""}
+            numberOfLines={3}
+            className="mt-5"
+          />
 
           {/* Add to Library Button - Full Width */}
           <Pressable
