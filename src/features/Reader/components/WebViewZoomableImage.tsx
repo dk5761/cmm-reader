@@ -29,7 +29,8 @@ function WebViewZoomableImageComponent({
   initialHeight = SCREEN_WIDTH * 1.5,
   onTap,
 }: WebViewZoomableImageProps) {
-  const [height, setHeight] = useState(initialHeight);
+  // Use fixed height to prevent content shifting
+  const height = initialHeight;
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -39,10 +40,6 @@ function WebViewZoomableImageComponent({
   const savedTranslateY = useSharedValue(0);
 
   const [isZoomed, setIsZoomed] = useState(false);
-
-  const handleHeightChange = useCallback((newHeight: number) => {
-    setHeight(newHeight);
-  }, []);
 
   // Pinch gesture for zooming
   const pinchGesture = Gesture.Pinch()
@@ -136,9 +133,7 @@ function WebViewZoomableImageComponent({
         <WebViewImage
           uri={uri}
           baseUrl={baseUrl}
-          resizeMode="fill"
-          width={width}
-          onHeightChange={handleHeightChange}
+          resizeMode="contain"
           style={{ width, height }}
         />
       </Animated.View>
