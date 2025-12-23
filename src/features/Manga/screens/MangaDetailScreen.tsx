@@ -105,11 +105,12 @@ export function MangaDetailScreen() {
         <View className="items-start px-4 mb-6">
           <View className="flex-row w-full gap-5">
             {/* Cover Image - Left Side */}
-            <View className="w-[120px] aspect-[2/3] rounded-lg bg-surface shadow-md overflow-hidden">
+            <View className="w-[120px] aspect-2/3 rounded-lg bg-surface shadow-md overflow-hidden">
               <WebViewImage
                 uri={manga.cover}
                 baseUrl={source?.baseUrl}
-                className="w-full h-full"
+                resizeMode="cover"
+                style={{ width: "100%", height: "100%" }}
               />
             </View>
 
