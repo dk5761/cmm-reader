@@ -15,6 +15,7 @@ type WebViewImageProps = {
   baseUrl?: string;
   style?: object;
   className?: string;
+  resizeMode?: "cover" | "contain";
 };
 
 /**
@@ -26,6 +27,7 @@ function WebViewImageComponent({
   baseUrl = "https://www.mangakakalot.gg",
   style,
   className,
+  resizeMode = "contain",
 }: WebViewImageProps) {
   const [loaded, setLoaded] = useState(false);
   const [currentUri, setCurrentUri] = useState(uri);
@@ -104,7 +106,7 @@ function WebViewImageComponent({
         img { 
           width: 100%; 
           height: 100%; 
-          object-fit: contain;
+          object-fit: ${resizeMode};
           opacity: 0;
           transition: opacity 0.2s;
         }

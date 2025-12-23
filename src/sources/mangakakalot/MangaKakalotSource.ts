@@ -182,6 +182,18 @@ export class MangaKakalotSource extends Source {
 
     const title =
       doc.text("h1") || doc.text("h2") || doc.text(".story-info-right h1");
+    // Debugging cover extraction
+    const picHtml =
+      doc.querySelector("div.manga-info-pic")?.toString() ||
+      doc.querySelector(".info-image")?.toString() ||
+      doc.querySelector(".manga-info-top")?.toString() ||
+      "No cover container found";
+
+    console.log(
+      "[MangaKakalot] Cover container HTML:",
+      picHtml.substring(0, 500)
+    );
+
     let cover =
       doc.attr("div.manga-info-pic img", "src") ||
       doc.attr("div.manga-info-pic img", "data-src") ||
@@ -189,6 +201,8 @@ export class MangaKakalotSource extends Source {
       doc.attr("span.info-image img", "data-src") ||
       doc.attr(".story-info-left .info-image img", "src") ||
       doc.attr(".story-info-left .info-image img", "data-src");
+
+    console.log("[MangaKakalot] Extracted cover:", cover);
 
     // Fallback: If cover is still missing, try to extract from raw HTML if possible
     // or log it. The main view usually has the image clearly.
