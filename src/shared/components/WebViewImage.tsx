@@ -1,6 +1,8 @@
 import { useState, useCallback, memo, useEffect, useRef } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Dimensions } from "react-native";
 import { WebView, WebViewMessageEvent } from "react-native-webview";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 // CDN fallback list - mirroring what MangaBox likely discovers
 const CDN_HOSTS = [
@@ -15,7 +17,9 @@ type WebViewImageProps = {
   baseUrl?: string;
   style?: object;
   className?: string;
-  resizeMode?: "cover" | "contain";
+  resizeMode?: "cover" | "contain" | "fill";
+  width?: number;
+  onHeightChange?: (height: number) => void;
 };
 
 /**
@@ -28,9 +32,12 @@ function WebViewImageComponent({
   style,
   className,
   resizeMode = "contain",
+  width = SCREEN_WIDTH,
+  onHeightChange,
 }: WebViewImageProps) {
   const [loaded, setLoaded] = useState(false);
   const [currentUri, setCurrentUri] = useState(uri);
+  const [dynamicHeight, setDynamicHeight] = useState<number | null>(null);
   const cdnIndexRef = useRef(0);
   const originalHostRef = useRef<string | null>(null);
 
@@ -39,6 +46,7 @@ function WebViewImageComponent({
 
     setLoaded(false);
     setCurrentUri(uri);
+    setDynamicHeight(null);
     cdnIndexRef.current = 0;
 
     try {
@@ -57,9 +65,6 @@ function WebViewImageComponent({
 
       // Only try fallbacks for 2xstorage CDN (others might not need fallback)
       if (!url.host.includes("2xstorage.com")) {
-        console.log(
-          "[WebViewImage] Not a 2xstorage URL, no fallback available"
-        );
         return;
       }
 
@@ -73,12 +78,10 @@ function WebViewImageComponent({
         const nextCdn = cdnsToTry[cdnIndexRef.current - 1];
         url.host = nextCdn;
         const newUri = url.toString();
-        // Don't log clutter unless needed
-        // console.log("[WebViewImage] Trying CDN fallback:", newUri);
         setCurrentUri(newUri);
       }
     } catch (e) {
-      // console.log("[WebViewImage] Error in fallback:", e);
+      // Ignore fallback errors
     }
   }, [uri]);
 
@@ -88,6 +91,12 @@ function WebViewImageComponent({
 
   // Ensure baseUrl has trailing slash for unsafe-url policy to send it
   const effectiveBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+
+  // For 'fill' mode, we want width 100% and height to auto-adjust
+  const imgStyle =
+    resizeMode === "fill"
+      ? "width: 100%; height: auto; display: block;"
+      : `width: 100%; height: 100%; object-fit: ${resizeMode};`;
 
   const html = `
     <!DOCTYPE html>
@@ -101,12 +110,10 @@ function WebViewImageComponent({
           width: 100%; 
           height: 100%; 
           overflow: hidden;
-          background: #27272a;
+          background: #000;
         }
         img { 
-          width: 100%; 
-          height: 100%; 
-          object-fit: ${resizeMode};
+          ${imgStyle}
           opacity: 0;
           transition: opacity 0.2s;
         }
@@ -119,8 +126,13 @@ function WebViewImageComponent({
       <img 
         id="img"
         src="${currentUri}" 
-        onload="this.className='loaded'; window.ReactNativeWebView.postMessage('loaded')"
-        onerror="window.ReactNativeWebView.postMessage('error')"
+        onload="
+          this.className='loaded';
+          var w = this.naturalWidth;
+          var h = this.naturalHeight;
+          window.ReactNativeWebView.postMessage(JSON.stringify({type:'loaded', width:w, height:h}));
+        "
+        onerror="window.ReactNativeWebView.postMessage(JSON.stringify({type:'error'}))"
       />
     </body>
     </html>
@@ -128,18 +140,45 @@ function WebViewImageComponent({
 
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
-      const msg = event.nativeEvent.data;
-      if (msg === "loaded") {
-        setLoaded(true);
-      } else if (msg === "error") {
-        tryNextCdn();
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
+        if (data.type === "loaded") {
+          setLoaded(true);
+          // Calculate height based on image aspect ratio and container width
+          if (data.width && data.height && resizeMode === "fill") {
+            const aspectRatio = data.height / data.width;
+            const calculatedHeight = width * aspectRatio;
+            setDynamicHeight(calculatedHeight);
+            onHeightChange?.(calculatedHeight);
+          }
+        } else if (data.type === "error") {
+          tryNextCdn();
+        }
+      } catch {
+        // Fallback for old format
+        const msg = event.nativeEvent.data;
+        if (msg === "loaded") {
+          setLoaded(true);
+        } else if (msg === "error") {
+          tryNextCdn();
+        }
       }
     },
-    [tryNextCdn]
+    [tryNextCdn, width, resizeMode, onHeightChange]
   );
 
+  // Use dynamic height if available and in fill mode
+  const containerHeight =
+    resizeMode === "fill" && dynamicHeight ? dynamicHeight : undefined;
+
   return (
-    <View style={[style, styles.container]}>
+    <View
+      style={[
+        style,
+        styles.container,
+        containerHeight ? { height: containerHeight } : {},
+      ]}
+    >
       <WebView
         key={currentUri} // Force re-render on URI change
         source={{

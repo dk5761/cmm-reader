@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { Dimensions, View } from "react-native";
 import Animated, {
   useSharedValue,
@@ -15,7 +15,7 @@ type WebViewZoomableImageProps = {
   uri: string;
   baseUrl?: string;
   width?: number;
-  height?: number;
+  initialHeight?: number;
   onTap?: () => void;
 };
 
@@ -26,9 +26,11 @@ function WebViewZoomableImageComponent({
   uri,
   baseUrl,
   width = SCREEN_WIDTH,
-  height = SCREEN_WIDTH * 1.5,
+  initialHeight = SCREEN_WIDTH * 1.5,
   onTap,
 }: WebViewZoomableImageProps) {
+  const [height, setHeight] = useState(initialHeight);
+
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -37,6 +39,10 @@ function WebViewZoomableImageComponent({
   const savedTranslateY = useSharedValue(0);
 
   const [isZoomed, setIsZoomed] = useState(false);
+
+  const handleHeightChange = useCallback((newHeight: number) => {
+    setHeight(newHeight);
+  }, []);
 
   // Pinch gesture for zooming
   const pinchGesture = Gesture.Pinch()
@@ -127,7 +133,14 @@ function WebViewZoomableImageComponent({
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.View style={[{ width, height }, animatedStyle]}>
-        <WebViewImage uri={uri} baseUrl={baseUrl} style={{ width, height }} />
+        <WebViewImage
+          uri={uri}
+          baseUrl={baseUrl}
+          resizeMode="fill"
+          width={width}
+          onHeightChange={handleHeightChange}
+          style={{ width, height }}
+        />
       </Animated.View>
     </GestureDetector>
   );

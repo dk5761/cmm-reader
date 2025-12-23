@@ -296,6 +296,27 @@ export class MangaKakalotSource extends Source {
       ".page-chapter img",
     ];
 
+    // Common ad URL patterns to filter out
+    const adPatterns = [
+      /ivy/i,
+      /soulmate/i,
+      /sponsor/i,
+      /banner/i,
+      /advert/i,
+      /promo/i,
+      /toffee\.ai/i,
+      /doubleclick/i,
+      /googlesyndication/i,
+      /adsense/i,
+      /zinmanga/i, // Watermark/ad source
+      /fantasy/i, // "Live Your Fantasy"
+      /explore.*now/i,
+      /extreme/i,
+      /unbelievable/i,
+      /aimodel/i,
+      /ai.*model/i,
+    ];
+
     let pages: Page[] = [];
 
     for (const selector of selectors) {
@@ -318,7 +339,10 @@ export class MangaKakalotSource extends Source {
       if (pages.length > 0) break;
     }
 
-    return pages.filter((p) => p.imageUrl);
+    // Filter out empty URLs and advertisement images
+    return pages
+      .filter((p) => p.imageUrl)
+      .filter((p) => !adPatterns.some((pattern) => pattern.test(p.imageUrl)));
   }
 
   private parseStatus(text: string): MangaDetails["status"] {
