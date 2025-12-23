@@ -84,14 +84,15 @@ function WebViewImageComponent({
     return <View style={[style, styles.placeholder]} />;
   }
 
-  // Use 'origin' to send only the domain (e.g. https://www.mangakakalot.gg) as referer
-  // This satisfies hotlink protection without sending full path
+  // Ensure baseUrl has trailing slash for unsafe-url policy to send it
+  const effectiveBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-      <meta name="referrer" content="origin">
+      <meta name="referrer" content="unsafe-url">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { 
@@ -141,7 +142,7 @@ function WebViewImageComponent({
         key={currentUri} // Force re-render on URI change
         source={{
           html,
-          baseUrl, // Critical: sets the Origin/Referer for the document
+          baseUrl: effectiveBaseUrl, // Sets the "page" URL to include trailing slash
         }}
         style={[styles.webview, !loaded && styles.loading]}
         scrollEnabled={false}
