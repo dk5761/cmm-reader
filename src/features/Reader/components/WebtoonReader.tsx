@@ -1,4 +1,11 @@
-import { useCallback, useRef, useState, useMemo } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  useMemo,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import {
   View,
   Dimensions,
@@ -8,6 +15,7 @@ import {
 import Animated, {
   useAnimatedScrollHandler,
   SharedValue,
+  useAnimatedRef,
 } from "react-native-reanimated";
 import { WebViewZoomableImage } from "./WebViewZoomableImage";
 import type { Page } from "@/sources";
@@ -26,17 +34,28 @@ type WebtoonReaderProps = {
   paddingBottom?: number;
 };
 
-export function WebtoonReader({
-  pages,
-  baseUrl,
-  onPageChange,
-  onTap,
-  scrollY,
-  paddingBottom = 0,
-}: WebtoonReaderProps) {
+export type WebtoonReaderHandle = {
+  scrollTo: (options: { y: number; animated?: boolean }) => void;
+};
+
+export const WebtoonReader = forwardRef<
+  WebtoonReaderHandle,
+  WebtoonReaderProps
+>(function WebtoonReader(
+  { pages, baseUrl, onPageChange, onTap, scrollY, paddingBottom = 0 },
+  ref
+) {
   const pageHeight = SCREEN_WIDTH * 1.5;
   const lastReportedPage = useRef(1);
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: 3 });
+  const scrollViewRef = useRef<any>(null);
+
+  // Expose scroll methods to parent
+  useImperativeHandle(ref, () => ({
+    scrollTo: (options: { y: number; animated?: boolean }) => {
+      scrollViewRef.current?.scrollTo(options);
+    },
+  }));
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -115,6 +134,7 @@ export function WebtoonReader({
 
   return (
     <Animated.ScrollView
+      ref={scrollViewRef}
       showsVerticalScrollIndicator={false}
       onScroll={scrollHandler}
       onScrollEndDrag={handleScroll}
@@ -127,4 +147,4 @@ export function WebtoonReader({
       {pageElements}
     </Animated.ScrollView>
   );
-}
+});

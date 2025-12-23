@@ -1,11 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
   Pressable,
   StatusBar,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
+import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -15,7 +17,7 @@ import Animated, {
   withTiming,
   interpolate,
 } from "react-native-reanimated";
-import { WebtoonReader } from "../components";
+import { WebtoonReader, WebtoonReaderHandle } from "../components";
 import { useChapterPages } from "../api/reader.queries";
 import { getSource } from "@/sources";
 
@@ -38,6 +40,19 @@ export function ReaderScreen() {
   const [currentPage, setCurrentPage] = useState(1);
   const controlsVisible = useSharedValue(1);
   const scrollY = useSharedValue(0);
+  const scrollViewRef = useRef<WebtoonReaderHandle>(null);
+
+  const SCREEN_WIDTH = Dimensions.get("window").width;
+  const pageHeight = SCREEN_WIDTH * 1.5;
+
+  const scrollToPage = useCallback(
+    (page: number) => {
+      // Calculate scroll position for the target page
+      const targetY = (page - 1) * pageHeight;
+      scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+    },
+    [pageHeight]
+  );
 
   const toggleControls = useCallback(() => {
     controlsVisible.value = withTiming(controlsVisible.value === 1 ? 0 : 1, {
@@ -95,6 +110,7 @@ export function ReaderScreen() {
 
       {/* WebtoonReader Component */}
       <WebtoonReader
+        ref={scrollViewRef}
         pages={pages}
         baseUrl={source?.baseUrl}
         onPageChange={setCurrentPage}
@@ -151,20 +167,40 @@ export function ReaderScreen() {
         className="bg-black/70"
         pointerEvents="box-none"
       >
-        <View className="flex-row items-center justify-between px-6 py-4">
-          <Pressable className="p-2">
-            <Ionicons name="chevron-back" size={28} color="#fff" />
-          </Pressable>
+        <View className="px-4">
+          {/* Page indicator */}
+          <Text className="text-white text-sm font-medium text-center mb-2">
+            {currentPage} / {pages.length}
+          </Text>
 
-          <View className="items-center">
-            <Text className="text-white text-sm font-medium">
-              {currentPage} / {pages.length}
+          {/* Page Slider */}
+          <View className="flex-row items-center">
+            <Text className="text-zinc-400 text-xs w-8">1</Text>
+            <View className="flex-1 mx-2">
+              <Slider
+                style={{ width: "100%", height: 40 }}
+                minimumValue={1}
+                maximumValue={pages.length}
+                step={1}
+                value={currentPage}
+                onValueChange={(value: number) => {
+                  // Update displayed page number during drag
+                  setCurrentPage(Math.round(value));
+                }}
+                onSlidingComplete={(value: number) => {
+                  // Scroll to selected page when user releases slider
+                  const targetPage = Math.round(value);
+                  scrollToPage(targetPage);
+                }}
+                minimumTrackTintColor="#00d9ff"
+                maximumTrackTintColor="#3f3f46"
+                thumbTintColor="#00d9ff"
+              />
+            </View>
+            <Text className="text-zinc-400 text-xs w-8 text-right">
+              {pages.length}
             </Text>
           </View>
-
-          <Pressable className="p-2">
-            <Ionicons name="chevron-forward" size={28} color="#fff" />
-          </Pressable>
         </View>
       </Animated.View>
     </View>
