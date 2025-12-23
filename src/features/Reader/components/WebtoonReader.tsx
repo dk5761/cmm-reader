@@ -6,17 +6,17 @@ import {
   NativeScrollEvent,
 } from "react-native";
 import Animated, {
-  useSharedValue,
   useAnimatedScrollHandler,
   SharedValue,
 } from "react-native-reanimated";
-import { ZoomableImage } from "./ZoomableImage";
-import type { ReaderPage } from "../data/mockData";
+import { WebViewZoomableImage } from "./WebViewZoomableImage";
+import type { Page } from "@/sources";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type WebtoonReaderProps = {
-  pages: ReaderPage[];
+  pages: Page[];
+  baseUrl?: string;
   onPageChange?: (page: number) => void;
   onTap?: () => void;
   scrollY?: SharedValue<number>;
@@ -25,6 +25,7 @@ type WebtoonReaderProps = {
 
 export function WebtoonReader({
   pages,
+  baseUrl,
   onPageChange,
   onTap,
   scrollY,
@@ -73,9 +74,10 @@ export function WebtoonReader({
       overScrollMode="never"
     >
       {pages.map((page) => (
-        <ZoomableImage
-          key={page.id}
-          uri={page.url}
+        <WebViewZoomableImage
+          key={page.index}
+          uri={page.imageUrl}
+          baseUrl={baseUrl}
           width={SCREEN_WIDTH}
           height={pageHeight}
           onTap={onTap}

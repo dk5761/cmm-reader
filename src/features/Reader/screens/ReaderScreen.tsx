@@ -1,8 +1,14 @@
 import { useState, useCallback } from "react";
-import { View, Text, Pressable, StatusBar } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  StatusBar,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,12 +16,24 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated";
 import { WebtoonReader } from "../components";
-import { MOCK_CHAPTER_PAGES } from "../data/mockData";
+import { useChapterPages } from "../api/reader.queries";
+import { getSource } from "@/sources";
 
 export function ReaderScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const chapter = MOCK_CHAPTER_PAGES;
+  const { chapterId, sourceId, url } = useLocalSearchParams<{
+    chapterId: string;
+    sourceId: string;
+    url: string;
+  }>();
+
+  const source = getSource(sourceId || "");
+  const {
+    data: pages,
+    isLoading,
+    error,
+  } = useChapterPages(sourceId || "", url || "");
 
   const [currentPage, setCurrentPage] = useState(1);
   const controlsVisible = useSharedValue(1);
@@ -41,13 +59,44 @@ export function ReaderScreen() {
     ],
   }));
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-black items-center justify-center">
+        <ActivityIndicator size="large" color="#fff" />
+        <Text className="text-zinc-400 mt-4">Loading chapter...</Text>
+      </View>
+    );
+  }
+
+  // Error state
+  if (error || !pages || pages.length === 0) {
+    return (
+      <View className="flex-1 bg-black items-center justify-center p-6">
+        <Text className="text-red-500 text-lg font-bold">
+          Failed to load pages
+        </Text>
+        <Text className="text-zinc-400 text-center mt-2">
+          {(error as Error)?.message || "No pages found"}
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          className="mt-6 bg-zinc-800 px-6 py-3 rounded-lg"
+        >
+          <Text className="text-white">Go Back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-black">
       <StatusBar hidden />
 
       {/* WebtoonReader Component */}
       <WebtoonReader
-        pages={chapter.pages}
+        pages={pages}
+        baseUrl={source?.baseUrl}
         onPageChange={setCurrentPage}
         onTap={toggleControls}
         scrollY={scrollY}
@@ -78,10 +127,7 @@ export function ReaderScreen() {
               className="text-white text-sm font-semibold"
               numberOfLines={1}
             >
-              {chapter.mangaTitle}
-            </Text>
-            <Text className="text-zinc-400 text-xs">
-              Chapter {chapter.chapterNumber}
+              Chapter {chapterId}
             </Text>
           </View>
           <Pressable className="p-2 -mr-2">
@@ -112,7 +158,7 @@ export function ReaderScreen() {
 
           <View className="items-center">
             <Text className="text-white text-sm font-medium">
-              {currentPage} / {chapter.pages.length}
+              {currentPage} / {pages.length}
             </Text>
           </View>
 
