@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
 import { WebView, WebViewNavigation } from "react-native-webview";
+import CookieManager from "@react-native-cookies/cookies";
+import { HttpClient } from "@/core/http";
 
 type SessionWarmupProps = {
   /** URL to visit for warmup (e.g., the manga site homepage) */
@@ -13,15 +15,68 @@ type SessionWarmupProps = {
 
 /**
  * Hidden WebView that visits a URL to establish session cookies.
- * These cookies are then shared with other WebViews in the app.
+ * These cookies are then shared with other WebViews AND synced to HttpClient.
  */
 export function SessionWarmup({
   url,
   onReady,
-  timeout = 5000,
+  timeout = 8000,
 }: SessionWarmupProps) {
   const [isWarming, setIsWarming] = useState(true);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completedRef = useRef(false);
+
+  const getDomain = (urlString: string): string => {
+    try {
+      const parsed = new URL(urlString);
+      return parsed.hostname;
+    } catch {
+      return urlString;
+    }
+  };
+
+  const syncCookiesToHttpClient = useCallback(async () => {
+    try {
+      const domain = getDomain(url);
+      // Get all cookies from WebView for this domain
+      const cookies = await CookieManager.get(url);
+
+      if (Object.keys(cookies).length > 0) {
+        // Convert to simple key-value format for HttpClient
+        const cookieMap: Record<string, string> = {};
+        for (const [name, cookie] of Object.entries(cookies)) {
+          cookieMap[name] = cookie.value;
+        }
+
+        // Sync to HttpClient
+        HttpClient.setCookies(domain, cookieMap);
+        console.log(
+          "[SessionWarmup] Synced cookies to HttpClient:",
+          Object.keys(cookieMap).join(", ")
+        );
+
+        // Check for Cloudflare clearance
+        if (cookieMap["cf_clearance"]) {
+          console.log(
+            "[SessionWarmup] ✓ Cloudflare clearance cookie obtained!"
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("[SessionWarmup] Failed to sync cookies:", e);
+    }
+  }, [url]);
+
+  const completeWarmup = useCallback(async () => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+
+    // Sync cookies before completing
+    await syncCookiesToHttpClient();
+
+    setIsWarming(false);
+    onReady?.();
+  }, [syncCookiesToHttpClient, onReady]);
 
   useEffect(() => {
     // Set a timeout to complete warmup even if page takes too long
@@ -30,8 +85,7 @@ export function SessionWarmup({
         "[SessionWarmup] Timeout reached, completing warmup for:",
         url
       );
-      setIsWarming(false);
-      onReady?.();
+      completeWarmup();
     }, timeout);
 
     return () => {
@@ -39,16 +93,15 @@ export function SessionWarmup({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [url, timeout, onReady]);
+  }, [url, timeout, completeWarmup]);
 
   const handleLoadEnd = useCallback(() => {
-    console.log("[SessionWarmup] Page loaded, cookies established for:", url);
+    console.log("[SessionWarmup] Page loaded, syncing cookies for:", url);
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    setIsWarming(false);
-    onReady?.();
-  }, [url, onReady]);
+    completeWarmup();
+  }, [url, completeWarmup]);
 
   const handleNavigationStateChange = useCallback(
     (navState: WebViewNavigation) => {
@@ -79,7 +132,7 @@ export function SessionWarmup({
         sharedCookiesEnabled
         cacheEnabled
         cacheMode="LOAD_DEFAULT"
-        userAgent="Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+        userAgent={HttpClient.getUserAgent()}
       />
     </View>
   );

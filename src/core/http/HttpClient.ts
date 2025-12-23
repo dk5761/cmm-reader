@@ -9,6 +9,7 @@ interface CookieJar {
     [name: string]: {
       value: string;
       expires?: number;
+      timestamp?: number; // When cookie was set
     };
   };
 }
@@ -62,8 +63,9 @@ class HttpClientClass {
     if (!this.cookieJar[domain]) {
       this.cookieJar[domain] = {};
     }
+    const timestamp = Date.now();
     for (const [name, value] of Object.entries(cookies)) {
-      this.cookieJar[domain][name] = { value };
+      this.cookieJar[domain][name] = { value, timestamp };
     }
     this.saveCookies();
   }
@@ -74,6 +76,35 @@ class HttpClientClass {
     return Object.fromEntries(
       Object.entries(cookies).map(([name, cookie]) => [name, cookie.value])
     );
+  }
+
+  /**
+   * Check if we have a valid Cloudflare clearance cookie for a domain.
+   * Cookies older than 25 minutes are considered stale.
+   */
+  hasCfClearance(domain: string): boolean {
+    const cookies = this.cookieJar[domain];
+    if (!cookies || !cookies["cf_clearance"]) return false;
+
+    const clearance = cookies["cf_clearance"];
+    const age = Date.now() - (clearance.timestamp || 0);
+    const MAX_AGE = 25 * 60 * 1000; // 25 minutes
+
+    return age < MAX_AGE;
+  }
+
+  /**
+   * Check if a response indicates a Cloudflare challenge.
+   */
+  isCfChallenge(response: Response): boolean {
+    // Cloudflare challenge typically returns 403 or 503
+    if (response.status !== 403 && response.status !== 503) return false;
+
+    // Check for Cloudflare headers
+    const server = response.headers.get("server");
+    const cfRay = response.headers.get("cf-ray");
+
+    return !!(server?.includes("cloudflare") || cfRay);
   }
 
   clearCookies(domain?: string): void {
