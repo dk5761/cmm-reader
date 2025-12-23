@@ -113,10 +113,8 @@ export class MangaKakalotSource extends Source {
 
     // Check for next page
     const hasNextPage =
-      doc.querySelector("div.group_page") !== null ||
-      doc.querySelector(
-        "div.group-page a:not([href]) + a:not(:contains(Last))"
-      ) !== null;
+      doc.querySelector("a.page_select + a:not(.page_last)") !== null ||
+      doc.querySelector("a.page-select + a:not(.page-last)") !== null;
 
     console.log("[MangaKakalot] Popular results:", manga.length, "titles");
 
@@ -145,7 +143,9 @@ export class MangaKakalotSource extends Source {
       };
     });
 
-    const hasNextPage = doc.querySelector("div.group_page") !== null;
+    const hasNextPage =
+      doc.querySelector("a.page_select + a:not(.page_last)") !== null ||
+      doc.querySelector("a.page-select + a:not(.page-last)") !== null;
 
     return { manga: manga.filter((m) => m.title), hasNextPage };
   }

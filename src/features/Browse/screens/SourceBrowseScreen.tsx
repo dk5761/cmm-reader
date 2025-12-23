@@ -14,6 +14,7 @@ import { SearchBar, MangaCard } from "@/shared/components";
 import {
   useSearchManga,
   usePopularManga,
+  useLatestManga,
   flattenMangaPages,
 } from "../api/browse.queries";
 import { getSource } from "@/sources";
@@ -27,7 +28,8 @@ export function SourceBrowseScreen() {
   const router = useRouter();
   const { sourceId } = useLocalSearchParams<{ sourceId: string }>();
 
-  const [activeTab, setActiveTab] = useState<TabType>("popular");
+  // Default to "latest" tab
+  const [activeTab, setActiveTab] = useState<TabType>("latest");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
@@ -48,6 +50,7 @@ export function SourceBrowseScreen() {
 
   // Queries
   const popularQuery = usePopularManga(sourceId || "");
+  const latestQuery = useLatestManga(sourceId || "");
   const searchQueryResult = useSearchManga(
     sourceId || "",
     isSearching ? searchQuery : ""
@@ -75,30 +78,18 @@ export function SourceBrowseScreen() {
   );
 
   // Determine which data to show
-  const isLoading =
+  const currentQuery =
     activeTab === "search"
-      ? searchQueryResult.isLoading
-      : popularQuery.isLoading;
+      ? searchQueryResult
+      : activeTab === "popular"
+      ? popularQuery
+      : latestQuery;
 
-  const mangaList =
-    activeTab === "search"
-      ? flattenMangaPages(searchQueryResult.data?.pages)
-      : flattenMangaPages(popularQuery.data?.pages);
-
-  const fetchNextPage =
-    activeTab === "search"
-      ? searchQueryResult.fetchNextPage
-      : popularQuery.fetchNextPage;
-
-  const hasNextPage =
-    activeTab === "search"
-      ? searchQueryResult.hasNextPage
-      : popularQuery.hasNextPage;
-
-  const isFetchingNextPage =
-    activeTab === "search"
-      ? searchQueryResult.isFetchingNextPage
-      : popularQuery.isFetchingNextPage;
+  const isLoading = currentQuery.isLoading;
+  const mangaList = flattenMangaPages(currentQuery.data?.pages);
+  const fetchNextPage = currentQuery.fetchNextPage;
+  const hasNextPage = currentQuery.hasNextPage;
+  const isFetchingNextPage = currentQuery.isFetchingNextPage;
 
   if (!source) {
     return (
@@ -132,7 +123,7 @@ export function SourceBrowseScreen() {
             setSearchQuery(text);
             if (!text.trim()) {
               setIsSearching(false);
-              setActiveTab("popular");
+              setActiveTab("latest");
             }
           }}
           onSubmitEditing={handleSearch}
