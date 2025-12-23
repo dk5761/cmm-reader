@@ -1,29 +1,11 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-  useMemo,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
-import {
-  View,
-  Dimensions,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
-} from "react-native";
-import Animated, {
-  useAnimatedScrollHandler,
-  SharedValue,
-  useAnimatedRef,
-} from "react-native-reanimated";
+import { useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import { Dimensions, ViewToken } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { SharedValue } from "react-native-reanimated";
 import { WebViewZoomableImage } from "./WebViewZoomableImage";
 import type { Page } from "@/sources";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-// Number of pages to preload before and after visible range
-const PAGE_BUFFER = 2;
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type WebtoonReaderProps = {
   pages: Page[];
@@ -35,6 +17,7 @@ type WebtoonReaderProps = {
 };
 
 export type WebtoonReaderHandle = {
+  scrollToIndex: (index: number, animated?: boolean) => void;
   scrollTo: (options: { y: number; animated?: boolean }) => void;
 };
 
@@ -45,106 +28,106 @@ export const WebtoonReader = forwardRef<
   { pages, baseUrl, onPageChange, onTap, scrollY, paddingBottom = 0 },
   ref
 ) {
-  const pageHeight = SCREEN_WIDTH * 1.5;
+  const flashListRef = useRef<any>(null);
   const lastReportedPage = useRef(1);
-  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 3 });
-  const scrollViewRef = useRef<any>(null);
+
+  // Track heights for each page (for accurate scroll calculations)
+  const itemHeights = useRef<Map<number, number>>(new Map());
 
   // Expose scroll methods to parent
   useImperativeHandle(ref, () => ({
+    scrollToIndex: (index: number, animated = true) => {
+      flashListRef.current?.scrollToIndex({
+        index: Math.max(0, Math.min(index, pages.length - 1)),
+        animated,
+        viewPosition: 0, // Align to top
+      });
+    },
     scrollTo: (options: { y: number; animated?: boolean }) => {
-      scrollViewRef.current?.scrollTo(options);
+      flashListRef.current?.scrollToOffset({
+        offset: options.y,
+        animated: options.animated ?? true,
+      });
     },
   }));
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
+  // Track scroll position for parent
+  const handleScroll = useCallback(
+    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
       if (scrollY) {
-        scrollY.value = event.contentOffset.y;
+        scrollY.value = event.nativeEvent.contentOffset.y;
       }
     },
-  });
+    [scrollY]
+  );
 
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset } = event.nativeEvent;
-      const scrollPosition = contentOffset.y;
+  // Track which item is visible
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0 && onPageChange) {
+        // Get the first fully visible item, or first visible
+        const firstVisible = viewableItems[0];
+        const currentPage = (firstVisible.index ?? 0) + 1;
 
-      // Calculate which pages are visible
-      const firstVisiblePage = Math.floor(scrollPosition / pageHeight);
-      const lastVisiblePage = Math.ceil(
-        (scrollPosition + SCREEN_HEIGHT) / pageHeight
-      );
-
-      // Update visible range with buffer
-      const start = Math.max(0, firstVisiblePage - PAGE_BUFFER);
-      const end = Math.min(pages.length - 1, lastVisiblePage + PAGE_BUFFER);
-
-      setVisibleRange((prev) => {
-        if (prev.start !== start || prev.end !== end) {
-          return { start, end };
-        }
-        return prev;
-      });
-
-      // Report page change
-      if (onPageChange) {
-        const currentPage = firstVisiblePage + 1;
-        if (currentPage !== lastReportedPage.current && currentPage >= 1) {
+        if (currentPage !== lastReportedPage.current) {
           lastReportedPage.current = currentPage;
           onPageChange(currentPage);
         }
       }
     },
-    [onPageChange, pages.length, pageHeight]
+    [onPageChange]
   );
 
-  // Create page elements with placeholders for non-visible pages
-  const pageElements = useMemo(() => {
-    return pages.map((page, index) => {
-      const isVisible =
-        index >= visibleRange.start && index <= visibleRange.end;
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
 
-      if (isVisible) {
-        return (
-          <WebViewZoomableImage
-            key={page.index}
-            uri={page.imageUrl}
-            baseUrl={baseUrl}
-            width={SCREEN_WIDTH}
-            initialHeight={pageHeight}
-            onTap={onTap}
-          />
-        );
-      } else {
-        // Placeholder for non-visible pages
-        return (
-          <View
-            key={page.index}
-            style={{
-              width: SCREEN_WIDTH,
-              height: pageHeight,
-              backgroundColor: "#111",
-            }}
-          />
-        );
-      }
-    });
-  }, [pages, baseUrl, pageHeight, onTap, visibleRange]);
+  const handleHeightChange = useCallback((index: number, height: number) => {
+    itemHeights.current.set(index, height);
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: Page; index: number }) => (
+      <WebViewZoomableImage
+        uri={item.imageUrl}
+        baseUrl={baseUrl}
+        width={SCREEN_WIDTH}
+        minHeight={100}
+        onTap={onTap}
+        onHeightChange={(height) => handleHeightChange(index, height)}
+      />
+    ),
+    [baseUrl, onTap, handleHeightChange]
+  );
+
+  const keyExtractor = useCallback(
+    (item: Page, index: number) => `page-${item.index}-${index}`,
+    []
+  );
+
+  // Provide layout info for better scroll accuracy
+  const overrideItemLayout = useCallback(
+    (layout: { span?: number }, item: Page, index: number) => {
+      // FlashList v2 uses this for span, not size
+    },
+    []
+  );
 
   return (
-    <Animated.ScrollView
-      ref={scrollViewRef}
+    <FlashList
+      ref={flashListRef}
+      data={pages}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      overrideItemLayout={overrideItemLayout}
       showsVerticalScrollIndicator={false}
-      onScroll={scrollHandler}
-      onScrollEndDrag={handleScroll}
-      onMomentumScrollEnd={handleScroll}
+      onScroll={handleScroll}
       scrollEventThrottle={16}
+      onViewableItemsChanged={onViewableItemsChanged}
+      viewabilityConfig={viewabilityConfig}
       contentContainerStyle={{ paddingBottom }}
       decelerationRate="fast"
-      overScrollMode="never"
-    >
-      {pageElements}
-    </Animated.ScrollView>
+      drawDistance={SCREEN_WIDTH * 2}
+    />
   );
 });

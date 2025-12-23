@@ -5,7 +5,6 @@ import {
   Pressable,
   StatusBar,
   ActivityIndicator,
-  Dimensions,
 } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
@@ -46,9 +45,6 @@ export function ReaderScreen() {
   const controlsVisible = useSharedValue(1);
   const scrollY = useSharedValue(0);
   const scrollViewRef = useRef<WebtoonReaderHandle>(null);
-
-  const SCREEN_WIDTH = Dimensions.get("window").width;
-  const pageHeight = SCREEN_WIDTH * 1.5;
 
   // Find current chapter index and determine prev/next
   const currentChapterIndex = chapters?.findIndex((ch) => ch.url === url) ?? -1;
@@ -97,14 +93,11 @@ export function ReaderScreen() {
     mangaUrl,
   ]);
 
-  const scrollToPage = useCallback(
-    (page: number) => {
-      // Calculate scroll position for the target page
-      const targetY = (page - 1) * pageHeight;
-      scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
-    },
-    [pageHeight]
-  );
+  const scrollToPage = useCallback((page: number) => {
+    // Use index-based scrolling (like Tachiyomi's RecyclerView.scrollToPosition)
+    const targetIndex = page - 1; // Convert 1-based page to 0-based index
+    scrollViewRef.current?.scrollToIndex(targetIndex, true);
+  }, []);
 
   const toggleControls = useCallback(() => {
     controlsVisible.value = withTiming(controlsVisible.value === 1 ? 0 : 1, {
