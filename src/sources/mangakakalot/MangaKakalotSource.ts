@@ -31,6 +31,27 @@ export class MangaKakalotSource extends Source {
   private readonly chapterSelector =
     "div.chapter-list div.row, ul.row-content-chapter li";
 
+  // Preferred CDN - rewrite all image URLs to use this working CDN
+  private readonly preferredCdn = "imgs-2.2xstorage.com";
+
+  /**
+   * Rewrite image URL to use the preferred/working CDN
+   */
+  private rewriteToCdn(url: string): string {
+    if (!url) return url;
+    try {
+      const parsed = new URL(url);
+      // Only rewrite 2xstorage.com URLs
+      if (parsed.host.includes("2xstorage.com")) {
+        parsed.host = this.preferredCdn;
+        return parsed.toString();
+      }
+    } catch {
+      // Invalid URL, return as-is
+    }
+    return url;
+  }
+
   async search(query: string, page = 1): Promise<SearchResult> {
     // Normalize query: replace spaces with underscores
     const normalizedQuery = query.toLowerCase().replace(/\s+/g, "_");
@@ -76,7 +97,10 @@ export class MangaKakalotSource extends Source {
 
       const mangaUrl = linkEl?.getAttribute("href") || "";
       const title = linkEl?.textContent?.trim() || "";
-      const cover = imgEl?.getAttribute("src") || "";
+      const cover =
+        imgEl?.getAttribute("src") || imgEl?.getAttribute("data-src") || "";
+
+      console.log("[MangaKakalot] Cover URL:", cover, "Title:", title);
 
       return {
         id: this.getMangaIdFromUrl(mangaUrl),
@@ -93,6 +117,8 @@ export class MangaKakalotSource extends Source {
       doc.querySelector(
         "div.group-page a:not([href]) + a:not(:contains(Last))"
       ) !== null;
+
+    console.log("[MangaKakalot] Popular results:", manga.length, "titles");
 
     return { manga: manga.filter((m) => m.title), hasNextPage };
   }

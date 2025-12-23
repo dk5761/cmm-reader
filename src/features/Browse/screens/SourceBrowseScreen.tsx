@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   flattenMangaPages,
 } from "../api/browse.queries";
 import { getSource } from "@/sources";
+import { useSession } from "@/shared/contexts/SessionContext";
 import type { Manga } from "@/sources";
 
 type TabType = "popular" | "latest" | "search";
@@ -33,6 +34,17 @@ export function SourceBrowseScreen() {
   const source = getSource(sourceId || "");
   const fgColor = useCSSVariable("--color-foreground");
   const foreground = typeof fgColor === "string" ? fgColor : "#fff";
+
+  // Session warmup
+  const { isSessionReady, warmupSession } = useSession();
+  const sessionReady = source ? isSessionReady(source.baseUrl) : false;
+
+  // Trigger warmup on mount
+  useEffect(() => {
+    if (source?.baseUrl) {
+      warmupSession(source.baseUrl);
+    }
+  }, [source?.baseUrl, warmupSession]);
 
   // Queries
   const popularQuery = usePopularManga(sourceId || "");
@@ -183,7 +195,7 @@ export function SourceBrowseScreen() {
                 id={item.id}
                 title={item.title}
                 coverUrl={item.cover}
-                headers={{ Referer: source?.baseUrl || "" }}
+                baseUrl={source?.baseUrl}
                 onPress={() => handleMangaPress(item)}
               />
             </View>

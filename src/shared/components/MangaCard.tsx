@@ -1,20 +1,22 @@
 import { memo } from "react";
-import { View, Text, Pressable, Image } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
 } from "react-native-reanimated";
+import { WebViewImage } from "./WebViewImage";
 
 type MangaCardProps = {
   id: string;
   title: string;
   coverUrl: string;
-  headers?: Record<string, string>; // For hotlink protected images
+  baseUrl?: string; // Source base URL for setting origin
+  headers?: Record<string, string>;
   onPress?: () => void;
-  badge?: string; // e.g. "COMPLETED"
-  progress?: number; // 0 to 100
-  subtitle?: string; // e.g. "Ch. 164"
+  badge?: string;
+  progress?: number;
+  subtitle?: string;
 };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -23,6 +25,7 @@ function MangaCardComponent({
   id,
   title,
   coverUrl,
+  baseUrl = "https://www.mangakakalot.gg",
   headers,
   onPress,
   badge,
@@ -36,7 +39,7 @@ function MangaCardComponent({
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+    scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
   };
 
   const handlePressOut = () => {
@@ -52,11 +55,11 @@ function MangaCardComponent({
       style={[animatedStyle]}
     >
       {/* Cover Image Container */}
-      <View className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-800">
-        <Image
-          source={{ uri: coverUrl, headers }}
-          className="w-full h-full"
-          resizeMode="cover"
+      <View className="relative w-full aspect-2/3 rounded-xl overflow-hidden bg-zinc-800">
+        <WebViewImage
+          uri={coverUrl}
+          baseUrl={baseUrl}
+          style={{ width: "100%", height: "100%" }}
         />
 
         {/* Badge - Top Left */}
@@ -67,8 +70,6 @@ function MangaCardComponent({
             </Text>
           </View>
         )}
-
-        {/* Unread Badge - Top Right (Optional logic kept if needed, but using Badge prop mostly) */}
       </View>
 
       {/* Info Section */}
@@ -80,30 +81,18 @@ function MangaCardComponent({
           {title}
         </Text>
 
-        {/* Progress Bar */}
-        {progress !== undefined && (
-          <View className="w-full h-1 bg-zinc-700 rounded-full overflow-hidden">
-            <View
-              className="h-full bg-primary"
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-            />
-          </View>
+        {subtitle && (
+          <Text className="text-muted text-xs" numberOfLines={1}>
+            {subtitle}
+          </Text>
         )}
 
-        {/* Metadata Row */}
-        {(subtitle || progress !== undefined) && (
-          <View className="flex-row items-center justify-between">
-            <Text
-              className="text-zinc-500 text-[10px] font-medium"
-              numberOfLines={1}
-            >
-              {subtitle}
-            </Text>
-            {progress !== undefined && (
-              <Text className="text-zinc-500 text-[10px] font-medium">
-                {progress}%
-              </Text>
-            )}
+        {progress !== undefined && progress >= 0 && (
+          <View className="w-full h-1 bg-zinc-700 rounded-full overflow-hidden mt-1">
+            <View
+              className="h-full bg-primary rounded-full"
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
           </View>
         )}
       </View>
