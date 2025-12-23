@@ -78,6 +78,7 @@ export function MangaDetailScreen() {
         chapterId, // This is just the ID (number usually)
         sourceId,
         url: chapterUrl, // The full URL to fetch pages
+        mangaUrl: url, // Pass manga URL to fetch chapter list for navigation
       },
     });
   };

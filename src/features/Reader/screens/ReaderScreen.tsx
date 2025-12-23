@@ -20,14 +20,16 @@ import Animated, {
 import { WebtoonReader, WebtoonReaderHandle } from "../components";
 import { useChapterPages } from "../api/reader.queries";
 import { getSource } from "@/sources";
+import { useChapterList } from "../../Manga/api/manga.queries";
 
 export function ReaderScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { chapterId, sourceId, url } = useLocalSearchParams<{
+  const { chapterId, sourceId, url, mangaUrl } = useLocalSearchParams<{
     chapterId: string;
     sourceId: string;
     url: string;
+    mangaUrl: string;
   }>();
 
   const source = getSource(sourceId || "");
@@ -37,6 +39,9 @@ export function ReaderScreen() {
     error,
   } = useChapterPages(sourceId || "", url || "");
 
+  // Fetch chapter list for prev/next navigation
+  const { data: chapters } = useChapterList(sourceId || "", mangaUrl || "");
+
   const [currentPage, setCurrentPage] = useState(1);
   const controlsVisible = useSharedValue(1);
   const scrollY = useSharedValue(0);
@@ -44,6 +49,53 @@ export function ReaderScreen() {
 
   const SCREEN_WIDTH = Dimensions.get("window").width;
   const pageHeight = SCREEN_WIDTH * 1.5;
+
+  // Find current chapter index and determine prev/next
+  const currentChapterIndex = chapters?.findIndex((ch) => ch.url === url) ?? -1;
+  const hasPrevChapter = currentChapterIndex < (chapters?.length ?? 0) - 1;
+  const hasNextChapter = currentChapterIndex > 0;
+
+  const goToPrevChapter = useCallback(() => {
+    if (!chapters || !hasPrevChapter) return;
+    const prevChapter = chapters[currentChapterIndex + 1];
+    router.replace({
+      pathname: "/reader/[chapterId]",
+      params: {
+        chapterId: prevChapter.id,
+        sourceId,
+        url: prevChapter.url,
+        mangaUrl,
+      },
+    });
+  }, [
+    chapters,
+    currentChapterIndex,
+    hasPrevChapter,
+    router,
+    sourceId,
+    mangaUrl,
+  ]);
+
+  const goToNextChapter = useCallback(() => {
+    if (!chapters || !hasNextChapter) return;
+    const nextChapter = chapters[currentChapterIndex - 1];
+    router.replace({
+      pathname: "/reader/[chapterId]",
+      params: {
+        chapterId: nextChapter.id,
+        sourceId,
+        url: nextChapter.url,
+        mangaUrl,
+      },
+    });
+  }, [
+    chapters,
+    currentChapterIndex,
+    hasNextChapter,
+    router,
+    sourceId,
+    mangaUrl,
+  ]);
 
   const scrollToPage = useCallback(
     (page: number) => {
@@ -173,10 +225,20 @@ export function ReaderScreen() {
             {currentPage} / {pages.length}
           </Text>
 
-          {/* Page Slider */}
+          {/* Page Slider with Chapter Navigation */}
           <View className="flex-row items-center">
-            <Text className="text-zinc-400 text-xs w-8">1</Text>
-            <View className="flex-1 mx-2">
+            {/* Previous Chapter Arrow */}
+            <Pressable
+              onPress={goToPrevChapter}
+              disabled={!hasPrevChapter}
+              className="p-2"
+              style={{ opacity: hasPrevChapter ? 1 : 0.3 }}
+            >
+              <Ionicons name="chevron-back" size={24} color="#fff" />
+            </Pressable>
+
+            <Text className="text-zinc-400 text-xs w-6 text-center">1</Text>
+            <View className="flex-1 mx-1">
               <Slider
                 style={{ width: "100%", height: 40 }}
                 minimumValue={1}
@@ -197,9 +259,19 @@ export function ReaderScreen() {
                 thumbTintColor="#00d9ff"
               />
             </View>
-            <Text className="text-zinc-400 text-xs w-8 text-right">
+            <Text className="text-zinc-400 text-xs w-6 text-center">
               {pages.length}
             </Text>
+
+            {/* Next Chapter Arrow */}
+            <Pressable
+              onPress={goToNextChapter}
+              disabled={!hasNextChapter}
+              className="p-2"
+              style={{ opacity: hasNextChapter ? 1 : 0.3 }}
+            >
+              <Ionicons name="chevron-forward" size={24} color="#fff" />
+            </Pressable>
           </View>
         </View>
       </Animated.View>
