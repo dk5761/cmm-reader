@@ -73,7 +73,7 @@ true;
 export function SessionWarmup({
   url,
   onReady,
-  autoTimeout = 10000,
+  autoTimeout = 5000,
   maxTimeout = 120000,
   requireCfClearance = false,
 }: SessionWarmupProps) {

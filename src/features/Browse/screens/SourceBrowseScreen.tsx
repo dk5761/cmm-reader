@@ -181,7 +181,15 @@ export function SourceBrowseScreen() {
       </View>
 
       {/* Content */}
-      {isLoading ? (
+      {!sessionReady ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color={foreground} />
+          <Text className="text-muted mt-4">Warming up session...</Text>
+          <Text className="text-muted/60 text-xs mt-2">
+            Preparing connection to {source.name}
+          </Text>
+        </View>
+      ) : isLoading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={foreground} />
           <Text className="text-muted mt-4">Loading...</Text>
