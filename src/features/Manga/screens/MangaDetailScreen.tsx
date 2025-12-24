@@ -15,10 +15,12 @@ import { ChapterCard, GenreChip } from "../components";
 import { useMangaDetails, useChapterList } from "../api/manga.queries";
 import { getSource } from "@/sources";
 import {
-  useIsInLibrary,
   useAddToLibrary,
   useRemoveFromLibrary,
   useLibraryMangaById,
+  useMarkChapterRead,
+  useMarkChapterUnread,
+  useMarkPreviousAsRead,
 } from "@/features/Library/hooks";
 import { useSession } from "@/shared/contexts/SessionContext";
 
@@ -66,6 +68,11 @@ export function MangaDetailScreen() {
   const isInLibrary = !!libraryManga;
   const addToLibrary = useAddToLibrary();
   const removeFromLibrary = useRemoveFromLibrary();
+
+  // Reading progress hooks
+  const markChapterRead = useMarkChapterRead();
+  const markChapterUnread = useMarkChapterUnread();
+  const markPreviousAsRead = useMarkPreviousAsRead();
 
   // Create a set of read chapter IDs for quick lookup
   const readChapterIds = new Set(
@@ -239,7 +246,11 @@ export function MangaDetailScreen() {
               chapter={chapter}
               isRead={readChapterIds.has(chapter.id)}
               onPress={() => handleChapterPress(chapter.id, chapter.url)}
-              onOptions={() => console.log("Options:", chapter.id)}
+              onMarkAsRead={() => markChapterRead(libraryId, chapter.id)}
+              onMarkAsUnread={() => markChapterUnread(libraryId, chapter.id)}
+              onMarkPreviousAsRead={() =>
+                markPreviousAsRead(libraryId, chapter.number)
+              }
             />
           ))}
         </View>

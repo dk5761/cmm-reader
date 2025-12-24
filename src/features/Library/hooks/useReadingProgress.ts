@@ -109,6 +109,28 @@ export function useMarkPreviousAsRead() {
 }
 
 /**
+ * Mark chapter as unread
+ */
+export function useMarkChapterUnread() {
+  const realm = useRealm();
+
+  return useCallback(
+    (mangaId: string, chapterId: string) => {
+      realm.write(() => {
+        const manga = realm.objectForPrimaryKey(MangaSchema, mangaId);
+        const chapter = manga?.chapters.find((c) => c.id === chapterId);
+        if (chapter) {
+          chapter.isRead = false;
+          chapter.lastPageRead = 0;
+          console.log("[Progress] Marked chapter as unread:", chapterId);
+        }
+      });
+    },
+    [realm]
+  );
+}
+
+/**
  * Get reading progress for a manga
  */
 export function useGetProgress(mangaId: string) {
