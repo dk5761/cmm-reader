@@ -38,13 +38,16 @@ export class AsuraScansSource extends Source {
     mangaThumbnail: "img",
     nextPage: "a:contains(Next)",
 
-    // Manga details
-    detailTitle: "span.text-xl.font-bold, h3.truncate",
+    // Manga details - more specific selectors to avoid nav elements
+    // Title is inside div with both text-center and sm:text-left classes
+    // The colon in sm:text-left must be escaped in CSS selector
+    detailTitle: "div.text-center.sm\\:text-left span.text-xl.font-bold",
     detailThumbnail: "img[alt=poster]",
     detailDescription: "span.font-medium.text-sm",
     detailInfoGrid: "div.grid > div",
     detailInfoFlex: "div.flex",
-    detailGenres: "button.text-white",
+    // Genres are in a flex-wrap container with gap-3
+    detailGenres: "div.flex.flex-row.flex-wrap.gap-3 button",
 
     // Chapter list (hide premium chapters by default)
     chapterList: "div.scrollbar-thumb-themecolor > div.group:not(:has(svg))",

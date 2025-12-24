@@ -35,6 +35,13 @@ export default function TabLayout() {
       />
       <Tabs.Screen name="updates" options={{ title: "History" }} />
       <Tabs.Screen name="settings" options={{ title: "More" }} />
+      <Tabs.Screen
+        name="debug"
+        options={{
+          title: "Debug",
+          href: null, // Hide from tab bar
+        }}
+      />
     </Tabs>
   );
 }
