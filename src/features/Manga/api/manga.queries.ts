@@ -4,7 +4,11 @@ import { getSource } from "@/sources";
 /**
  * Get manga details
  */
-export function useMangaDetails(sourceId: string, mangaUrl: string) {
+export function useMangaDetails(
+  sourceId: string,
+  mangaUrl: string,
+  enabled: boolean = true
+) {
   const source = getSource(sourceId);
 
   return useQuery({
@@ -13,7 +17,7 @@ export function useMangaDetails(sourceId: string, mangaUrl: string) {
       if (!source) throw new Error(`Source ${sourceId} not found`);
       return source.getMangaDetails(mangaUrl);
     },
-    enabled: !!source && !!mangaUrl,
+    enabled: enabled && !!source && !!mangaUrl,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -21,7 +25,11 @@ export function useMangaDetails(sourceId: string, mangaUrl: string) {
 /**
  * Get chapter list for manga
  */
-export function useChapterList(sourceId: string, mangaUrl: string) {
+export function useChapterList(
+  sourceId: string,
+  mangaUrl: string,
+  enabled: boolean = true
+) {
   const source = getSource(sourceId);
 
   return useQuery({
@@ -30,7 +38,7 @@ export function useChapterList(sourceId: string, mangaUrl: string) {
       if (!source) throw new Error(`Source ${sourceId} not found`);
       return source.getChapterList(mangaUrl);
     },
-    enabled: !!source && !!mangaUrl,
+    enabled: enabled && !!source && !!mangaUrl,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

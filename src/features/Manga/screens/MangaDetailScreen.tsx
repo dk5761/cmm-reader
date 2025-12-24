@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   View,
   Text,
@@ -18,6 +19,7 @@ import {
   useAddToLibrary,
   useRemoveFromLibrary,
 } from "@/features/Library/hooks";
+import { useSession } from "@/shared/contexts/SessionContext";
 
 export function MangaDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -31,16 +33,31 @@ export function MangaDetailScreen() {
   console.log("[MangaDetailScreen] Params:", { id, sourceId, url });
 
   const source = getSource(sourceId || "");
+
+  // Session warmup for CF-protected sources (needed when coming from Library)
+  const { isSessionReady, warmupSession } = useSession();
+  const sessionReady = source?.needsCloudflareBypass
+    ? isSessionReady(source.baseUrl)
+    : true;
+
+  // Trigger warmup if needed
+  useEffect(() => {
+    if (source?.needsCloudflareBypass && source?.baseUrl) {
+      warmupSession(source.baseUrl, true);
+    }
+  }, [source?.baseUrl, source?.needsCloudflareBypass, warmupSession]);
+
+  // Only fetch data when session is ready
   const {
     data: manga,
     isLoading: isMangaLoading,
     error: mangaError,
-  } = useMangaDetails(sourceId || "", url || "");
+  } = useMangaDetails(sourceId || "", url || "", sessionReady);
   const {
     data: chapters,
     isLoading: isChaptersLoading,
     error: chaptersError,
-  } = useChapterList(sourceId || "", url || "");
+  } = useChapterList(sourceId || "", url || "", sessionReady);
 
   // Library hooks
   const isInLibrary = useIsInLibrary(sourceId || "", id || "");
@@ -61,6 +78,19 @@ export function MangaDetailScreen() {
       addToLibrary(manga, chapters, sourceId);
     }
   };
+
+  // Session warmup loading state
+  if (source?.needsCloudflareBypass && !sessionReady) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator size="large" color={foreground} />
+        <Text className="text-muted mt-4">Warming up session...</Text>
+        <Text className="text-muted/60 text-xs mt-2">
+          Preparing connection to {source.name}
+        </Text>
+      </View>
+    );
+  }
 
   // Loading state
   if (isMangaLoading || isChaptersLoading) {
