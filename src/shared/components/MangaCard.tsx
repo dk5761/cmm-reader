@@ -61,7 +61,11 @@ function MangaCardComponent({
 
         {/* Badge - Top Left */}
         {badge && (
-          <View className="absolute top-2 left-2 px-2 py-1 bg-green-500 rounded-md">
+          <View
+            className={`absolute top-2 left-2 px-2 py-1 rounded-md ${
+              badge.includes("NEW") ? "bg-primary" : "bg-green-500"
+            }`}
+          >
             <Text className="text-[10px] font-bold text-white uppercase tracking-wider">
               {badge}
             </Text>

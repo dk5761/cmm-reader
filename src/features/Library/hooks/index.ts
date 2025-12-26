@@ -17,3 +17,5 @@ export {
   useMarkPreviousAsUnread,
   useGetProgress,
 } from "./useReadingProgress";
+
+export { useSyncLibrary } from "./useSyncLibrary";
