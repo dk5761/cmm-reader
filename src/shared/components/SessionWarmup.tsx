@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -14,6 +15,7 @@ import {
   WebViewMessageEvent,
 } from "react-native-webview";
 import CookieManager from "@react-native-cookies/cookies";
+import * as WebBrowser from "expo-web-browser";
 import { HttpClient } from "@/core/http";
 
 type SessionWarmupProps = {
@@ -79,8 +81,11 @@ export function SessionWarmup({
 }: SessionWarmupProps) {
   const [isWarming, setIsWarming] = useState(true);
   const [showManualWebView, setShowManualWebView] = useState(false);
+  const [showSafariOption, setShowSafariOption] = useState(false);
+  const [isSafariLoading, setIsSafariLoading] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safariTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completedRef = useRef(false);
   const webViewRef = useRef<WebView>(null);
   const checkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -103,6 +108,10 @@ export function SessionWarmup({
     if (maxTimeoutRef.current) {
       clearTimeout(maxTimeoutRef.current);
       maxTimeoutRef.current = null;
+    }
+    if (safariTimeoutRef.current) {
+      clearTimeout(safariTimeoutRef.current);
+      safariTimeoutRef.current = null;
     }
     if (checkIntervalRef.current) {
       clearInterval(checkIntervalRef.current);
@@ -213,8 +222,64 @@ export function SessionWarmup({
         "[SessionWarmup] Auto-bypass timeout, showing manual WebView"
       );
       setShowManualWebView(true);
+
+      // After 15s in manual mode, show Safari option (iOS only)
+      if (Platform.OS === "ios") {
+        safariTimeoutRef.current = setTimeout(() => {
+          if (!completedRef.current && !cfChallengePassedRef.current) {
+            console.log(
+              "[SessionWarmup] Manual WebView timing out, showing Safari option"
+            );
+            setShowSafariOption(true);
+          }
+        }, 15000);
+      }
     }
   }, []);
+
+  // Open URL in Safari for Turnstile bypass
+  const openInSafari = useCallback(async () => {
+    if (completedRef.current) return;
+
+    console.log("[SessionWarmup] Opening in Safari:", url);
+    setIsSafariLoading(true);
+
+    try {
+      // Use openAuthSessionAsync which shares cookies with Safari
+      const result = await WebBrowser.openAuthSessionAsync(
+        url,
+        undefined, // No callback URL - user will manually come back
+        {
+          preferEphemeralSession: false, // Share cookies with Safari
+          showInRecents: true,
+        }
+      );
+
+      console.log("[SessionWarmup] Safari result:", result.type);
+
+      // After returning from Safari, try to sync cookies
+      const hasClearance = await syncCookiesFromNative();
+
+      if (hasClearance) {
+        console.log("[SessionWarmup] ✓ Got cf_clearance from Safari!");
+        completeWarmup();
+      } else {
+        // Give a moment for cookies to propagate, then complete anyway
+        console.log("[SessionWarmup] No cf_clearance yet, waiting briefly...");
+        setTimeout(async () => {
+          await syncCookiesFromNative();
+          completeWarmup();
+        }, 1000);
+      }
+    } catch (error) {
+      console.warn("[SessionWarmup] Safari error:", error);
+      // Still try to sync cookies and complete
+      await syncCookiesFromNative();
+      completeWarmup();
+    } finally {
+      setIsSafariLoading(false);
+    }
+  }, [url, syncCookiesFromNative, completeWarmup]);
 
   useEffect(() => {
     if (requireCfClearance) {
@@ -326,6 +391,22 @@ export function SessionWarmup({
           <Text style={styles.subtitle}>
             Please complete the security check to access this source
           </Text>
+
+          {/* Safari fallback button - shows after timeout on iOS */}
+          {showSafariOption && Platform.OS === "ios" && (
+            <TouchableOpacity
+              onPress={openInSafari}
+              style={styles.safariButton}
+              disabled={isSafariLoading}
+            >
+              {isSafariLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.safariButtonText}>Open in Safari</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
           <WebView
             ref={webViewRef}
             source={{ uri: url }}
@@ -337,6 +418,7 @@ export function SessionWarmup({
             domStorageEnabled
             thirdPartyCookiesEnabled
             sharedCookiesEnabled
+            originWhitelist={["*"]}
             cacheEnabled
             cacheMode="LOAD_DEFAULT"
             userAgent={HttpClient.getUserAgent()}
@@ -360,6 +442,7 @@ export function SessionWarmup({
         domStorageEnabled
         thirdPartyCookiesEnabled
         sharedCookiesEnabled
+        originWhitelist={["*"]}
         cacheEnabled
         cacheMode="LOAD_DEFAULT"
         userAgent={HttpClient.getUserAgent()}
@@ -416,5 +499,20 @@ const styles = StyleSheet.create({
   },
   fullWebview: {
     flex: 1,
+  },
+  safariButton: {
+    backgroundColor: "#007AFF",
+    marginHorizontal: 16,
+    marginVertical: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  safariButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
