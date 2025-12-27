@@ -70,7 +70,29 @@ export function ReaderContainer() {
 
   // Calculate derived values - only after library is checked
   const savedChapter = libraryManga?.chapters.find((c) => c.id === chapterId);
+
+  // Debug logging for persistence issue
+  console.log("[ReaderContainer] Looking for chapterId:", chapterId);
+  console.log("[ReaderContainer] libraryManga exists:", !!libraryManga);
+  if (libraryManga) {
+    console.log(
+      "[ReaderContainer] Total chapters:",
+      libraryManga.chapters.length
+    );
+    console.log(
+      "[ReaderContainer] First 3 chapter IDs:",
+      libraryManga.chapters.slice(0, 3).map((c) => c.id)
+    );
+    console.log("[ReaderContainer] savedChapter found:", !!savedChapter);
+    console.log(
+      "[ReaderContainer] savedChapter.lastPageRead:",
+      savedChapter?.lastPageRead
+    );
+  }
+
   const initialPage = savedChapter?.lastPageRead || 1;
+  console.log("[ReaderContainer] Using initialPage:", initialPage);
+
   const currentChapter = chapters?.find((ch) => ch.url === url);
   const chapterNumber = currentChapter?.number || 0;
 
