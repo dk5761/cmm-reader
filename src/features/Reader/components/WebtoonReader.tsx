@@ -1,11 +1,5 @@
-import {
-  useCallback,
-  useRef,
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-} from "react";
-import { Dimensions, ViewToken } from "react-native";
+import { useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import { Dimensions } from "react-native";
 import { LegendList } from "@legendapp/list";
 import { WebViewZoomableImage } from "./WebViewZoomableImage";
 import type { Page } from "@/sources";
@@ -23,13 +17,11 @@ type WebtoonReaderProps = {
 
 export type WebtoonReaderHandle = {
   scrollToIndex: (index: number, animated?: boolean) => void;
-  scrollTo: (options: { y: number; animated?: boolean }) => void;
 };
 
 /**
- * WebtoonReader uses viewability-based page detection (Tachiyomi pattern).
- * Uses onViewableItemsChanged to get the exact visible item index,
- * avoiding scroll offset calculations that break with variable heights.
+ * WebtoonReader - Simple vertical scrolling manga reader.
+ * Uses onScroll for page calculation.
  */
 export const WebtoonReader = forwardRef<
   WebtoonReaderHandle,
@@ -39,13 +31,13 @@ export const WebtoonReader = forwardRef<
   ref
 ) {
   const listRef = useRef<any>(null);
-  const lastReportedPage = useRef(initialPage);
+  const lastReportedPage = useRef(1);
 
-  // Store onPageChange in a ref so callbacks can access latest version
+  // Store onPageChange in ref
   const onPageChangeRef = useRef(onPageChange);
   onPageChangeRef.current = onPageChange;
 
-  // Expose scroll methods to parent
+  // Expose scroll methods
   useImperativeHandle(ref, () => ({
     scrollToIndex: (index: number, animated = true) => {
       listRef.current?.scrollToIndex({
@@ -54,56 +46,34 @@ export const WebtoonReader = forwardRef<
         viewPosition: 0,
       });
     },
-    scrollTo: (options: { y: number; animated?: boolean }) => {
-      listRef.current?.scrollToOffset({
-        offset: options.y,
-        animated: options.animated ?? true,
-      });
-    },
   }));
 
-  // Viewability config - item is "current" when 50% visible
-  const viewabilityConfig = useMemo(
-    () => ({
-      itemVisiblePercentThreshold: 50,
-    }),
-    []
-  );
+  // Simple scroll handler for page tracking
+  const handleScroll = useCallback(
+    (event: any) => {
+      const offsetY = event.nativeEvent.contentOffset.y;
+      const layoutHeight = event.nativeEvent.layoutMeasurement.height;
+      const contentHeight = event.nativeEvent.contentSize.height;
 
-  // Viewability-based page detection (like Tachiyomi's findFirstVisibleItemPosition)
-  const handleViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length === 0) return;
+      if (pages.length > 0 && contentHeight > 0) {
+        const avgItemHeight = contentHeight / pages.length;
+        const midPoint = offsetY + layoutHeight / 2;
+        const currentPage = Math.min(
+          pages.length,
+          Math.max(1, Math.floor(midPoint / avgItemHeight) + 1)
+        );
 
-      // Get the first visible item (similar to RecyclerView.findFirstVisibleItemPosition)
-      const firstVisible = viewableItems[0];
-      if (firstVisible.index === null) return;
-
-      const currentPage = firstVisible.index + 1; // 1-indexed
-
-      if (currentPage !== lastReportedPage.current) {
-        lastReportedPage.current = currentPage;
-        if (onPageChangeRef.current) {
-          onPageChangeRef.current(currentPage);
+        if (currentPage !== lastReportedPage.current) {
+          lastReportedPage.current = currentPage;
+          onPageChangeRef.current?.(currentPage);
         }
       }
     },
-    []
-  );
-
-  // Memoize the callback pairs to avoid re-creating on each render
-  const viewabilityConfigCallbackPairs = useMemo(
-    () => [
-      {
-        viewabilityConfig,
-        onViewableItemsChanged: handleViewableItemsChanged,
-      },
-    ],
-    [viewabilityConfig, handleViewableItemsChanged]
+    [pages.length]
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: Page; index: number }) => (
+    ({ item }: { item: Page }) => (
       <WebViewZoomableImage
         uri={item.imageUrl}
         baseUrl={baseUrl}
@@ -129,9 +99,9 @@ export const WebtoonReader = forwardRef<
       initialScrollIndex={initialPage > 1 ? initialPage - 1 : undefined}
       estimatedItemSize={SCREEN_WIDTH * 1.5}
       maintainVisibleContentPosition
-      recycleItems
       showsVerticalScrollIndicator={false}
-      viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
       contentContainerStyle={{ paddingBottom }}
       decelerationRate="fast"
       drawDistance={SCREEN_WIDTH * 2}
