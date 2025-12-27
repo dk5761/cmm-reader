@@ -20,6 +20,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 type WebtoonReaderProps = {
   pages: Page[];
   baseUrl?: string;
+  initialPage?: number;
   onPageChange?: (page: number) => void;
   onTap?: () => void;
   scrollY?: SharedValue<number>;
@@ -35,7 +36,15 @@ export const WebtoonReader = forwardRef<
   WebtoonReaderHandle,
   WebtoonReaderProps
 >(function WebtoonReader(
-  { pages, baseUrl, onPageChange, onTap, scrollY, paddingBottom = 0 },
+  {
+    pages,
+    baseUrl,
+    initialPage = 1,
+    onPageChange,
+    onTap,
+    scrollY,
+    paddingBottom = 0,
+  },
   ref
 ) {
   const flashListRef = useRef<any>(null);
@@ -147,6 +156,7 @@ export const WebtoonReader = forwardRef<
       data={pages}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
+      initialScrollIndex={initialPage > 1 ? initialPage - 1 : undefined}
       showsVerticalScrollIndicator={false}
       onScroll={handleScroll}
       scrollEventThrottle={16}

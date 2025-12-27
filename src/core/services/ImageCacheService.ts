@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 
 // @ts-ignore - documentDirectory exists at runtime in Expo FileSystem
 const COVERS_DIR = `${FileSystem.documentDirectory}covers/`;

@@ -189,6 +189,7 @@ export function ReaderScreen() {
         ref={scrollViewRef}
         pages={pages}
         baseUrl={source?.baseUrl}
+        initialPage={initialPage}
         onPageChange={(page) => {
           setCurrentPage(page);
           const totalPages = pages?.length || 0;
