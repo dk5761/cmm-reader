@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { WebViewImage } from "./WebViewImage";
 
 type MangaCardProps = {
@@ -31,7 +32,7 @@ function MangaCardComponent({
   return (
     <Pressable
       onPress={onPress}
-      className="w-full flex-col gap-2"
+      className="w-full"
       android_ripple={{
         color: "rgba(255, 255, 255, 0.2)",
         borderless: false,
@@ -71,31 +72,34 @@ function MangaCardComponent({
             </Text>
           </View>
         )}
-      </View>
 
-      {/* Info Section */}
-      <View className="flex-col gap-1">
-        <Text
-          className="text-white text-sm font-bold leading-tight"
-          numberOfLines={1}
+        {/* Title Overlay - Bottom with Gradient */}
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.8)", "rgba(0,0,0,0.95)"]}
+          locations={[0, 0.5, 1]}
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 12,
+            paddingTop: 32,
+            paddingBottom: 12,
+          }}
         >
-          {title}
-        </Text>
-
-        {subtitle && (
-          <Text className="text-muted text-xs" numberOfLines={1}>
-            {subtitle}
+          <Text
+            className="text-white text-sm font-bold leading-tight"
+            numberOfLines={2}
+          >
+            {title}
           </Text>
-        )}
 
-        {progress !== undefined && progress >= 0 && (
-          <View className="w-full h-1 bg-zinc-700 rounded-full overflow-hidden mt-1">
-            <View
-              className="h-full bg-primary rounded-full"
-              style={{ width: `${Math.min(progress, 100)}%` }}
-            />
-          </View>
-        )}
+          {subtitle && (
+            <Text className="text-zinc-400 text-xs mt-1" numberOfLines={1}>
+              {subtitle}
+            </Text>
+          )}
+        </LinearGradient>
       </View>
     </Pressable>
   );
