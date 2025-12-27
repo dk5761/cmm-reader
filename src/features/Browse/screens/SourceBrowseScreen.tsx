@@ -19,6 +19,7 @@ import {
 } from "../api/browse.queries";
 import { getSource } from "@/sources";
 import { useSession } from "@/shared/contexts/SessionContext";
+import { useLibraryManga } from "@/features/Library/hooks";
 import type { Manga } from "@/sources";
 
 import { useDebounce } from "@/shared/hooks/useDebounce";
@@ -51,6 +52,10 @@ export function SourceBrowseScreen() {
       warmupSession(source.baseUrl, source.needsCloudflareBypass);
     }
   }, [source?.baseUrl, source?.needsCloudflareBypass, warmupSession]);
+
+  // Get library manga to check if items are already in library
+  const libraryManga = useLibraryManga();
+  const libraryIds = new Set(libraryManga.map((m) => m.id));
 
   // Handle debounced search
   useEffect(() => {
@@ -192,17 +197,22 @@ export function SourceBrowseScreen() {
           columnWrapperStyle={{ gap: 12 }}
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={{ flex: 1 / 2 }}>
-              <MangaCard
-                id={item.id}
-                title={item.title}
-                coverUrl={item.cover}
-                baseUrl={source?.baseUrl}
-                onPress={() => handleMangaPress(item)}
-              />
-            </View>
-          )}
+          renderItem={({ item }) => {
+            const libraryId = `${sourceId}_${item.id}`;
+            const isInLibrary = libraryIds.has(libraryId);
+            return (
+              <View style={{ flex: 1 / 2 }}>
+                <MangaCard
+                  id={item.id}
+                  title={item.title}
+                  coverUrl={item.cover}
+                  baseUrl={source?.baseUrl}
+                  onPress={() => handleMangaPress(item)}
+                  badge={isInLibrary ? "IN LIBRARY" : undefined}
+                />
+              </View>
+            );
+          }}
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) {
               fetchNextPage();
