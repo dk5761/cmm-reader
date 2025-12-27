@@ -218,31 +218,63 @@ export function MangaDetailScreen() {
     }
   };
 
-  // Session warmup loading state
-  if (source?.needsCloudflareBypass && !sessionReady) {
+  // Instant preview: validate local data for library manga
+  const isLocalDataValid =
+    libraryManga?.title && (libraryManga?.chapters?.length ?? 0) > 0;
+  const hasLocalData = !!libraryManga && isLocalDataValid;
+
+  // Only show loader if NOT in library AND waiting for data
+  const isWaitingForSession = source?.needsCloudflareBypass && !sessionReady;
+  const shouldShowLoader =
+    !hasLocalData &&
+    (isWaitingForSession || isMangaLoading || isChaptersLoading);
+
+  // Show refreshing indicator for library manga (subtle, not blocking)
+  const isRefreshing =
+    hasLocalData &&
+    (isMangaLoading || isChaptersLoading || isWaitingForSession);
+
+  // Use local data as fallback, fresh data as primary
+  const displayManga =
+    manga ||
+    (hasLocalData
+      ? {
+          title: libraryManga!.title,
+          cover: libraryManga!.cover,
+          author: libraryManga!.author || "Unknown",
+          description: libraryManga!.description,
+          genres: libraryManga!.genres || [],
+          url: url || "",
+        }
+      : null);
+
+  const displayChapters =
+    chapters ||
+    libraryManga?.chapters?.map((ch) => ({
+      id: ch.id,
+      mangaId: libraryId,
+      title: ch.title || "",
+      number: ch.number,
+      url: ch.url,
+      date: undefined,
+    })) ||
+    [];
+
+  // Loading state (only for non-library manga)
+  if (shouldShowLoader) {
+    const loadingText = isWaitingForSession
+      ? `Warming up session... (${source?.name})`
+      : "Loading details...";
     return (
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color={foreground} />
-        <Text className="text-muted mt-4">Warming up session...</Text>
-        <Text className="text-muted/60 text-xs mt-2">
-          Preparing connection to {source.name}
-        </Text>
+        <Text className="text-muted mt-4">{loadingText}</Text>
       </View>
     );
   }
 
-  // Loading state
-  if (isMangaLoading || isChaptersLoading) {
-    return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color={foreground} />
-        <Text className="text-muted mt-4">Loading details...</Text>
-      </View>
-    );
-  }
-
-  // Error state
-  if (mangaError || !manga) {
+  // Error state (only if no local data to fall back on)
+  if ((mangaError || !displayManga) && !hasLocalData) {
     return (
       <View className="flex-1 bg-background items-center justify-center p-6">
         <Text className="text-destructive text-lg font-bold">
@@ -260,6 +292,9 @@ export function MangaDetailScreen() {
       </View>
     );
   }
+
+  // Final null check (shouldn't happen)
+  if (!displayManga) return null;
 
   const handleChapterPress = (chapterId: string, chapterUrl: string) => {
     // Navigate to reader with chapter info
@@ -303,7 +338,7 @@ export function MangaDetailScreen() {
                   />
                 ) : (
                   <WebViewImage
-                    uri={manga.cover}
+                    uri={displayManga.cover || ""}
                     baseUrl={source?.baseUrl}
                     resizeMode="cover"
                     style={{ width: "100%", height: "100%" }}
@@ -313,16 +348,25 @@ export function MangaDetailScreen() {
 
               {/* Right Side Info */}
               <View className="flex-1 pt-1">
+                {/* Refreshing indicator */}
+                {isRefreshing && (
+                  <View className="absolute top-0 right-0">
+                    <ActivityIndicator size="small" color="#00d9ff" />
+                  </View>
+                )}
                 <Text className="text-foreground text-2xl font-bold leading-tight">
-                  {manga.title}
+                  {displayManga.title}
                 </Text>
                 <Text className="text-primary text-sm font-medium mt-1">
-                  by {manga.author}
+                  by {displayManga.author}
+                </Text>
+                <Text className="text-muted text-xs mt-0.5">
+                  {source?.name || "Unknown Source"}
                 </Text>
 
                 {/* Genre Chips - Stacked */}
                 <View className="flex-row flex-wrap gap-2 mt-3">
-                  {manga.genres?.map((genre) => (
+                  {displayManga.genres?.map((genre) => (
                     <GenreChip key={genre} genre={genre} />
                   ))}
                 </View>
@@ -331,7 +375,7 @@ export function MangaDetailScreen() {
 
             {/* Description */}
             <CollapsibleText
-              text={manga.description || ""}
+              text={displayManga.description || ""}
               numberOfLines={3}
               className="mt-5"
             />
@@ -383,16 +427,35 @@ export function MangaDetailScreen() {
             )}
           </View>
 
+          {/* Loading Banner */}
+          {isRefreshing && (
+            <View className="bg-primary/10 border border-primary/30 mx-4 mt-2 mb-4 px-4 py-3 rounded-lg flex-row items-center">
+              <ActivityIndicator size="small" color="#00d9ff" />
+              <Text className="text-primary text-sm ml-3">
+                Loading new data...
+              </Text>
+            </View>
+          )}
+
+          {/* Error Banner (if refresh failed but showing cached data) */}
+          {hasLocalData && mangaError && (
+            <View className="bg-destructive/10 border border-destructive/30 mx-4 mt-2 mb-4 px-4 py-3 rounded-lg">
+              <Text className="text-destructive text-sm">
+                Failed to refresh - showing cached data
+              </Text>
+            </View>
+          )}
+
           {/* Chapter List Header */}
           <View className="bg-surface/50 px-4 py-3 border-t border-b border-border/50">
             <Text className="text-foreground font-bold text-sm">
-              {chapters?.length || 0} Chapters
+              {displayChapters.length} Chapters
             </Text>
           </View>
 
           {/* Chapters */}
           <View className="pb-4">
-            {chapters?.map((chapter) => (
+            {displayChapters.map((chapter) => (
               <ChapterCard
                 key={chapter.id}
                 chapter={chapter}
