@@ -7,6 +7,7 @@ import { QueryProvider } from "@/core/providers";
 import { SessionProvider } from "@/shared/contexts/SessionContext";
 import { WebViewFetcherProvider } from "@/shared/contexts/WebViewFetcherContext";
 import { DatabaseProvider } from "@/core/database";
+import { UpdateScreen } from "@/shared/components/UpdateScreen";
 
 export default function RootLayout() {
   return (
@@ -37,6 +38,9 @@ export default function RootLayout() {
                     options={{ headerShown: false }}
                   />
                 </Stack>
+
+                {/* Force Update Screen - blocks app until update is applied */}
+                <UpdateScreen />
               </WebViewFetcherProvider>
             </SessionProvider>
           </QueryProvider>
