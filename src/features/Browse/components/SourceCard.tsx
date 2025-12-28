@@ -1,11 +1,12 @@
-import { View, Text, Image, Pressable } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, Pressable } from "react-native";
+import { Avatar } from "@/shared/components";
 
 // Simplified source card type (not the full Extension type)
 export type SourceCardData = {
   id: string;
   name: string;
-  icon: string;
+  icon?: string;
+  logo?: number; // require() returns number
   language?: string;
 };
 
@@ -14,15 +15,43 @@ type SourceCardProps = {
   onView?: () => void;
 };
 
+/**
+ * Get acronym from source name (e.g., "KissManga.in" -> "KM")
+ */
+function getAcronym(name: string): string {
+  const cleaned = name.replace(/\.(in|com|net|org)$/i, "");
+  const words = cleaned.split(/[\s.]+/).filter(Boolean);
+
+  if (words.length === 1) {
+    const word = words[0];
+    const caps = word.match(/[A-Z]/g);
+    if (caps && caps.length >= 2) {
+      return caps.slice(0, 2).join("");
+    }
+    return word.substring(0, 2).toUpperCase();
+  }
+
+  return words
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("");
+}
+
 export function SourceCard({ source, onView }: SourceCardProps) {
+  const acronym = getAcronym(source.name);
+  const hasImage = source.logo || source.icon;
+
   return (
     <View className="flex-row items-center px-4 py-3 gap-3">
-      {/* Icon */}
-      <Image
-        source={{ uri: source.icon }}
-        className="w-12 h-12 rounded-full bg-surface"
-        resizeMode="cover"
-      />
+      {/* Avatar with image or fallback */}
+      <Avatar size="lg" shape="rounded">
+        {hasImage && (
+          <Avatar.Image
+            source={source.logo ? source.logo : { uri: source.icon }}
+          />
+        )}
+        <Avatar.Fallback>{acronym}</Avatar.Fallback>
+      </Avatar>
 
       {/* Info */}
       <View className="flex-1">

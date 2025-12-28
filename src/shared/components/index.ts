@@ -8,3 +8,4 @@ export { EmptyState } from "./EmptyState";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { SearchBar } from "./SearchBar";
 export { CollapsibleText } from "./CollapsibleText";
+export { Avatar } from "./Avatar";

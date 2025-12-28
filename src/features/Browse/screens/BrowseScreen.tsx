@@ -20,7 +20,8 @@ export function BrowseScreen() {
     const sourceList = sources.map((s) => ({
       id: s.id,
       name: s.name,
-      icon: s.config.icon || "https://via.placeholder.com/48",
+      icon: s.config.icon,
+      logo: s.config.logo,
       language: s.config.language,
     }));
     if (!searchQuery.trim()) return sourceList;

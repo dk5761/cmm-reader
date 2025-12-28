@@ -18,6 +18,7 @@ export class MangaKakalotSource extends Source {
     id: "mangakakalot",
     name: "MangaKakalot",
     baseUrl: "https://www.mangakakalot.gg",
+    logo: require("@/assets/webp/managakakalot.webp"),
     language: "en",
     nsfw: false,
     needsCloudflareBypass: false,

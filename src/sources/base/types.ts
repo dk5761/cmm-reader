@@ -46,6 +46,7 @@ export interface SourceConfig {
   name: string;
   baseUrl: string;
   icon?: string;
+  logo?: number; // require() returns number for local images
   language: string;
   nsfw: boolean;
   needsCloudflareBypass: boolean;

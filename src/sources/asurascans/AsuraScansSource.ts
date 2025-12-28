@@ -23,6 +23,7 @@ export class AsuraScansSource extends Source {
     id: "asurascans",
     name: "Asura Scans",
     baseUrl: "https://asuracomic.net",
+    logo: require("@/assets/webp/asura-scan.webp"),
     language: "en",
     needsCloudflareBypass: true,
     nsfw: false,
