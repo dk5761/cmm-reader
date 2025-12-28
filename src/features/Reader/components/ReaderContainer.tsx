@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { View, Text, ActivityIndicator, Pressable } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useChapterPages } from "../api/reader.queries";
 import { useChapterList } from "../../Manga/api/manga.queries";
 import { getSource } from "@/sources";
@@ -8,6 +10,30 @@ import { useReaderStore } from "../store/useReaderStore";
 import { ReaderView } from "./ReaderView";
 import { useSaveHistory } from "../hooks/useSaveHistory";
 import { useReaderKeepAwake } from "../hooks/useReaderKeepAwake";
+import { useMarkChapterRead } from "@/features/Library/hooks";
+
+/**
+ * Back button overlay for loading/error states
+ */
+function BackButtonOverlay() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View
+      style={{ paddingTop: insets.top }}
+      className="absolute top-0 left-0 right-0 z-10"
+    >
+      <Pressable
+        onPress={() => router.back()}
+        className="flex-row items-center px-4 py-3"
+      >
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+        <Text className="text-white ml-2 text-base font-medium">Back</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 /**
  * ReaderContainer - Data fetching, store initialization, and history saving.
@@ -54,10 +80,16 @@ export function ReaderContainer() {
   const reset = useReaderStore((s) => s.reset);
   const isInitialized = useReaderStore((s) => s.isInitialized);
   const currentPage = useReaderStore((s) => s.currentPage);
+  const totalPages = useReaderStore((s) => s.totalPages);
+  const markedAsRead = useReaderStore((s) => s.markedAsRead);
+  const setMarkedAsRead = useReaderStore((s) => s.setMarkedAsRead);
   const hasInitializedRef = useRef(false);
 
   // History saving
   const saveHistory = useSaveHistory();
+
+  // Chapter marking
+  const markChapterRead = useMarkChapterRead();
 
   // Initialize store when pages are ready
   const isDataReady = !pagesLoading && pages && pages.length > 0;
@@ -114,6 +146,34 @@ export function ReaderContainer() {
     saveHistory,
   ]);
 
+  // Mark chapter as read when reaching last page
+  useEffect(() => {
+    if (
+      isInitialized &&
+      mangaId &&
+      currentChapter?.id &&
+      totalPages > 0 &&
+      currentPage >= totalPages &&
+      !markedAsRead
+    ) {
+      console.log(
+        "[ReaderContainer] Marking chapter as read:",
+        currentChapter.id
+      );
+      markChapterRead(mangaId, currentChapter.id, totalPages);
+      setMarkedAsRead();
+    }
+  }, [
+    isInitialized,
+    mangaId,
+    currentChapter?.id,
+    currentPage,
+    totalPages,
+    markedAsRead,
+    markChapterRead,
+    setMarkedAsRead,
+  ]);
+
   // Reset store on unmount
   useEffect(() => {
     return () => reset();
@@ -123,6 +183,7 @@ export function ReaderContainer() {
   if (pagesLoading) {
     return (
       <View className="flex-1 bg-black items-center justify-center">
+        <BackButtonOverlay />
         <ActivityIndicator size="large" color="#fff" />
         <Text className="text-zinc-400 mt-4">Loading chapter...</Text>
       </View>
@@ -133,6 +194,7 @@ export function ReaderContainer() {
   if (pagesError || !pages || pages.length === 0) {
     return (
       <View className="flex-1 bg-black items-center justify-center p-6">
+        <BackButtonOverlay />
         <Text className="text-red-500 text-lg font-bold">
           Failed to load pages
         </Text>
