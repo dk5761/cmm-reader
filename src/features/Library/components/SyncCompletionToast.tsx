@@ -64,7 +64,7 @@ export function SyncCompletionToast() {
       className="mx-4 mb-4 rounded-lg overflow-hidden"
     >
       <View
-        className={`p-3 ${
+        className={`p-3 rounded-lg ${
           hasNewChapters
             ? "bg-green-500/15 border border-green-500/30"
             : hasFailures
