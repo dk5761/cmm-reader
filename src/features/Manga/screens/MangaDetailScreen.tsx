@@ -169,6 +169,8 @@ export function MangaDetailScreen() {
         <ChapterListSection
           chapters={displayChapters}
           mangaId={libraryId}
+          mangaTitle={displayManga?.title || ""}
+          mangaCover={displayManga?.cover}
           sourceId={sourceId || ""}
           mangaUrl={url || ""}
         />

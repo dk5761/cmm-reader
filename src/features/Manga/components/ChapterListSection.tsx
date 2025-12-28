@@ -12,6 +12,8 @@ import type { DisplayChapter } from "../hooks/useMangaData";
 export type ChapterListSectionProps = {
   chapters: DisplayChapter[];
   mangaId: string;
+  mangaTitle: string;
+  mangaCover?: string;
   sourceId: string;
   mangaUrl: string;
 };
@@ -19,6 +21,8 @@ export type ChapterListSectionProps = {
 export function ChapterListSection({
   chapters,
   mangaId,
+  mangaTitle,
+  mangaCover,
   sourceId,
   mangaUrl,
 }: ChapterListSectionProps) {
@@ -39,6 +43,9 @@ export function ChapterListSection({
         sourceId,
         url: chapterUrl,
         mangaUrl,
+        mangaId,
+        mangaTitle,
+        mangaCover: mangaCover || "",
       },
     });
   };

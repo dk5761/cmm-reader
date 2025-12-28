@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { View, Text, ActivityIndicator, Pressable } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useChapterPages } from "../api/reader.queries";
@@ -6,18 +6,29 @@ import { useChapterList } from "../../Manga/api/manga.queries";
 import { getSource } from "@/sources";
 import { useReaderStore } from "../store/useReaderStore";
 import { ReaderView } from "./ReaderView";
+import { useSaveHistory } from "../hooks/useSaveHistory";
 
 /**
- * ReaderContainer - Data fetching and store initialization.
- * No persistence logic - just loads pages and renders ReaderView.
+ * ReaderContainer - Data fetching, store initialization, and history saving.
  */
 export function ReaderContainer() {
   const router = useRouter();
-  const { chapterId, sourceId, url, mangaUrl } = useLocalSearchParams<{
+  const {
+    chapterId,
+    sourceId,
+    url,
+    mangaUrl,
+    mangaId,
+    mangaTitle,
+    mangaCover,
+  } = useLocalSearchParams<{
     chapterId: string;
     sourceId: string;
     url: string;
     mangaUrl: string;
+    mangaId?: string;
+    mangaTitle?: string;
+    mangaCover?: string;
   }>();
 
   // Data fetching
@@ -38,7 +49,11 @@ export function ReaderContainer() {
   const initialize = useReaderStore((s) => s.initialize);
   const reset = useReaderStore((s) => s.reset);
   const isInitialized = useReaderStore((s) => s.isInitialized);
+  const currentPage = useReaderStore((s) => s.currentPage);
   const hasInitializedRef = useRef(false);
+
+  // History saving
+  const saveHistory = useSaveHistory();
 
   // Initialize store when pages are ready
   const isDataReady = !pagesLoading && pages && pages.length > 0;
@@ -47,9 +62,9 @@ export function ReaderContainer() {
     if (isDataReady && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
       initialize({
-        initialPage: 1, // Always start at page 1 (no persistence)
+        initialPage: 1,
         totalPages: pages.length,
-        mangaId: "",
+        mangaId: mangaId || "",
         chapterId: chapterId || "",
         chapterNumber,
         sourceId: sourceId || "",
@@ -61,7 +76,38 @@ export function ReaderContainer() {
     chapterId,
     chapterNumber,
     sourceId,
+    mangaId,
     initialize,
+  ]);
+
+  // Save history on page change (debounced)
+  useEffect(() => {
+    if (isInitialized && mangaId && mangaTitle && currentChapter) {
+      saveHistory({
+        mangaId,
+        mangaTitle,
+        mangaCover,
+        chapterId: currentChapter.id || chapterId || "",
+        chapterNumber: currentChapter.number,
+        chapterTitle: currentChapter.title,
+        chapterUrl: url || "",
+        pageReached: currentPage,
+        totalPages: pages?.length,
+        sourceId: sourceId || "",
+      });
+    }
+  }, [
+    isInitialized,
+    currentPage,
+    mangaId,
+    mangaTitle,
+    mangaCover,
+    currentChapter,
+    chapterId,
+    url,
+    pages?.length,
+    sourceId,
+    saveHistory,
   ]);
 
   // Reset store on unmount
