@@ -12,8 +12,8 @@
     "android": {
       "package": "com.drshnk.mangareader",
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/adaptive-icon.png",
-        "monochromeImage": "./src/assets/adaptive-icon.png",
+        "foregroundImage": "/assets/adaptive-icon.png",
+        "monochromeImage": "/assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       }
     },
@@ -23,9 +23,9 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "icon": {
-        "dark": "./src/assets/ios-dark.png",
-        "light": "./src/assets/ios-light.png",
-        "tinted": "./src/assets/ios-tinted.png"
+        "dark": "/assets/ios-dark.png",
+        "light": "/assets/ios-light.png",
+        "tinted": "/assets/ios-tinted.png"
       }
     },
     "extra": {
@@ -38,6 +38,20 @@
     },
     "updates": {
       "url": "https://u.expo.dev/20f97605-b540-423f-8b73-e990ee02f371"
-    }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "/assets/icons/splash-icon-dark.png",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "/assets/icons/splash-icon-light.png",
+            "backgroundColor": "#0a0a0f"
+          },
+          "imageWidth": 200
+        }
+      ]
+    ]
   }
 }

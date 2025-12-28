@@ -5,6 +5,7 @@ import { useColorScheme } from "react-native";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import * as SplashScreen from "expo-splash-screen";
 import { QueryProvider } from "@/core/providers";
 import { SessionProvider } from "@/shared/contexts/SessionContext";
 import { WebViewFetcherProvider } from "@/shared/contexts/WebViewFetcherContext";
@@ -12,13 +13,18 @@ import { DatabaseProvider } from "@/core/database";
 import { UpdateScreen } from "@/shared/components/UpdateScreen";
 import { requestNotificationPermissions } from "@/shared/services/notifications";
 
+// Keep splash screen visible while app loads
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Request notification permissions on app startup
+  // Request notification permissions and hide splash on startup
   useEffect(() => {
     requestNotificationPermissions();
+    // Hide splash screen after a brief delay to ensure providers are ready
+    SplashScreen.hideAsync();
   }, []);
 
   return (
