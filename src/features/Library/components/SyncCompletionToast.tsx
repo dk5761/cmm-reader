@@ -34,15 +34,23 @@ export function SyncCompletionToast() {
         duration: 200,
         useNativeDriver: true,
       }).start();
-
-      // Auto-dismiss after 4s
-      const timer = setTimeout(() => {
-        dismissToast();
-      }, 4000);
-
-      return () => clearTimeout(timer);
     }
-  }, [isSyncing, wasJustSyncing, lastSync]);
+  }, [isSyncing, wasJustSyncing, lastSync, fadeAnim]);
+
+  // Auto-dismiss after 5 seconds when visible
+  useEffect(() => {
+    if (!visible) return;
+
+    const timer = setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => setVisible(false));
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [visible, fadeAnim]);
 
   const dismissToast = () => {
     Animated.timing(fadeAnim, {
