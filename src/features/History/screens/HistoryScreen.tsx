@@ -2,7 +2,7 @@ import { View, Text, Pressable, SectionList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import FastImage from "react-native-fast-image";
 import { useCSSVariable } from "uniwind";
 import {
   useGroupedHistory,
@@ -63,10 +63,10 @@ function HistoryItem({ item, onPress, onRemove }: HistoryItemProps) {
       {/* Cover */}
       <View className="w-14 h-20 rounded-lg bg-surface overflow-hidden mr-3">
         {item.mangaCover ? (
-          <Image
+          <FastImage
             source={{ uri: item.mangaCover }}
-            contentFit="cover"
             style={{ width: "100%", height: "100%" }}
+            resizeMode={FastImage.resizeMode.cover}
           />
         ) : (
           <View className="flex-1 items-center justify-center">

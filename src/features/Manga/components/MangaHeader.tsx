@@ -4,7 +4,7 @@
  */
 
 import { View, Text, ActivityIndicator } from "react-native";
-import { Image } from "expo-image";
+import FastImage from "react-native-fast-image";
 import { WebViewImage } from "@/shared/components";
 import type { Source } from "@/sources";
 
@@ -46,11 +46,10 @@ export function MangaHeader({
       {/* Cover Image */}
       <View className="w-[120px] aspect-2/3 rounded-lg bg-surface shadow-md overflow-hidden">
         {localCover ? (
-          <Image
+          <FastImage
             source={{ uri: localCover }}
-            contentFit="cover"
             style={{ width: "100%", height: "100%" }}
-            cachePolicy="memory-disk"
+            resizeMode={FastImage.resizeMode.cover}
           />
         ) : (
           <WebViewImage

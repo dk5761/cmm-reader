@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { View, Text, Pressable } from "react-native";
-import { Image } from "expo-image";
+import FastImage from "react-native-fast-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { WebViewImage } from "./WebViewImage";
 
@@ -45,11 +45,10 @@ function MangaCardComponent({
       {/* Cover Image Container */}
       <View className="relative w-full aspect-2/3 rounded-xl overflow-hidden bg-zinc-800">
         {localCoverUrl ? (
-          <Image
+          <FastImage
             source={{ uri: localCoverUrl }}
-            contentFit="cover"
             style={{ width: "100%", height: "100%" }}
-            cachePolicy="memory-disk"
+            resizeMode={FastImage.resizeMode.cover}
           />
         ) : (
           <WebViewImage

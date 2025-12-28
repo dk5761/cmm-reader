@@ -1,7 +1,7 @@
 import { useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { Dimensions } from "react-native";
 import { LegendList } from "@legendapp/list";
-import { WebViewZoomableImage } from "./WebViewZoomableImage";
+import { MangaImage } from "@/shared/components/MangaImage";
 import { ChapterTransition } from "./ChapterTransition";
 import { useReaderStore } from "../store/useReaderStore";
 import { useImagePreloader } from "../hooks/useImagePreloader";
@@ -54,7 +54,7 @@ export const WebtoonReader = forwardRef<
   const lastReportedChapter = useRef<string>("");
   const hasTriggeredPrev = useRef(false);
   const hasTriggeredNext = useRef(false);
-  
+
   // Scroll activation tracking - prevents page updates until user intentionally scrolls
   const hasUserScrolled = useRef(false);
   const initialScrollOffset = useRef<number | null>(null);
@@ -106,34 +106,42 @@ export const WebtoonReader = forwardRef<
 
       // Detect if user has scrolled past threshold (50% of screen height)
       const scrollThreshold = layoutHeight * SCROLL_ACTIVATION_THRESHOLD;
-      const scrollDelta = Math.abs(offsetY - (initialScrollOffset.current ?? offsetY));
+      const scrollDelta = Math.abs(
+        offsetY - (initialScrollOffset.current ?? offsetY)
+      );
       if (scrollDelta > scrollThreshold) {
         hasUserScrolled.current = true;
       }
 
-      // Boundary detection for loading prev/next chapters (always active)
-      const nearTop = offsetY < BOUNDARY_THRESHOLD;
-      const nearBottom =
-        offsetY + layoutHeight > contentHeight - BOUNDARY_THRESHOLD;
+      // Boundary detection for loading prev/next chapters
+      // IMPORTANT: Only trigger after user has scrolled (prevents immediate navigation on load)
+      if (hasUserScrolled.current) {
+        const nearTop = offsetY < BOUNDARY_THRESHOLD;
+        const nearBottom =
+          offsetY + layoutHeight > contentHeight - BOUNDARY_THRESHOLD;
 
-      if (nearTop && !hasTriggeredPrev.current) {
-        hasTriggeredPrev.current = true;
-        onLoadPrevRef.current?.();
-      } else if (!nearTop) {
-        hasTriggeredPrev.current = false;
-      }
+        if (nearTop && !hasTriggeredPrev.current) {
+          hasTriggeredPrev.current = true;
+          onLoadPrevRef.current?.();
+        } else if (!nearTop) {
+          hasTriggeredPrev.current = false;
+        }
 
-      if (nearBottom && !hasTriggeredNext.current) {
-        hasTriggeredNext.current = true;
-        onLoadNextRef.current?.();
-      } else if (!nearBottom) {
-        hasTriggeredNext.current = false;
+        if (nearBottom && !hasTriggeredNext.current) {
+          hasTriggeredNext.current = true;
+          onLoadNextRef.current?.();
+        } else if (!nearBottom) {
+          hasTriggeredNext.current = false;
+        }
       }
 
       // Skip page tracking if:
       // 1. Slider is being dragged (slider is master)
       // 2. User hasn't scrolled past threshold (store initial value is master)
-      if (useReaderStore.getState().isSliderDragging || !hasUserScrolled.current) {
+      if (
+        useReaderStore.getState().isSliderDragging ||
+        !hasUserScrolled.current
+      ) {
         return;
       }
 
@@ -169,16 +177,16 @@ export const WebtoonReader = forwardRef<
         return <ChapterTransition item={item} onTap={onTap} />;
       }
       return (
-        <WebViewZoomableImage
+        <MangaImage
           uri={item.page.imageUrl}
-          baseUrl={baseUrl}
-          width={SCREEN_WIDTH}
-          minHeight={100}
-          onTap={onTap}
+          headers={item.page.headers}
+          style={{ width: SCREEN_WIDTH }}
+          resizeMode="contain"
+          priority="high"
         />
       );
     },
-    [baseUrl, onTap]
+    [onTap]
   );
 
   const keyExtractor = useCallback(

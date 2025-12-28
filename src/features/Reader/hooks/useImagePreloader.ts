@@ -1,21 +1,20 @@
 import { useEffect, useRef } from "react";
-import { Image } from "expo-image";
+import { preloadImages } from "@/core/config/ImageCacheConfig";
 import type { Page } from "@/sources";
 
 /**
  * Preload upcoming pages for smoother reading experience.
- * Uses expo-image's prefetch which respects caching.
+ * Uses react-native-fast-image's preload which handles caching efficiently.
  *
  * @param pages - All pages in the chapter
  * @param currentPage - Current page number (1-indexed)
  * @param preloadCount - Number of pages to preload ahead (default: 3)
- * @param baseUrl - Optional base URL for referer header
  */
 export function useImagePreloader(
   pages: Page[],
   currentPage: number,
   preloadCount = 3,
-  baseUrl?: string
+  _baseUrl?: string // Kept for compatibility but unused (headers come from Page objects)
 ) {
   const lastPreloadedRef = useRef<number>(0);
 
@@ -43,22 +42,13 @@ export function useImagePreloader(
       return;
     }
 
-    // Prefetch images using expo-image
-    const prefetchPromises = pagesToPreload.map((page) => {
-      const uri = page.imageUrl;
+    // Prefetch images using FastImage
+    const sources = pagesToPreload.map((page) => ({
+      uri: page.imageUrl,
+      headers: page.headers || {},
+      priority: "normal" as const,
+    }));
 
-      // Add headers if baseUrl is provided (some sources need referer)
-      const headers: Record<string, string> = {};
-      if (baseUrl) {
-        headers["Referer"] = baseUrl;
-      }
-
-      return Image.prefetch(uri, { headers }).catch(() => {
-        // Silent fail - prefetch is best-effort
-      });
-    });
-
-    // Fire and forget - we don't await these
-    Promise.all(prefetchPromises);
-  }, [pages, currentPage, preloadCount, baseUrl]);
+    preloadImages(sources);
+  }, [pages, currentPage, preloadCount]);
 }
