@@ -10,12 +10,22 @@
     "name": "manga-reader",
     "slug": "manga-reader",
     "android": {
-      "package": "com.drshnk.mangareader"
+      "package": "com.drshnk.mangareader",
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "monochromeImage": "./src/assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "ios": {
       "bundleIdentifier": "com.drshnk.mangareader",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "icon": {
+        "dark": "./src/assets/ios-dark.png",
+        "light": "./src/assets/ios-light.png",
+        "tinted": "./src/assets/ios-tinted.png"
       }
     },
     "extra": {
