@@ -64,7 +64,7 @@ export function BrowseScreen() {
         </View>
 
         {/* Test Axios Button */}
-        <View className="px-4 py-2">
+        {/* <View className="px-4 py-2">
           <Pressable
             onPress={testAxios}
             className="bg-primary px-4 py-3 rounded-lg"
@@ -73,7 +73,7 @@ export function BrowseScreen() {
               Test Axios (JSONPlaceholder)
             </Text>
           </Pressable>
-        </View>
+        </View> */}
 
         {/* Sources Section */}
         <View className="mt-2">
