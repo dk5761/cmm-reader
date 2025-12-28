@@ -30,6 +30,7 @@ export const ReaderView = memo(function ReaderView({
   // Get store values
   const loadedSegments = useReaderStore((s) => s.loadedSegments);
   const chapterIndex = useReaderStore((s) => s.chapterIndex);
+  const currentChapterId = useReaderStore((s) => s.chapterId);
 
   // Build unified items array from segments
   const items = useMemo(() => {
@@ -98,6 +99,7 @@ export const ReaderView = memo(function ReaderView({
 
       <WebtoonReader
         ref={scrollViewRef}
+        key={currentChapterId}
         items={items}
         baseUrl={baseUrl}
         initialScrollIndex={initialScrollIndex}

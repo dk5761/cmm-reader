@@ -109,11 +109,12 @@ export const WebtoonReader = forwardRef<
         hasTriggeredNext.current = false;
       }
 
-      // Page tracking
+      // Page tracking - use top of viewport with small offset for better UX
       if (pageItems.length > 0 && contentHeight > 0) {
         const avgItemHeight = contentHeight / items.length;
-        const midPoint = offsetY + layoutHeight / 2;
-        const currentIndex = Math.floor(midPoint / avgItemHeight);
+        // Use top of viewport + small threshold (1/4 of viewport) for page detection
+        const trackingPoint = offsetY + layoutHeight * 0.25;
+        const currentIndex = Math.floor(trackingPoint / avgItemHeight);
         const currentItem = items[currentIndex];
 
         if (currentItem?.type === "page") {
