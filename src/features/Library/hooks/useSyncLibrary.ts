@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { useRealm, useQuery } from "@realm/react";
 import { MangaSchema, ChapterSchema } from "@/core/database";
 import { getSource } from "@/sources";
-import { useSession } from "@/shared/contexts/SessionContext";
 import { useSyncStore, SyncResult, SyncFailure } from "../stores/useSyncStore";
 import {
   sendSyncCompletionNotification,
@@ -11,12 +10,12 @@ import {
 
 /**
  * Hook to sync all library manga and check for new chapters
- * Groups manga by source for efficient session reuse
+ * Groups manga by source for efficient processing
+ * No session warmup needed - CookieManager handles cookies automatically
  */
 export function useSyncLibrary() {
   const realm = useRealm();
   const allManga = useQuery(MangaSchema);
-  const { isSessionReady, warmupSession, waitForSession } = useSession();
   const { isSyncing, startSync, setWarmingUp, updateProgress, completeSync } =
     useSyncStore();
 
@@ -66,27 +65,8 @@ export function useSyncLibrary() {
         continue;
       }
 
-      // Warmup CF session if needed
-      if (source.needsCloudflareBypass && !isSessionReady(source.baseUrl)) {
-        console.log("[Sync] Warming up session for", source.name);
-        setWarmingUp(true, source.name);
-        warmupSession(source.baseUrl, true);
-
-        // Wait for session to be ready (30s timeout)
-        const isReady = await waitForSession(source.baseUrl, 30000);
-
-        setWarmingUp(false);
-
-        // If still not ready after timeout, skip
-        if (!isReady) {
-          console.log("[Sync] Warmup timeout for", source.name);
-          result.skippedSources.push(source.name);
-          processedCount += sourceManga.length;
-          continue;
-        }
-
-        console.log("[Sync] Session ready for", source.name);
-      }
+      // No session warmup needed - CloudflareInterceptor handles CF automatically
+      console.log("[Sync] Processing", source.name);
 
       // Sync each manga in this source
       for (const manga of sourceManga) {
@@ -165,15 +145,7 @@ export function useSyncLibrary() {
     }
 
     return result;
-  }, [
-    allManga,
-    isSyncing,
-    isSessionReady,
-    realm,
-    startSync,
-    updateProgress,
-    completeSync,
-  ]);
+  }, [allManga, isSyncing, realm, startSync, updateProgress, completeSync]);
 
   return {
     syncLibrary,
