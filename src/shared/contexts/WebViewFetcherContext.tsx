@@ -7,10 +7,20 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { View, StyleSheet } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Modal,
+  Text,
+  Pressable,
+  SafeAreaView,
+  ActivityIndicator,
+} from "react-native";
 import { WebView, WebViewMessageEvent } from "react-native-webview";
 import { HttpClient } from "@/core/http";
 import { WebViewFetcherService } from "@/core/http/WebViewFetcherService";
+import { registerManualChallengeHandler } from "@/core/http/CloudflareInterceptor";
+import { CookieManagerInstance } from "@/core/http/CookieManager";
 import { useSession } from "./SessionContext";
 
 type RequestType = "navigate" | "post";
@@ -155,6 +165,15 @@ export function WebViewFetcherProvider({
   const currentOriginRef = useRef<string>("https://localhost");
   const retryCountRef = useRef(0);
   const maxRetries = 3;
+
+  // Manual CF challenge modal state
+  const [manualChallengeUrl, setManualChallengeUrl] = useState<string | null>(
+    null
+  );
+  const manualChallengeResolveRef = useRef<
+    ((result: { success: boolean; cookies?: string }) => void) | null
+  >(null);
+  const manualWebViewRef = useRef<WebView>(null);
 
   // Process next request in queue
   const processNextRequest = useCallback(() => {
@@ -474,6 +493,77 @@ export function WebViewFetcherProvider({
   // Get invalidateSession from SessionContext
   const { invalidateSession } = useSession();
 
+  // Manual challenge handler - called by CloudflareInterceptor when auto-bypass fails
+  const handleManualChallenge = useCallback(
+    (url: string): Promise<{ success: boolean; cookies?: string }> => {
+      return new Promise((resolve) => {
+        console.log("[WebViewFetcher] Manual challenge requested for:", url);
+        manualChallengeResolveRef.current = resolve;
+        setManualChallengeUrl(url);
+      });
+    },
+    []
+  );
+
+  // Handle manual challenge completion (user presses Done)
+  const handleManualChallengeDone = useCallback(async () => {
+    if (!manualChallengeUrl) return;
+
+    console.log("[WebViewFetcher] User pressed Done, extracting cookies...");
+    const domain = new URL(manualChallengeUrl).hostname;
+
+    try {
+      // Extract cookies from WebView
+      const cookiesArray = await CookieManagerInstance.extractFromWebView(
+        manualChallengeUrl
+      );
+      await CookieManagerInstance.setCookies(domain, cookiesArray);
+      const cookieString = await CookieManagerInstance.getCookies(domain);
+
+      const hasCfClearance = cookiesArray.some(
+        (c) => c.name === "cf_clearance"
+      );
+      console.log(
+        "[WebViewFetcher] Manual challenge cookies:",
+        hasCfClearance ? "cf_clearance found" : "no cf_clearance"
+      );
+
+      if (manualChallengeResolveRef.current) {
+        manualChallengeResolveRef.current({
+          success: hasCfClearance,
+          cookies: cookieString || undefined,
+        });
+        manualChallengeResolveRef.current = null;
+      }
+    } catch (error) {
+      console.error("[WebViewFetcher] Failed to extract cookies:", error);
+      if (manualChallengeResolveRef.current) {
+        manualChallengeResolveRef.current({ success: false });
+        manualChallengeResolveRef.current = null;
+      }
+    }
+
+    setManualChallengeUrl(null);
+  }, [manualChallengeUrl]);
+
+  // Handle manual challenge cancel
+  const handleManualChallengeCancel = useCallback(() => {
+    console.log("[WebViewFetcher] User cancelled manual challenge");
+    if (manualChallengeResolveRef.current) {
+      manualChallengeResolveRef.current({ success: false });
+      manualChallengeResolveRef.current = null;
+    }
+    setManualChallengeUrl(null);
+  }, []);
+
+  // Register manual challenge handler with CloudflareInterceptor
+  useEffect(() => {
+    registerManualChallengeHandler(handleManualChallenge);
+    return () => {
+      registerManualChallengeHandler(null);
+    };
+  }, [handleManualChallenge]);
+
   // Register with the global service so non-React code can use it
   useEffect(() => {
     WebViewFetcherService.register(fetchHtml, postHtml, invalidateSession);
@@ -505,6 +595,57 @@ export function WebViewFetcherProvider({
           userAgent={HttpClient.getUserAgent()}
         />
       </View>
+
+      {/* Manual CF Challenge Modal */}
+      <Modal
+        visible={!!manualChallengeUrl}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={handleManualChallengeCancel}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          {/* Header */}
+          <View style={styles.modalHeader}>
+            <Pressable
+              onPress={handleManualChallengeCancel}
+              style={styles.modalButton}
+            >
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </Pressable>
+            <Text style={styles.modalTitle}>Complete Verification</Text>
+            <Pressable
+              onPress={handleManualChallengeDone}
+              style={[styles.modalButton, styles.modalDoneButton]}
+            >
+              <Text style={[styles.modalButtonText, styles.modalDoneText]}>
+                Done
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* WebView */}
+          {manualChallengeUrl && (
+            <WebView
+              ref={manualWebViewRef}
+              source={{ uri: manualChallengeUrl }}
+              style={styles.modalWebview}
+              javaScriptEnabled
+              domStorageEnabled
+              thirdPartyCookiesEnabled
+              sharedCookiesEnabled
+              cacheEnabled
+              userAgent={HttpClient.getUserAgent()}
+              startInLoadingState
+              renderLoading={() => (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.loadingText}>Loading challenge...</Text>
+                </View>
+              )}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
     </WebViewFetcherContext.Provider>
   );
 }
@@ -529,5 +670,57 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#0a0a0f",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222",
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  modalButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    color: "#888",
+  },
+  modalDoneButton: {
+    backgroundColor: "#22c55e",
+    borderRadius: 8,
+  },
+  modalDoneText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  modalWebview: {
+    flex: 1,
+  },
+  loadingContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#0a0a0f",
+  },
+  loadingText: {
+    marginTop: 16,
+    color: "#888",
+    fontSize: 14,
   },
 });

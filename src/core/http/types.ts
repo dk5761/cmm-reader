@@ -36,3 +36,21 @@ export class CloudflareBypassException extends Error {
     this.name = "CloudflareBypassException";
   }
 }
+
+/**
+ * Callback for triggering manual CF challenge modal
+ * Returns a promise that resolves when user completes/cancels challenge
+ */
+export type ManualChallengeHandler = (
+  url: string
+) => Promise<{ success: boolean; cookies?: string }>;
+
+/**
+ * Pending request awaiting CF challenge resolution
+ */
+export interface CfChallengeRequest {
+  url: string;
+  config: any;
+  resolve: (value: any) => void;
+  reject: (error: any) => void;
+}

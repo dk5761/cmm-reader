@@ -3,14 +3,31 @@ import type {
   AxiosInstance,
   AxiosRequestConfig,
   AxiosResponse,
-  InternalAxiosRequestConfig,
 } from "axios";
 import { WebViewFetcherService } from "./WebViewFetcherService";
 import { CookieManagerInstance } from "./CookieManager";
-import { CloudflareBypassException } from "./types";
+import { CloudflareBypassException, ManualChallengeHandler } from "./types";
 
 const MAX_CF_RETRIES = 1; // Try once and fail fast
-const CF_RETRY_DELAYS = [2000, 5000, 10000]; // Exponential backoff
+
+/**
+ * Registered manual challenge handler (set by WebViewFetcherContext)
+ */
+let manualChallengeHandler: ManualChallengeHandler | null = null;
+
+/**
+ * Register handler for manual CF challenge (called from WebViewFetcherContext)
+ */
+export function registerManualChallengeHandler(
+  handler: ManualChallengeHandler | null
+) {
+  manualChallengeHandler = handler;
+  console.log(
+    `[CF Interceptor] Manual challenge handler ${
+      handler ? "registered" : "unregistered"
+    }`
+  );
+}
 
 /**
  * Detects if a response is a Cloudflare challenge page
@@ -38,9 +55,9 @@ function isCfChallenge(response?: AxiosResponse): boolean {
 }
 
 /**
- * Attempts to solve Cloudflare challenge using WebView
+ * Attempts to solve Cloudflare challenge using hidden WebView (automatic)
  */
-async function solveCfChallenge(
+async function solveCfChallengeAuto(
   config: AxiosRequestConfig,
   attempt: number = 1
 ): Promise<{ html: string; cookies: string }> {
@@ -48,72 +65,55 @@ async function solveCfChallenge(
   const domain = new URL(url).hostname;
 
   console.log(
-    `[CF Interceptor] Solving challenge for ${domain} (attempt ${attempt}/${MAX_CF_RETRIES})`
+    `[CF Interceptor] Auto-solving challenge for ${domain} (attempt ${attempt}/${MAX_CF_RETRIES})`
   );
 
-  try {
-    // Solve using WebView with increasing timeout
-    const timeout = 30000 + attempt * 10000;
-    const html = await WebViewFetcherService.fetchHtml(url, timeout);
+  // Solve using WebView with increasing timeout
+  const timeout = 30000 + attempt * 10000;
+  const html = await WebViewFetcherService.fetchHtml(url, timeout);
 
-    // Extract cookies from WebView
-    const cookiesArray = await CookieManagerInstance.extractFromWebView(url);
+  // Extract cookies from WebView
+  const cookiesArray = await CookieManagerInstance.extractFromWebView(url);
 
-    // Check if we got CF clearance cookie
-    const hasCfClearance = cookiesArray.some((c) => c.name === "cf_clearance");
-    if (!hasCfClearance && attempt < MAX_CF_RETRIES) {
-      console.warn(
-        `[CF Interceptor] No cf_clearance cookie found, retrying...`
-      );
-
-      // Wait before retry
-      await new Promise((resolve) =>
-        setTimeout(resolve, CF_RETRY_DELAYS[attempt - 1] || 5000)
-      );
-
-      return solveCfChallenge(config, attempt + 1);
-    }
-
-    if (!hasCfClearance) {
-      throw new Error("Failed to obtain CF clearance cookie");
-    }
-
-    // Store cookies
-    await CookieManagerInstance.setCookies(domain, cookiesArray);
-
-    // Get cookie string for request
-    const cookieString = await CookieManagerInstance.getCookies(domain);
-
-    console.log(`[CF Interceptor] Successfully solved challenge for ${domain}`);
-
-    return {
-      html,
-      cookies: cookieString || "",
-    };
-  } catch (error) {
-    const err = error as Error;
-    console.error(`[CF Interceptor] Attempt ${attempt} failed:`, err.message);
-
-    if (attempt < MAX_CF_RETRIES) {
-      // Wait before retry
-      await new Promise((resolve) =>
-        setTimeout(resolve, CF_RETRY_DELAYS[attempt - 1] || 5000)
-      );
-      return solveCfChallenge(config, attempt + 1);
-    }
-
-    // All attempts failed
-    throw new CloudflareBypassException(
-      `Failed to bypass Cloudflare after ${MAX_CF_RETRIES} attempts: ${err.message}`,
-      MAX_CF_RETRIES,
-      url
-    );
+  // Check if we got CF clearance cookie
+  const hasCfClearance = cookiesArray.some((c) => c.name === "cf_clearance");
+  if (!hasCfClearance) {
+    throw new Error("Failed to obtain CF clearance cookie");
   }
+
+  // Store cookies
+  await CookieManagerInstance.setCookies(domain, cookiesArray);
+
+  // Get cookie string for request
+  const cookieString = await CookieManagerInstance.getCookies(domain);
+
+  console.log(`[CF Interceptor] Successfully solved challenge for ${domain}`);
+
+  return {
+    html,
+    cookies: cookieString || "",
+  };
+}
+
+/**
+ * Attempt manual challenge via modal WebView
+ */
+async function solveCfChallengeManual(
+  url: string
+): Promise<{ success: boolean; cookies?: string }> {
+  if (!manualChallengeHandler) {
+    console.log("[CF Interceptor] No manual handler registered");
+    return { success: false };
+  }
+
+  console.log("[CF Interceptor] Triggering manual challenge modal");
+  return manualChallengeHandler(url);
 }
 
 /**
  * Setup Cloudflare interceptor on Axios instance
  * Automatically detects and solves CF challenges like Mihon's CloudflareInterceptor
+ * Falls back to manual challenge modal if auto-bypass fails
  */
 export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
   // Track retry attempts per request
@@ -142,23 +142,44 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
       if (isCfChallenge(response)) {
         const requestKey = `${config.method}:${config.url}`;
         const currentRetries = retryMap.get(requestKey) || 0;
+        const url = config.url || "";
 
         console.log(
-          `[CF Interceptor] CF challenge detected for ${config.url?.substring(
-            0,
-            60
-          )}`
+          `[CF Interceptor] CF challenge detected for ${url.substring(0, 60)}`
         );
 
         // Prevent infinite retry loop
         if (currentRetries >= MAX_CF_RETRIES) {
           retryMap.delete(requestKey);
           ongoingSolves.delete(requestKey);
+
+          // Try manual challenge as fallback
+          console.log(
+            "[CF Interceptor] Auto-bypass exhausted, trying manual..."
+          );
+          const manualResult = await solveCfChallengeManual(url);
+
+          if (manualResult.success && manualResult.cookies) {
+            // Retry request with new cookies
+            const retryConfig = {
+              ...config,
+              headers: {
+                ...(config.headers || {}),
+                Cookie: manualResult.cookies,
+              },
+            };
+            console.log(
+              "[CF Interceptor] Manual solve success, retrying request..."
+            );
+            return axiosInstance.request(retryConfig);
+          }
+
+          // Manual also failed - throw exception
           return Promise.reject(
             new CloudflareBypassException(
-              `CF bypass retry limit exceeded for ${config.url}`,
+              `CF bypass failed (auto + manual) for ${url}`,
               currentRetries,
-              config.url || ""
+              url
             )
           );
         }
@@ -170,9 +191,14 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           let solvePromise = ongoingSolves.get(requestKey);
 
           if (!solvePromise) {
-            // Start new solve
-            console.log(`[CF Interceptor] Starting CF solve for ${requestKey}`);
-            solvePromise = solveCfChallenge(config as AxiosRequestConfig, 1);
+            // Start new auto-solve
+            console.log(
+              `[CF Interceptor] Starting auto CF solve for ${requestKey}`
+            );
+            solvePromise = solveCfChallengeAuto(
+              config as AxiosRequestConfig,
+              1
+            );
             ongoingSolves.set(requestKey, solvePromise);
           } else {
             console.log(
@@ -202,12 +228,39 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           console.log(`[CF Interceptor] Retrying request with cookies...`);
           return axiosInstance.request(retryConfig);
         } catch (cfError) {
-          // Clear tracking
-          retryMap.delete(requestKey);
+          // Auto-solve failed, try manual
+          console.log(
+            "[CF Interceptor] Auto-solve failed, trying manual...",
+            (cfError as Error).message
+          );
           ongoingSolves.delete(requestKey);
 
-          // If CF solving failed, reject with CF exception
-          return Promise.reject(cfError);
+          const manualResult = await solveCfChallengeManual(url);
+
+          if (manualResult.success && manualResult.cookies) {
+            retryMap.delete(requestKey);
+            const retryConfig = {
+              ...config,
+              headers: {
+                ...(config.headers || {}),
+                Cookie: manualResult.cookies,
+              },
+            };
+            console.log(
+              "[CF Interceptor] Manual solve success, retrying request..."
+            );
+            return axiosInstance.request(retryConfig);
+          }
+
+          // Both failed
+          retryMap.delete(requestKey);
+          return Promise.reject(
+            new CloudflareBypassException(
+              `CF bypass failed for ${url}`,
+              currentRetries,
+              url
+            )
+          );
         }
       }
 
