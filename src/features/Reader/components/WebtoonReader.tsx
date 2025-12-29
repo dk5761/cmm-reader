@@ -1,5 +1,5 @@
 import { useCallback, useRef, forwardRef, useImperativeHandle } from "react";
-import { Dimensions } from "react-native";
+import { Dimensions, Pressable } from "react-native";
 import { LegendList } from "@legendapp/list";
 import { MangaImage } from "@/shared/components/MangaImage";
 import { ChapterTransition } from "./ChapterTransition";
@@ -177,13 +177,15 @@ export const WebtoonReader = forwardRef<
         return <ChapterTransition item={item} onTap={onTap} />;
       }
       return (
-        <MangaImage
-          uri={item.page.imageUrl}
-          headers={item.page.headers}
-          style={{ width: SCREEN_WIDTH }}
-          resizeMode="contain"
-          priority="high"
-        />
+        <Pressable onPress={onTap} style={{ width: SCREEN_WIDTH }}>
+          <MangaImage
+            uri={item.page.imageUrl}
+            headers={item.page.headers}
+            style={{ width: SCREEN_WIDTH }}
+            resizeMode="contain"
+            priority="high"
+          />
+        </Pressable>
       );
     },
     [onTap]
