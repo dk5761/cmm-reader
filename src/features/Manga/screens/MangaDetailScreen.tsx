@@ -65,6 +65,9 @@ export function MangaDetailScreen() {
     preloaded,
   });
 
+  // Get image headers from source
+  const imageHeaders = source?.getImageHeaders() ?? {};
+
   // Refresh handler
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -135,6 +138,7 @@ export function MangaDetailScreen() {
             genres={displayManga.genres}
             sourceName={source?.name}
             sourceBaseUrl={source?.baseUrl}
+            headers={imageHeaders}
             isRefreshing={!!isRefreshing}
           />
 

@@ -41,6 +41,9 @@ export function SourceBrowseScreen() {
   const fgColor = useCSSVariable("--color-foreground");
   const foreground = typeof fgColor === "string" ? fgColor : "#fff";
 
+  // Get image headers from source for cover images
+  const imageHeaders = source?.getImageHeaders() ?? {};
+
   // No session warmup needed anymore - cookies loaded from CookieManager automatically
   const sessionReady = true; // Always ready now
 
@@ -204,6 +207,7 @@ export function SourceBrowseScreen() {
                   title={item.title}
                   coverUrl={item.cover}
                   baseUrl={source?.baseUrl}
+                  headers={imageHeaders}
                   onPress={() => handleMangaPress(item)}
                   badge={isInLibrary ? "IN LIBRARY" : undefined}
                 />

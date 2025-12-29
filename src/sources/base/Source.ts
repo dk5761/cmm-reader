@@ -35,6 +35,16 @@ export abstract class Source {
   }
 
   /**
+   * Get headers required for loading images from this source.
+   * Override in subclasses if special headers are needed.
+   */
+  getImageHeaders(): Record<string, string> {
+    return {
+      Referer: `${this.baseUrl}/`,
+    };
+  }
+
+  /**
    * Search for manga by query
    */
   abstract search(query: string, page?: number): Promise<SearchResult>;

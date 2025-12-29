@@ -58,11 +58,7 @@ export function useMangaData(params: MangaDataParams) {
   // Get source config
   const source = getSource(sourceId);
 
-  // Session management
-  const { isSessionReady, warmupSession } = useSession();
-  const sessionReady = source?.needsCloudflareBypass
-    ? isSessionReady(source.baseUrl)
-    : true;
+  const sessionReady = true;
 
   // Local data from Realm
   const libraryManga = useLibraryMangaById(libraryId);
@@ -86,17 +82,17 @@ export function useMangaData(params: MangaDataParams) {
     }
   }, [hasInstantData, shouldFetch]);
 
-  // Only warmup if we're ready to fetch
-  useEffect(() => {
-    if (shouldFetch && source?.needsCloudflareBypass && source?.baseUrl) {
-      warmupSession(source.baseUrl, true);
-    }
-  }, [
-    shouldFetch,
-    source?.baseUrl,
-    source?.needsCloudflareBypass,
-    warmupSession,
-  ]);
+  // // Only warmup if we're ready to fetch
+  // useEffect(() => {
+  //   if (shouldFetch && source?.needsCloudflareBypass && source?.baseUrl) {
+  //     warmupSession(source.baseUrl, true);
+  //   }
+  // }, [
+  //   shouldFetch,
+  //   source?.baseUrl,
+  //   source?.needsCloudflareBypass,
+  //   warmupSession,
+  // ]);
 
   // Fetch from source (only when session is ready AND we should fetch)
   const fetchEnabled = shouldFetch && sessionReady;
