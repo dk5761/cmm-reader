@@ -1,6 +1,6 @@
 import "../global.css";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -11,8 +11,6 @@ import { SessionProvider } from "@/shared/contexts/SessionContext";
 import { WebViewFetcherProvider } from "@/shared/contexts/WebViewFetcherContext";
 import { DatabaseProvider } from "@/core/database";
 import { UpdateScreen } from "@/shared/components/UpdateScreen";
-import { CloudflareBypassModal } from "@/shared/components/CloudflareBypassModal";
-import { ManualCfSolver } from "@/core/http/ManualCfSolver";
 import { requestNotificationPermissions } from "@/shared/services/notifications";
 
 // Keep splash screen visible while app loads
@@ -22,36 +20,11 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // CloudflareBypassModal state
-  const [cfBypassState, setCfBypassState] = useState<{
-    visible: boolean;
-    url: string;
-  }>({ visible: false, url: "" });
-
   // Request notification permissions and hide splash on startup
   useEffect(() => {
     requestNotificationPermissions();
     // Hide splash screen after a brief delay to ensure providers are ready
     SplashScreen.hideAsync();
-  }, []);
-
-  // Listen to ManualCfSolver events
-  useEffect(() => {
-    const showListener = (data: { url: string }) => {
-      setCfBypassState({ visible: true, url: data.url });
-    };
-
-    const hideListener = () => {
-      setCfBypassState({ visible: false, url: "" });
-    };
-
-    ManualCfSolver.on("show", showListener);
-    ManualCfSolver.on("hide", hideListener);
-
-    return () => {
-      ManualCfSolver.off("show", showListener);
-      ManualCfSolver.off("hide", hideListener);
-    };
   }, []);
 
   return (
@@ -87,14 +60,6 @@ export default function RootLayout() {
 
                 {/* Force Update Screen - blocks app until update is applied */}
                 <UpdateScreen />
-
-                {/* Cloudflare Bypass Modal - globally available */}
-                <CloudflareBypassModal
-                  visible={cfBypassState.visible}
-                  url={cfBypassState.url}
-                  onSuccess={(cookies) => ManualCfSolver.handleSuccess(cookies)}
-                  onCancel={() => ManualCfSolver.handleCancel()}
-                />
               </WebViewFetcherProvider>
             </SessionProvider>
           </QueryProvider>

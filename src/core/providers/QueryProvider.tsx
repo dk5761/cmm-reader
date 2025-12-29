@@ -17,6 +17,8 @@ export function QueryProvider({ children }: QueryProviderProps) {
             retry: 2,
             refetchOnWindowFocus: false, // Not needed on mobile
             refetchOnReconnect: true,
+            // Don't throw errors to error boundaries - handle in UI instead
+            throwOnError: false,
           },
         },
       })

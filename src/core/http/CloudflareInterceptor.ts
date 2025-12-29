@@ -8,7 +8,6 @@ import type {
 import { WebViewFetcherService } from "./WebViewFetcherService";
 import { CookieManagerInstance } from "./CookieManager";
 import { CloudflareBypassException } from "./types";
-import { ManualCfSolver } from "./ManualCfSolver";
 
 const MAX_CF_RETRIES = 3;
 const CF_RETRY_DELAYS = [2000, 5000, 10000]; // Exponential backoff
@@ -103,30 +102,9 @@ async function solveCfChallenge(
       return solveCfChallenge(config, attempt + 1);
     }
 
-    // All automatic attempts failed - request manual bypass
-    console.warn(
-      `[CF Interceptor] Automatic bypass failed after ${MAX_CF_RETRIES} attempts. Requesting manual bypass...`
-    );
-
-    try {
-      // Request user to manually solve CF challenge
-      const manualCookies = await ManualCfSolver.requestManualSolve(url);
-
-      console.log(`[CF Interceptor] Manual bypass successful for ${domain}`);
-
-      return {
-        html: "", // HTML not needed, we just need cookies for retry
-        cookies: manualCookies,
-      };
-    } catch (manualError) {
-      console.error(
-        `[CF Interceptor] Manual bypass also failed:`,
-        (manualError as Error).message
-      );
-    }
-
+    // All attempts failed
     throw new CloudflareBypassException(
-      `Failed to bypass Cloudflare after ${MAX_CF_RETRIES} attempts and manual bypass: ${err.message}`,
+      `Failed to bypass Cloudflare after ${MAX_CF_RETRIES} attempts: ${err.message}`,
       MAX_CF_RETRIES,
       url
     );

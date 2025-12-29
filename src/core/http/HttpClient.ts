@@ -33,7 +33,7 @@ class HttpClientClass {
         "Accept-Language": "en-US,en;q=0.9",
       },
       // Don't reject on non-2xx status (we need to detect CF challenges)
-      validateStatus: () => true,
+      // validateStatus: () => true,
     });
 
     // Setup Cloudflare interceptor (automatic CF detection & solving)
