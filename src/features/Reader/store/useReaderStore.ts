@@ -130,7 +130,13 @@ export const useReaderStore = create<ReaderState & ReaderActions>(
         markedAsRead: false, // Reset for new chapter
       }),
 
-    initialize: (data) =>
+    initialize: (data) => {
+      console.log("[useReaderStore] Initialize called with:", {
+        hasInitialSegment: !!data.initialSegment,
+        segmentPagesCount: data.initialSegment?.pages.length,
+        chapterId: data.chapterId,
+      });
+
       set({
         initialPage: data.initialPage,
         currentPage: data.initialPage,
@@ -145,7 +151,12 @@ export const useReaderStore = create<ReaderState & ReaderActions>(
         markedAsRead: false,
         isLoadingPrev: false,
         isLoadingNext: false,
-      }),
+      });
+
+      console.log("[useReaderStore] After initialize, loadedSegments:", {
+        count: data.initialSegment ? 1 : 0,
+      });
+    },
 
     reset: () => set(initialState),
   })

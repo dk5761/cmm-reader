@@ -68,6 +68,17 @@ export function ReaderContainer() {
 
   // Data fetching
   const source = getSource(sourceId || "");
+
+  console.log("[ReaderContainer] Params:", {
+    chapterId,
+    sourceId,
+    url,
+    mangaUrl,
+    mangaId,
+    chapterNumberParam,
+    chapterTitleParam,
+  });
+
   const {
     data: pages,
     isLoading: pagesLoading,
@@ -89,6 +100,19 @@ export function ReaderContainer() {
         }
       : undefined);
 
+  console.log("[ReaderContainer] Chapter resolution:", {
+    hasChaptersList: !!chapters,
+    chaptersCount: chapters?.length,
+    currentChapter: currentChapter
+      ? {
+          id: currentChapter.id,
+          number: currentChapter.number,
+          title: currentChapter.title,
+        }
+      : null,
+    usingFallback: !chapters?.find((ch) => ch.url === url),
+  });
+
   const chapterNumber =
     currentChapter?.number || parseFloat(chapterNumberParam || "0") || 0;
   const currentChapterIndex = chapters?.findIndex((ch) => ch.url === url) ?? -1;
@@ -102,6 +126,14 @@ export function ReaderContainer() {
   const markedAsRead = useReaderStore((s) => s.markedAsRead);
   const setMarkedAsRead = useReaderStore((s) => s.setMarkedAsRead);
   const hasInitializedRef = useRef(false);
+
+  console.log("[ReaderContainer] Data state:", {
+    pagesLoading,
+    pagesError: pagesError ? (pagesError as Error).message : null,
+    pagesCount: pages?.length,
+    isInitialized,
+    hasInitializedRef: hasInitializedRef.current,
+  });
 
   // History saving
   const saveHistory = useSaveHistory();
@@ -124,6 +156,12 @@ export function ReaderContainer() {
         pages: pages,
         isLoading: false,
       };
+
+      console.log("[ReaderContainer] Initializing with segment:", {
+        chapterId: initialSegment.chapterId,
+        chapterIndex: initialSegment.chapterIndex,
+        pagesCount: initialSegment.pages.length,
+      });
 
       initialize({
         initialPage: 1,
@@ -155,6 +193,7 @@ export function ReaderContainer() {
         mangaId,
         mangaTitle,
         mangaCover,
+        mangaUrl: mangaUrl || "",
         chapterId: currentChapter.id || chapterId || "",
         chapterNumber: currentChapter.number,
         chapterTitle: currentChapter.title,

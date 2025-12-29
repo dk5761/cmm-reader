@@ -5,6 +5,7 @@ type HistoryData = {
   mangaId: string;
   mangaTitle: string;
   mangaCover?: string;
+  mangaUrl?: string;
   chapterId: string;
   chapterNumber: number;
   chapterTitle?: string;

@@ -34,16 +34,27 @@ export const ReaderView = memo(function ReaderView({
 
   // Build unified items array from segments
   const items = useMemo(() => {
-    if (!chapters || loadedSegments.length === 0) {
-      console.log("[ReaderView] No chapters or segments");
+    // Need either chapters list OR at least one segment to render
+    if (loadedSegments.length === 0) {
+      console.log("[ReaderView] No segments loaded");
       return [];
     }
-    const builtItems = buildReaderItems(loadedSegments, chapters, chapterIndex);
+
+    // If chapters list not loaded yet, use empty array for buildReaderItems
+    // This will still render pages from segments, just without prev/next transitions
+    const chaptersForBuild = chapters || [];
+
+    const builtItems = buildReaderItems(
+      loadedSegments,
+      chaptersForBuild,
+      chapterIndex
+    );
     console.log("[ReaderView] Built items:", {
       total: builtItems.length,
       pages: builtItems.filter((i) => i.type === "page").length,
       transitions: builtItems.filter((i) => i.type === "transition").length,
       chapterIndex,
+      hasChaptersList: !!chapters,
     });
     return builtItems;
   }, [loadedSegments, chapters, chapterIndex]);

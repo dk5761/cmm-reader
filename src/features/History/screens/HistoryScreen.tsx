@@ -29,6 +29,7 @@ type HistoryItemProps = {
     mangaId: string;
     mangaTitle: string;
     mangaCover?: string;
+    mangaUrl?: string;
     chapterId: string;
     chapterNumber: number;
     chapterTitle?: string;
@@ -122,8 +123,14 @@ export function HistoryScreen() {
     typeof foregroundColor === "string" ? foregroundColor : "#fff";
 
   const handleContinueReading = (item: HistoryItemProps["item"]) => {
-    // Extract manga ID from mangaId (format: sourceId_mangaSlug)
-    const mangaSlug = item.mangaId.replace(`${item.sourceId}_`, "");
+    console.log("[HistoryScreen] Continue reading:", {
+      chapterId: item.chapterId,
+      sourceId: item.sourceId,
+      url: item.chapterUrl,
+      mangaUrl: item.mangaUrl,
+      mangaId: item.mangaId,
+      chapterNumber: item.chapterNumber,
+    });
 
     router.push({
       pathname: "/reader/[chapterId]",
@@ -131,7 +138,7 @@ export function HistoryScreen() {
         chapterId: item.chapterId,
         sourceId: item.sourceId,
         url: item.chapterUrl,
-        mangaUrl: `/${mangaSlug}`, // Reconstruct manga URL
+        mangaUrl: item.mangaUrl || "",
         mangaId: item.mangaId,
         mangaTitle: item.mangaTitle,
         mangaCover: item.mangaCover || "",
