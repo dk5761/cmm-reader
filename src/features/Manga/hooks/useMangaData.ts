@@ -151,16 +151,13 @@ export function useMangaData(params: MangaDataParams) {
 
     // Only sync chapters if manga is actually in library
     if (chapters && hasLocalData && libraryManga?.inLibrary) {
-      const localChapterCount = libraryManga.chapters?.length ?? 0;
-
-      if (chapters.length !== localChapterCount) {
-        console.log("[useMangaData] Auto-syncing chapters to Realm:", {
-          libraryId,
-          freshCount: chapters.length,
-          localCount: localChapterCount,
-        });
-        updateLibraryChapters(libraryId, chapters);
-      }
+      console.log("[useMangaData] Auto-syncing chapters to Realm:", {
+        libraryId,
+        freshCount: chapters.length,
+        localCount: libraryManga.chapters?.length ?? 0,
+      });
+      // Always sync to update chapter dates and other metadata
+      updateLibraryChapters(libraryId, chapters);
     }
   }, [chapters, hasLocalData, libraryManga, libraryId, updateLibraryChapters]);
 

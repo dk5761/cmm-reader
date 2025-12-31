@@ -200,33 +200,55 @@ export function useUpdateLibraryChapters() {
         const manga = realm.objectForPrimaryKey(MangaSchema, id);
         if (!manga) return;
 
-        // Find chapters that don't exist yet
-        const existingIds = new Set(manga.chapters.map((c) => c.id));
-        const chaptersToAdd = newChapters.filter(
-          (ch) => !existingIds.has(ch.id)
+        // Create a map of existing chapters for fast lookup
+        const existingChaptersMap = new Map(
+          manga.chapters.map((ch) => [ch.id, ch])
         );
 
-        if (chaptersToAdd.length > 0) {
-          // Add new chapters
-          chaptersToAdd.forEach((ch) => {
+        let addedCount = 0;
+        let updatedCount = 0;
+
+        newChapters.forEach((newCh) => {
+          const existingCh = existingChaptersMap.get(newCh.id);
+
+          if (existingCh) {
+            // Update existing chapter if date or other metadata changed
+            let hasChanges = false;
+
+            if (existingCh.date !== newCh.date) {
+              existingCh.date = newCh.date;
+              hasChanges = true;
+            }
+
+            if (existingCh.title !== newCh.title && newCh.title) {
+              existingCh.title = newCh.title;
+              hasChanges = true;
+            }
+
+            if (hasChanges) {
+              updatedCount++;
+            }
+          } else {
+            // Add new chapter
             manga.chapters.push({
-              id: ch.id,
-              number: ch.number,
-              title: ch.title,
-              url: ch.url,
-              date: ch.date,
+              id: newCh.id,
+              number: newCh.number,
+              title: newCh.title,
+              url: newCh.url,
+              date: newCh.date,
               isRead: false,
               lastPageRead: 0,
             } as ChapterSchema);
-          });
+            addedCount++;
+          }
+        });
 
+        if (addedCount > 0 || updatedCount > 0) {
           manga.lastUpdated = Date.now();
-          console.log(
-            "[Library] Added",
-            chaptersToAdd.length,
-            "new chapters to",
-            manga.title
-          );
+          console.log("[Library] Synced chapters for", manga.title, {
+            added: addedCount,
+            updated: updatedCount,
+          });
         }
       });
     },
