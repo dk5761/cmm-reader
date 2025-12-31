@@ -141,6 +141,14 @@ export function useMangaData(params: MangaDataParams) {
   }, [manga, chapters, sourceId, getOrCreateManga]);
 
   useEffect(() => {
+    // [DEBUG] Log sync decision
+    console.log("[DEBUG useMangaData] Sync decision:", {
+      hasChapters: !!chapters,
+      hasLocalData,
+      inLibrary: libraryManga?.inLibrary,
+      shouldSync: chapters && hasLocalData && libraryManga?.inLibrary,
+    });
+
     // Only sync chapters if manga is actually in library
     if (chapters && hasLocalData && libraryManga?.inLibrary) {
       const localChapterCount = libraryManga.chapters?.length ?? 0;
