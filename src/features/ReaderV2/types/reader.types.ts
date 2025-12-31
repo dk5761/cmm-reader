@@ -214,12 +214,11 @@ export function buildAdapterItems(
 
   if (prevChapter) {
     if (prevChapter.state === "loaded" && prevChapter.pages.length > 0) {
-      // Helper to add prev pages (usually we want to maintain scroll, so maybe keep transition as header?)
-      // For now, simpler: If loaded, show pages.
       for (const page of prevChapter.pages) {
         items.push(createPageItem(page, prevChapter.chapter.id, 0));
       }
-      // Add a separator/header between chapters?
+      // Add Separator between Prev and Curr
+      items.push(createTransitionItem("prev", prevChapter, isLoadingPrev));
     } else {
       items.push(createTransitionItem("prev", prevChapter, isLoadingPrev));
     }
@@ -233,14 +232,11 @@ export function buildAdapterItems(
   // Next Chapter
   if (nextChapter) {
     if (nextChapter.state === "loaded" && nextChapter.pages.length > 0) {
-      // Add separator?
-      // Add next chapter pages
+      // Add Separator between Curr and Next
+      items.push(createTransitionItem("next", nextChapter, isLoadingNext));
       for (const page of nextChapter.pages) {
         items.push(createPageItem(page, nextChapter.chapter.id, 0));
       }
-      // Note: We don't add a 'next' transition here because we don't have the *next-next* chapter data yet.
-      // The user must trigger a "Shift" to load the next-next pointer.
-      // This shift should happen automatically when scrolling into the next chapter.
     } else {
       items.push(createTransitionItem("next", nextChapter, isLoadingNext));
     }

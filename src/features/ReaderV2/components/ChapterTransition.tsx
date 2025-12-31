@@ -26,6 +26,19 @@ export const ChapterTransition = memo(function ChapterTransition({
     : "No more chapters";
   const hasTarget = targetChapter !== null;
 
+  const isLoaded = targetChapter?.state === "loaded";
+
+  if (isLoaded) {
+    return (
+      <View className="w-full py-8 items-center justify-center">
+        <View className="w-24 h-[1px] bg-neutral-800 mb-2" />
+        <Text className="text-neutral-500 font-medium text-xs uppercase tracking-widest">
+          {chapterName}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View className="w-full h-48 items-center justify-center bg-neutral-900 border-y border-neutral-800">
       <Text className="text-neutral-400 text-sm uppercase tracking-wider mb-2">
