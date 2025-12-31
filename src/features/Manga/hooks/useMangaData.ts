@@ -9,6 +9,7 @@ import { useMangaDetails, useChapterList } from "../api/manga.queries";
 import {
   useLibraryMangaById,
   useUpdateLibraryChapters,
+  useGetOrCreateManga,
 } from "@/features/Library/hooks";
 import { getSource } from "@/sources";
 import type { MangaDetails, Chapter } from "@/sources";
@@ -128,15 +129,20 @@ export function useMangaData(params: MangaDataParams) {
     }
   }, [chapters, libraryManga, manga, hasLocalData, libraryId]);
 
-  // Auto-sync: Persist fresh chapters to Realm when they arrive for library manga
+  // Auto-sync: Persist fresh chapters to Realm when they arrive
   const updateLibraryChapters = useUpdateLibraryChapters();
+  const getOrCreateManga = useGetOrCreateManga();
 
   useEffect(() => {
-    // Only sync if:
-    // 1. We have fresh chapters from API
-    // 2. Manga is in library
-    // 3. There's actually new data to sync
-    if (chapters && hasLocalData && libraryManga) {
+    // Auto-track: Create/update manga entry for progress tracking
+    if (manga && chapters) {
+      getOrCreateManga(manga, chapters, sourceId);
+    }
+  }, [manga, chapters, sourceId, getOrCreateManga]);
+
+  useEffect(() => {
+    // Only sync chapters if manga is actually in library
+    if (chapters && hasLocalData && libraryManga?.inLibrary) {
       const localChapterCount = libraryManga.chapters?.length ?? 0;
 
       if (chapters.length !== localChapterCount) {
@@ -227,6 +233,10 @@ export function useMangaData(params: MangaDataParams) {
     await Promise.all([refetchManga(), refetchChapters()]);
   }, [refetchManga, refetchChapters]);
 
+  // Tracking states
+  const isInLibrary = libraryManga?.inLibrary === true;
+  const isTracked = !!libraryManga; // Exists in DB (library OR tracked)
+
   return {
     // Data
     displayManga,
@@ -243,6 +253,8 @@ export function useMangaData(params: MangaDataParams) {
     isRefreshing,
     hasLocalData,
     isWaitingForSession,
+    isInLibrary,
+    isTracked,
 
     // Errors
     error: mangaError || chaptersError,

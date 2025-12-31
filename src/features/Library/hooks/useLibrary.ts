@@ -12,7 +12,7 @@ export function useLibraryManga() {
   const manga = useQuery(MangaSchema);
 
   const libraryManga = useMemo(() => {
-    return manga.sorted("addedAt", true); // Most recent first
+    return manga.filtered("inLibrary == true").sorted("addedAt", true); // Most recent first
   }, [manga]);
 
   return libraryManga;
@@ -26,10 +26,10 @@ export function useLibraryByStatus(status: ReadingStatus | "all") {
 
   const filtered = useMemo(() => {
     if (status === "all") {
-      return manga.sorted("addedAt", true);
+      return manga.filtered("inLibrary == true").sorted("addedAt", true);
     }
     return manga
-      .filtered("readingStatus == $0", status)
+      .filtered("inLibrary == true AND readingStatus == $0", status)
       .sorted("addedAt", true);
   }, [manga, status]);
 
@@ -42,7 +42,7 @@ export function useLibraryByStatus(status: ReadingStatus | "all") {
 export function useIsInLibrary(sourceId: string, mangaId: string) {
   const id = `${sourceId}_${mangaId}`;
   const manga = useObject(MangaSchema, id);
-  return !!manga;
+  return manga?.inLibrary === true;
 }
 
 /**
@@ -63,16 +63,41 @@ export function useAddToLibrary() {
       const id = `${sourceId}_${manga.id}`;
 
       realm.write(() => {
-        // Check if already exists
+        // Check if already exists (was being tracked)
         const existing = realm.objectForPrimaryKey(MangaSchema, id);
         if (existing) {
-          console.log("[Library] Manga already in library:", id);
+          // Already tracked, just set inLibrary flag and merge chapters
+          existing.inLibrary = true;
+          existing.lastUpdated = Date.now();
+
+          // Merge any new chapters from API
+          const existingIds = new Set(existing.chapters.map((c) => c.id));
+          const newChapters = chapters.filter((ch) => !existingIds.has(ch.id));
+
+          if (newChapters.length > 0) {
+            newChapters.forEach((ch) => {
+              existing.chapters.push({
+                id: ch.id,
+                number: ch.number,
+                title: ch.title,
+                url: ch.url,
+                date: ch.date,
+                isRead: false,
+                lastPageRead: 0,
+              } as ChapterSchema);
+            });
+            console.log("[Library] Merged", newChapters.length, "new chapters");
+          }
+
+          console.log("[Library] Added to library (was tracked):", id);
           return;
         }
 
+        // New manga - create with inLibrary = true
         realm.create(MangaSchema, {
           id,
           sourceId,
+          inLibrary: true,
           title: manga.title,
           cover: manga.cover,
           url: manga.url,
@@ -94,7 +119,7 @@ export function useAddToLibrary() {
           addedAt: Date.now(),
         });
 
-        console.log("[Library] Added manga:", manga.title);
+        console.log("[Library] Added new manga:", manga.title);
       });
 
       // Background cover download
@@ -128,8 +153,9 @@ export function useRemoveFromLibrary() {
       realm.write(() => {
         const manga = realm.objectForPrimaryKey(MangaSchema, id);
         if (manga) {
-          realm.delete(manga);
-          console.log("[Library] Removed manga:", id);
+          // Keep manga for history/progress tracking, just hide from library
+          manga.inLibrary = false;
+          console.log("[Library] Removed from library (hidden):", id);
         }
       });
     },
@@ -202,6 +228,74 @@ export function useUpdateLibraryChapters() {
             manga.title
           );
         }
+      });
+    },
+    [realm]
+  );
+}
+
+/**
+ * Get or create manga for progress tracking (inLibrary = false)
+ * Used when reading manga from browse without adding to library
+ */
+export function useGetOrCreateManga() {
+  const realm = useRealm();
+
+  return useCallback(
+    (manga: Manga, chapters: Chapter[], sourceId: string) => {
+      const id = `${sourceId}_${manga.id}`;
+
+      realm.write(() => {
+        const existing = realm.objectForPrimaryKey(MangaSchema, id);
+        if (existing) {
+          // Already tracked, just update chapters if needed
+          const existingIds = new Set(existing.chapters.map((c) => c.id));
+          const newChapters = chapters.filter((ch) => !existingIds.has(ch.id));
+
+          if (newChapters.length > 0) {
+            newChapters.forEach((ch) => {
+              existing.chapters.push({
+                id: ch.id,
+                number: ch.number,
+                title: ch.title,
+                url: ch.url,
+                date: ch.date,
+                isRead: false,
+                lastPageRead: 0,
+              } as ChapterSchema);
+            });
+            console.log("[Track] Updated chapters for tracked manga:", id);
+          }
+          return;
+        }
+
+        // Create new entry for tracking (inLibrary = false by default)
+        realm.create(MangaSchema, {
+          id,
+          sourceId,
+          inLibrary: false, // KEY: Not in library, just tracking
+          title: manga.title,
+          cover: manga.cover,
+          url: manga.url,
+          author: manga.author,
+          artist: manga.artist,
+          status: manga.status,
+          description: manga.description,
+          genres: manga.genres || [],
+          chapters: chapters.map((ch) => ({
+            id: ch.id,
+            number: ch.number,
+            title: ch.title,
+            url: ch.url,
+            date: ch.date,
+            isRead: false,
+            lastPageRead: 0,
+          })),
+          readingStatus: "reading",
+          addedAt: Date.now(),
+        });
+
+        console.log("[Track] Created tracking entry:", manga.title);
       });
     },
     [realm]

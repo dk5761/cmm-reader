@@ -58,6 +58,7 @@ export class ReadingProgressSchema extends Realm.Object<ReadingProgressSchema> {
 export class MangaSchema extends Realm.Object<MangaSchema> {
   id!: string; // Format: sourceId_mangaId
   sourceId!: string;
+  inLibrary!: boolean; // true = in library, false = tracking only
   title!: string;
   cover?: string;
   localCover?: string;
@@ -80,6 +81,7 @@ export class MangaSchema extends Realm.Object<MangaSchema> {
     properties: {
       id: "string",
       sourceId: "string",
+      inLibrary: { type: "bool", default: false },
       title: "string",
       cover: "string?",
       localCover: "string?",

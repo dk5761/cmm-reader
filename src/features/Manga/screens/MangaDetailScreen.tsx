@@ -55,6 +55,8 @@ export function MangaDetailScreen() {
     isRefreshing,
     hasLocalData,
     isWaitingForSession,
+    isInLibrary,
+    isTracked,
     error,
     refetch,
     libraryId,
@@ -155,7 +157,7 @@ export function MangaDetailScreen() {
             sourceId={sourceId || ""}
             manga={manga ?? null}
             chapters={chapters ?? null}
-            isInLibrary={!!libraryManga}
+            isInLibrary={isInLibrary}
             readingStatus={
               (libraryManga?.readingStatus as ReadingStatus) || "reading"
             }

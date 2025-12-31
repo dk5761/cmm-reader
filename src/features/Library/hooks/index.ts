@@ -7,6 +7,7 @@ export {
   useRemoveFromLibrary,
   useUpdateReadingStatus,
   useUpdateLibraryChapters,
+  useGetOrCreateManga,
 } from "./useLibrary";
 
 export {
