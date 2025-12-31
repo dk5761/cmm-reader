@@ -34,7 +34,8 @@ import { usePreloaderV2 } from "../hooks/usePreloaderV2";
 import { useSaveProgressV2 } from "../hooks/useSaveProgressV2";
 import { useKeepAwakeV2 } from "../hooks/useKeepAwakeV2";
 import { useChapterList } from "@/features/Manga/api/manga.queries";
-import type { Chapter } from "@/sources";
+import { useGetOrCreateManga } from "@/features/Library/hooks";
+import type { Chapter, MangaDetails } from "@/sources";
 
 export function ReaderScreenV2() {
   // Keep screen awake while reading
@@ -92,6 +93,30 @@ export function ReaderScreenV2() {
       chapters?.findIndex((ch) => ch.url === url || ch.id === chapterId) ?? -1,
     [chapters, url, chapterId]
   );
+
+  // Auto-track manga for progress (even if not in library)
+  const getOrCreateManga = useGetOrCreateManga();
+  useEffect(() => {
+    if (chapters && chapters.length > 0 && sourceId && mangaId && mangaTitle) {
+      // Create minimal manga object for tracking
+      const trackingManga: MangaDetails = {
+        id: mangaId,
+        sourceId,
+        title: mangaTitle,
+        cover: mangaCover || "",
+        url: mangaUrl || "",
+      };
+      getOrCreateManga(trackingManga, chapters, sourceId);
+    }
+  }, [
+    chapters,
+    sourceId,
+    mangaId,
+    mangaTitle,
+    mangaCover,
+    mangaUrl,
+    getOrCreateManga,
+  ]);
 
   // Store state and actions
 
