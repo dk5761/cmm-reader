@@ -175,19 +175,82 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     // ========================================================================
 
     loadNextChapter: async () => {
-      const { viewerChapters, allChapters, currentChapterIndex } = get();
+      const { viewerChapters } = get();
       if (!viewerChapters?.nextChapter) return;
+      if (
+        viewerChapters.nextChapter.state === "loading" ||
+        viewerChapters.nextChapter.state === "loaded"
+      )
+        return;
 
-      // TODO: Implement chapter transition
       console.log("[ReaderStoreV2] Loading next chapter...");
+
+      // Update state to loading
+      set((state) => ({
+        viewerChapters: state.viewerChapters
+          ? {
+              ...state.viewerChapters,
+              nextChapter: {
+                ...state.viewerChapters.nextChapter!,
+                state: "loading",
+              },
+            }
+          : null,
+      }));
+    },
+
+    setNextChapterLoaded: (pages: ReaderPage[]) => {
+      set((state) => ({
+        viewerChapters: state.viewerChapters
+          ? {
+              ...state.viewerChapters,
+              nextChapter: {
+                ...state.viewerChapters.nextChapter!,
+                state: "loaded",
+                pages: pages,
+              },
+            }
+          : null,
+      }));
     },
 
     loadPrevChapter: async () => {
-      const { viewerChapters, allChapters, currentChapterIndex } = get();
+      const { viewerChapters } = get();
       if (!viewerChapters?.prevChapter) return;
+      if (
+        viewerChapters.prevChapter.state === "loading" ||
+        viewerChapters.prevChapter.state === "loaded"
+      )
+        return;
 
-      // TODO: Implement chapter transition
       console.log("[ReaderStoreV2] Loading previous chapter...");
+      // Update state to loading
+      set((state) => ({
+        viewerChapters: state.viewerChapters
+          ? {
+              ...state.viewerChapters,
+              prevChapter: {
+                ...state.viewerChapters.prevChapter!,
+                state: "loading",
+              },
+            }
+          : null,
+      }));
+    },
+
+    setPrevChapterLoaded: (pages: ReaderPage[]) => {
+      set((state) => ({
+        viewerChapters: state.viewerChapters
+          ? {
+              ...state.viewerChapters,
+              prevChapter: {
+                ...state.viewerChapters.prevChapter!,
+                state: "loaded",
+                pages: pages,
+              },
+            }
+          : null,
+      }));
     },
 
     // ========================================================================

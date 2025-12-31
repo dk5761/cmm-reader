@@ -48,7 +48,11 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
 
   // Build adapter items from viewer chapters
   const items: AdapterItem[] = viewerChapters
-    ? buildAdapterItems(viewerChapters, false, false)
+    ? buildAdapterItems(
+        viewerChapters,
+        viewerChapters.prevChapter?.state === "loading",
+        viewerChapters.nextChapter?.state === "loading"
+      )
     : [];
 
   // Stable viewability callback (prevent FlashList from ignoring updates)

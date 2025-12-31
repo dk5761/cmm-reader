@@ -132,6 +132,8 @@ export interface ReaderStoreActions {
   // Chapter loading (via react-query, not store)
   loadNextChapter: () => Promise<void>;
   loadPrevChapter: () => Promise<void>;
+  setNextChapterLoaded: (pages: ReaderPage[]) => void;
+  setPrevChapterLoaded: (pages: ReaderPage[]) => void;
 
   // UI
   toggleOverlay: () => void;
@@ -207,21 +209,42 @@ export function buildAdapterItems(
 ): AdapterItem[] {
   const items: AdapterItem[] = [];
 
-  // Previous chapter transition
-  items.push(
-    createTransitionItem("prev", viewerChapters.prevChapter, isLoadingPrev)
-  );
+  // Previous Chapter
+  const { prevChapter, currChapter, nextChapter } = viewerChapters;
 
-  // Current chapter pages
-  const { currChapter } = viewerChapters;
+  if (prevChapter) {
+    if (prevChapter.state === "loaded" && prevChapter.pages.length > 0) {
+      // Helper to add prev pages (usually we want to maintain scroll, so maybe keep transition as header?)
+      // For now, simpler: If loaded, show pages.
+      for (const page of prevChapter.pages) {
+        items.push(createPageItem(page, prevChapter.chapter.id, 0));
+      }
+      // Add a separator/header between chapters?
+    } else {
+      items.push(createTransitionItem("prev", prevChapter, isLoadingPrev));
+    }
+  }
+
+  // Current Chapter Pages
   for (const page of currChapter.pages) {
     items.push(createPageItem(page, currChapter.chapter.id, 0));
   }
 
-  // Next chapter transition
-  items.push(
-    createTransitionItem("next", viewerChapters.nextChapter, isLoadingNext)
-  );
+  // Next Chapter
+  if (nextChapter) {
+    if (nextChapter.state === "loaded" && nextChapter.pages.length > 0) {
+      // Add separator?
+      // Add next chapter pages
+      for (const page of nextChapter.pages) {
+        items.push(createPageItem(page, nextChapter.chapter.id, 0));
+      }
+      // Note: We don't add a 'next' transition here because we don't have the *next-next* chapter data yet.
+      // The user must trigger a "Shift" to load the next-next pointer.
+      // This shift should happen automatically when scrolling into the next chapter.
+    } else {
+      items.push(createTransitionItem("next", nextChapter, isLoadingNext));
+    }
+  }
 
   return items;
 }

@@ -26,7 +26,10 @@ import { useLocalSearchParams, router } from "expo-router";
 import { useReaderStoreV2 } from "../store/useReaderStoreV2";
 import { WebtoonViewer } from "../components/WebtoonViewer";
 import { ReaderOverlay } from "../components/ReaderOverlay";
-import { useChapterLoaderV2 } from "../hooks/useChapterLoaderV2";
+import {
+  useChapterLoaderV2,
+  usePrefetchChapter,
+} from "../hooks/useChapterLoaderV2";
 import { usePreloaderV2 } from "../hooks/usePreloaderV2";
 import { useSaveProgressV2 } from "../hooks/useSaveProgressV2";
 import { useKeepAwakeV2 } from "../hooks/useKeepAwakeV2";
@@ -91,6 +94,7 @@ export function ReaderScreenV2() {
   );
 
   // Store state and actions
+
   const initialize = useReaderStoreV2((s) => s.initialize);
   const setCurrentChapterData = useReaderStoreV2(
     (s) => s.setCurrentChapterData
@@ -101,6 +105,49 @@ export function ReaderScreenV2() {
   const toggleOverlay = useReaderStoreV2((s) => s.toggleOverlay);
   const allChapters = useReaderStoreV2((s) => s.allChapters);
   const storeChapterIndex = useReaderStoreV2((s) => s.currentChapterIndex);
+
+  // Infinite Scroll Logic
+  const setNextChapterLoaded = useReaderStoreV2((s) => s.setNextChapterLoaded);
+  const setPrevChapterLoaded = useReaderStoreV2((s) => s.setPrevChapterLoaded);
+
+  const { fetchChapter } = usePrefetchChapter();
+
+  useEffect(() => {
+    if (!viewerChapters || !sourceId) return;
+
+    // Load Next
+    const next = viewerChapters.nextChapter;
+    if (next && next.state === "loading") {
+      fetchChapter(sourceId, next.chapter).then((res) => {
+        if (res) {
+          console.log(
+            `[ReaderScreenV2] Next chapter loaded: ${res.pages.length} pages`
+          );
+          setNextChapterLoaded(res.pages);
+        }
+      });
+    }
+
+    // Load Prev
+    const prev = viewerChapters.prevChapter;
+    if (prev && prev.state === "loading") {
+      fetchChapter(sourceId, prev.chapter).then((res) => {
+        if (res) {
+          console.log(
+            `[ReaderScreenV2] Prev chapter loaded: ${res.pages.length} pages`
+          );
+          setPrevChapterLoaded(res.pages);
+        }
+      });
+    }
+  }, [
+    viewerChapters?.nextChapter?.state,
+    viewerChapters?.prevChapter?.state,
+    sourceId,
+    fetchChapter,
+    setNextChapterLoaded,
+    setPrevChapterLoaded,
+  ]);
 
   // Stage 1: Load chapter pages (metadata only)
   const {

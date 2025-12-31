@@ -60,11 +60,11 @@ export function useChapterLoaderV2(
 export function usePrefetchChapter() {
   const queryClient = useQueryClient();
 
-  const prefetchChapter = async (sourceId: string, chapter: Chapter) => {
+  const fetchChapter = async (sourceId: string, chapter: Chapter) => {
     const source = getSource(sourceId);
-    if (!source) return;
+    if (!source) return null;
 
-    await queryClient.prefetchQuery({
+    return await queryClient.fetchQuery({
       queryKey: chapterPagesQueryKey(sourceId, chapter.url),
       queryFn: async (): Promise<ReaderChapter> => {
         const pages = await source.getPageList(chapter.url);
@@ -79,5 +79,5 @@ export function usePrefetchChapter() {
     });
   };
 
-  return { prefetchChapter };
+  return { fetchChapter };
 }
