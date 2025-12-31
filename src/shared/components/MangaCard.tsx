@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useRef } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -28,9 +28,23 @@ function MangaCardComponent({
   progress,
   subtitle,
 }: MangaCardProps) {
+  const isNavigatingRef = useRef(false);
+
+  const handlePress = () => {
+    if (!onPress || isNavigatingRef.current) return;
+
+    isNavigatingRef.current = true;
+    onPress();
+
+    // Reset after navigation animation completes
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 1000);
+  };
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       className="w-full"
       android_ripple={{
         color: "rgba(255, 255, 255, 0.2)",
