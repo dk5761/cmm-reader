@@ -46,12 +46,14 @@ function MangaCardComponent({
         {/* Cover Image */}
         {localCoverUrl ? (
           <Image
+            key={`${id}-local`}
             source={{ uri: localCoverUrl }}
             style={{ width: "100%", height: "100%", borderRadius: 8 }}
             contentFit="cover"
           />
         ) : (
           <Image
+            key={`${id}-remote`}
             source={{
               uri: coverUrl,
               headers: headers || {},
@@ -106,4 +108,13 @@ function MangaCardComponent({
   );
 }
 
-export const MangaCard = memo(MangaCardComponent);
+export const MangaCard = memo(
+  MangaCardComponent,
+  (prev, next) =>
+    prev.id === next.id &&
+    prev.coverUrl === next.coverUrl &&
+    prev.localCoverUrl === next.localCoverUrl &&
+    prev.badge === next.badge &&
+    prev.progress === next.progress &&
+    prev.subtitle === next.subtitle
+);
