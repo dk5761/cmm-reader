@@ -19,7 +19,7 @@ export class MangaKakalotSource extends Source {
   readonly config: SourceConfig = {
     id: "mangakakalot",
     name: "MangaKakalot",
-    baseUrl: "https://www.mangakakalot.gg/",
+    baseUrl: "https://www.mangakakalot.gg",
     logo: require("@/assets/webp/managakakalot.webp"),
     language: "en",
     nsfw: false,
@@ -351,7 +351,7 @@ export class MangaKakalotSource extends Source {
           index,
           imageUrl: this.absoluteUrl(src),
           headers: {
-            Referer: this.baseUrl,
+            Referer: `${this.baseUrl}/`,
             "User-Agent": userAgent,
             ...(cookies && { Cookie: cookies }),
           },
