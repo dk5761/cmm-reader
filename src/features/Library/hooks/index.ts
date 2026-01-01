@@ -22,9 +22,12 @@ export {
 export { useSyncLibrary } from "./useSyncLibrary";
 
 export {
-  useAddHistoryEntry,
   useReadingHistory,
   useGroupedHistory,
+  useGroupedMangaHistory,
+  useMangaHistoryDetails,
+  useAddHistoryEntry,
   useRemoveHistoryEntry,
+  useRemoveMangaHistory,
   useClearHistory,
 } from "./useReadingHistory";

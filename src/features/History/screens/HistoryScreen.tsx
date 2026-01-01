@@ -1,12 +1,12 @@
-import { View, Text, Pressable, SectionList } from "react-native";
+import { View, Text, Pressable, FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useCSSVariable } from "uniwind";
 import {
-  useGroupedHistory,
-  useRemoveHistoryEntry,
+  useGroupedMangaHistory,
+  useRemoveMangaHistory,
   useClearHistory,
 } from "@/features/Library/hooks";
 import { EmptyState } from "@/shared/components";
@@ -23,42 +23,39 @@ function formatTimeAgo(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString();
 }
 
-type HistoryItemProps = {
+type MangaHistoryItemProps = {
   item: {
-    id: string;
+    uniqueKey: string;
+    sourceId: string;
     mangaId: string;
     mangaTitle: string;
     mangaCover?: string;
     mangaUrl?: string;
-    chapterId: string;
-    chapterNumber: number;
-    chapterTitle?: string;
-    chapterUrl: string;
-    pageReached: number;
-    totalPages?: number;
-    timestamp: number;
-    sourceId: string;
+    latestChapterNumber: number;
+    latestChapterTitle?: string;
+    latestTimestamp: number;
+    chaptersReadCount: number;
+    latestPageReached: number;
+    latestTotalPages?: number;
   };
   onPress: () => void;
   onRemove: () => void;
 };
 
-function HistoryItem({ item, onPress, onRemove }: HistoryItemProps) {
+function MangaHistoryItem({ item, onPress, onRemove }: MangaHistoryItemProps) {
   const mutedColor = useCSSVariable("--color-muted");
   const muted = typeof mutedColor === "string" ? mutedColor : "#71717a";
   const primaryColor = useCSSVariable("--color-primary");
   const primary = typeof primaryColor === "string" ? primaryColor : "#00d9ff";
 
-  const isCompleted = item.totalPages && item.pageReached >= item.totalPages;
-  const progressText = item.totalPages
-    ? `Page ${item.pageReached}/${item.totalPages}`
-    : `Page ${item.pageReached}`;
+  const isCompleted =
+    item.latestTotalPages && item.latestPageReached >= item.latestTotalPages;
 
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onRemove}
-      className="flex-row px-4 py-3 active:bg-surface/50"
+      className="flex-row px-4 py-3 active:bg-surface/50 border-b border-border"
       android_ripple={{ color: "rgba(255,255,255,0.1)" }}
     >
       {/* Cover */}
@@ -82,30 +79,29 @@ function HistoryItem({ item, onPress, onRemove }: HistoryItemProps) {
           {item.mangaTitle}
         </Text>
         <Text className="text-muted text-sm mt-0.5" numberOfLines={1}>
-          Chapter {item.chapterNumber}
-          {item.chapterTitle ? ` - ${item.chapterTitle}` : ""}
+          Source: {item.sourceId}
         </Text>
         <View className="flex-row items-center gap-2 mt-1">
-          {isCompleted ? (
-            <View className="flex-row items-center gap-1">
-              <Ionicons name="checkmark-circle" size={14} color={primary} />
-              <Text style={{ color: primary }} className="text-xs">
-                Completed
-              </Text>
-            </View>
-          ) : (
-            <Text className="text-muted text-xs">{progressText}</Text>
-          )}
+          <Text className="text-muted text-xs">
+            Last: Ch. {item.latestChapterNumber}
+          </Text>
+          <Text className="text-muted text-xs">•</Text>
+          <View className="flex-row items-center gap-1">
+            <Ionicons name="book" size={12} color={muted} />
+            <Text className="text-muted text-xs">
+              {item.chaptersReadCount} read
+            </Text>
+          </View>
           <Text className="text-muted text-xs">•</Text>
           <Text className="text-muted text-xs">
-            {formatTimeAgo(item.timestamp)}
+            {formatTimeAgo(item.latestTimestamp)}
           </Text>
         </View>
       </View>
 
       {/* Continue Arrow */}
       <View className="justify-center">
-        <Ionicons name="play-circle-outline" size={24} color={primary} />
+        <Ionicons name="chevron-forward" size={24} color={muted} />
       </View>
     </Pressable>
   );
@@ -114,41 +110,28 @@ function HistoryItem({ item, onPress, onRemove }: HistoryItemProps) {
 export function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const groupedHistory = useGroupedHistory();
-  const removeEntry = useRemoveHistoryEntry();
+  const groupedManga = useGroupedMangaHistory();
+  const removeMangaHistory = useRemoveMangaHistory();
   const clearHistory = useClearHistory();
 
   const foregroundColor = useCSSVariable("--color-foreground");
   const foreground =
     typeof foregroundColor === "string" ? foregroundColor : "#fff";
 
-  const handleContinueReading = (item: HistoryItemProps["item"]) => {
-    console.log("[HistoryScreen] Continue reading:", {
-      chapterId: item.chapterId,
-      sourceId: item.sourceId,
-      url: item.chapterUrl,
-      mangaUrl: item.mangaUrl,
-      mangaId: item.mangaId,
-      chapterNumber: item.chapterNumber,
-    });
-
+  const handleMangaPress = (item: MangaHistoryItemProps["item"]) => {
     router.push({
-      pathname: "/reader/[chapterId]",
+      pathname: "/history/[mangaId]",
       params: {
-        chapterId: item.chapterId,
-        sourceId: item.sourceId,
-        url: item.chapterUrl,
-        mangaUrl: item.mangaUrl || "",
         mangaId: item.mangaId,
+        sourceId: item.sourceId,
         mangaTitle: item.mangaTitle,
         mangaCover: item.mangaCover || "",
-        chapterNumber: item.chapterNumber.toString(),
-        chapterTitle: item.chapterTitle || "",
+        mangaUrl: item.mangaUrl || "",
       },
     });
   };
 
-  const isEmpty = groupedHistory.length === 0;
+  const isEmpty = groupedManga.length === 0;
 
   return (
     <View className="flex-1 bg-background">
@@ -177,25 +160,17 @@ export function HistoryScreen() {
           />
         </View>
       ) : (
-        <SectionList
-          sections={groupedHistory}
-          keyExtractor={(item) => item.id}
+        <FlatList
+          data={groupedManga}
+          keyExtractor={(item) => item.uniqueKey}
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-          renderSectionHeader={({ section }) => (
-            <View className="bg-background px-4 py-2 border-b border-border">
-              <Text className="text-muted text-xs font-bold uppercase">
-                {section.title}
-              </Text>
-            </View>
-          )}
           renderItem={({ item }) => (
-            <HistoryItem
+            <MangaHistoryItem
               item={item}
-              onPress={() => handleContinueReading(item)}
-              onRemove={() => removeEntry(item.id)}
+              onPress={() => handleMangaPress(item)}
+              onRemove={() => removeMangaHistory(item.sourceId, item.mangaId)}
             />
           )}
-          stickySectionHeadersEnabled
         />
       )}
     </View>

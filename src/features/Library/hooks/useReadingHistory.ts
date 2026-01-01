@@ -107,6 +107,95 @@ export function useGroupedHistory() {
   }, [history]);
 }
 
+type GroupedMangaHistory = {
+  uniqueKey: string;
+  sourceId: string;
+  mangaId: string;
+  mangaTitle: string;
+  mangaCover?: string;
+  mangaUrl?: string;
+  latestChapterNumber: number;
+  latestChapterTitle?: string;
+  latestTimestamp: number;
+  chaptersReadCount: number;
+  latestPageReached: number;
+  latestTotalPages?: number;
+};
+
+/**
+ * Get history grouped by manga (sourceId + mangaId)
+ * Each manga from a specific source appears once with latest read info
+ */
+export function useGroupedMangaHistory() {
+  const history = useReadingHistory(500);
+
+  return useMemo(() => {
+    const groupedMap = new Map<string, GroupedMangaHistory>();
+
+    history.forEach((item) => {
+      const uniqueKey = `${item.sourceId}_${item.mangaId}`;
+      const existing = groupedMap.get(uniqueKey);
+
+      if (!existing || item.timestamp > existing.latestTimestamp) {
+        const chaptersRead = history.filter(
+          (h) => h.sourceId === item.sourceId && h.mangaId === item.mangaId
+        ).length;
+
+        groupedMap.set(uniqueKey, {
+          uniqueKey,
+          sourceId: item.sourceId,
+          mangaId: item.mangaId,
+          mangaTitle: item.mangaTitle,
+          mangaCover: item.mangaCover,
+          mangaUrl: item.mangaUrl,
+          latestChapterNumber: item.chapterNumber,
+          latestChapterTitle: item.chapterTitle,
+          latestTimestamp: item.timestamp,
+          chaptersReadCount: chaptersRead,
+          latestPageReached: item.pageReached,
+          latestTotalPages: item.totalPages,
+        });
+      }
+    });
+
+    return Array.from(groupedMap.values()).sort(
+      (a, b) => b.latestTimestamp - a.latestTimestamp
+    );
+  }, [history]);
+}
+
+/**
+ * Get all history entries for a specific manga from a specific source
+ */
+export function useMangaHistoryDetails(sourceId: string, mangaId: string) {
+  const history = useReadingHistory(500);
+
+  return useMemo(() => {
+    return history
+      .filter((item) => item.sourceId === sourceId && item.mangaId === mangaId)
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [history, sourceId, mangaId]);
+}
+
+/**
+ * Remove all history entries for a specific manga from a specific source
+ */
+export function useRemoveMangaHistory() {
+  const realm = useRealm();
+
+  return useCallback(
+    (sourceId: string, mangaId: string) => {
+      realm.write(() => {
+        const entries = realm
+          .objects(ReadingHistorySchema)
+          .filtered("sourceId == $0 AND mangaId == $1", sourceId, mangaId);
+        realm.delete(entries);
+      });
+    },
+    [realm]
+  );
+}
+
 /**
  * Remove a specific history entry
  */
