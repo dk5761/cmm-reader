@@ -21,6 +21,11 @@ class CFDebugLogger {
       const exists = await RNFS.exists(this.logFile);
       if (!exists) {
         await RNFS.writeFile(this.logFile, this.getHeader(), "utf8");
+        // Add a test log entry
+        await this.log("System", "Logger initialized", {
+          platform: Platform.OS,
+          version: Platform.Version,
+        });
       }
     } catch (error) {
       console.error("[CFDebugLogger] Init failed:", error);
@@ -226,7 +231,11 @@ Started: ${new Date().toISOString()}
   async getRecentLogs(count: number = 50): Promise<string[]> {
     try {
       const logs = await this.getLogs();
-      const lines = logs.split("\n").filter((l) => l.startsWith("["));
+      const lines = logs
+        .split("\n")
+        .filter((l) => l.trim().length > 0) // Get all non-empty lines
+        .filter((l) => l.startsWith("[") || l.startsWith("  ")); // Log lines or context lines
+
       return lines.slice(-count);
     } catch {
       return [];
