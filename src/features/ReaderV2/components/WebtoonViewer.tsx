@@ -8,6 +8,7 @@
 import { memo, useCallback, useRef, useEffect } from "react";
 import {
   View,
+  useWindowDimensions,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
@@ -30,6 +31,7 @@ const VIEWABILITY_CONFIG = {
 
 export const WebtoonViewer = memo(function WebtoonViewer() {
   const flashListRef = useRef<FlashListRef<AdapterItem>>(null);
+  const { height: screenHeight } = useWindowDimensions();
 
   const viewerChapters = useReaderStoreV2((s) => s.viewerChapters);
   const setCurrentPage = useReaderStoreV2((s) => s.setCurrentPage);
@@ -166,6 +168,8 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
       getItemType={getItemType}
       viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
       showsVerticalScrollIndicator={false}
+      // Match Mihon's extraLayoutSpace (3/4 screen height) for better preloading
+      drawDistance={screenHeight * 0.75}
     />
   );
 });
