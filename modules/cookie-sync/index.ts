@@ -33,11 +33,27 @@ interface SyncResult {
   domain: string;
 }
 
+interface CfValidityResult {
+  isValid: boolean;
+  exists: boolean;
+  isExpired?: boolean;
+  expiresDate?: number;
+  domain: string;
+}
+
+interface ClearResult {
+  success: boolean;
+  cleared: number;
+  domain: string;
+}
+
 interface CookieSyncModuleType {
   getCookieString(url: string): Promise<CookieResult>;
   hasCfClearance(url: string): Promise<CfClearanceResult>;
   getCookiesFromWebView(url: string): Promise<CookiesResult>;
   syncCookiesToNative(url: string): Promise<SyncResult>;
+  isCfClearanceValid(url: string): Promise<CfValidityResult>;
+  clearCfClearance(url: string): Promise<ClearResult>;
 }
 
 // Only available on iOS
@@ -93,9 +109,41 @@ export async function syncCookiesToNative(url: string): Promise<number> {
   return result.syncedCount;
 }
 
+/**
+ * Check if cf_clearance token exists AND is not expired
+ * iOS only - returns { isValid: false, exists: false } on other platforms
+ */
+export async function isCfClearanceValid(
+  url: string
+): Promise<{ isValid: boolean; exists: boolean; expiresDate?: number }> {
+  if (!CookieSyncModule) {
+    return { isValid: false, exists: false };
+  }
+  const result = await CookieSyncModule.isCfClearanceValid(url);
+  return {
+    isValid: result.isValid,
+    exists: result.exists,
+    expiresDate: result.expiresDate,
+  };
+}
+
+/**
+ * Clear cf_clearance cookie for a domain (to force fresh challenge)
+ * iOS only - no-op on other platforms
+ */
+export async function clearCfClearance(url: string): Promise<number> {
+  if (!CookieSyncModule) {
+    return 0;
+  }
+  const result = await CookieSyncModule.clearCfClearance(url);
+  return result.cleared;
+}
+
 export default {
   getCookieString,
   hasCfClearance,
   getCookiesFromWebView,
   syncCookiesToNative,
+  isCfClearanceValid,
+  clearCfClearance,
 };

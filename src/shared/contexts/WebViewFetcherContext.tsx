@@ -562,13 +562,51 @@ export function WebViewFetcherProvider({
 
   // Manual challenge handler - called by CloudflareInterceptor when auto-bypass fails
   const handleManualChallenge = useCallback(
-    (url: string): Promise<{ success: boolean; cookies?: string }> => {
-      return new Promise((resolve) => {
-        console.log("[WebViewFetcher] Manual challenge requested for:", url);
+    async (url: string): Promise<{ success: boolean; cookies?: string }> => {
+      console.log("[WebViewFetcher] Manual challenge requested for:", url);
 
+      // STEP 1: Check if existing token is still valid (not expired)
+      if (Platform.OS === "ios") {
+        try {
+          const validity = await CookieSync.isCfClearanceValid(url);
+          console.log("[WebViewFetcher] Token validity check:", validity);
+
+          await cfLogger.log("WebViewFetcher", "Token validity check", {
+            url: url.substring(0, 80),
+            exists: validity.exists,
+            isValid: validity.isValid,
+            expiresDate: validity.expiresDate,
+          });
+
+          if (validity.exists && validity.isValid) {
+            // Token exists and is NOT expired - this shouldn't happen if we got here
+            // but just in case, return success without showing modal
+            console.log("[WebViewFetcher] Valid token exists, skipping modal");
+            const cookies = await CookieSync.getCookieString(url);
+            return { success: true, cookies };
+          }
+
+          // STEP 2: Token is expired or invalid - clear it before showing modal
+          if (validity.exists && !validity.isValid) {
+            console.log("[WebViewFetcher] Clearing expired cf_clearance token");
+            await CookieSync.clearCfClearance(url);
+
+            await cfLogger.log("WebViewFetcher", "Cleared expired token", {
+              url: url.substring(0, 80),
+              wasExpired: true,
+            });
+          }
+        } catch (e) {
+          console.log("[WebViewFetcher] Token validity check failed:", e);
+        }
+      }
+
+      // STEP 3: Show modal for user to complete challenge
+      return new Promise((resolve) => {
         cfLogger.logChallengeState("modal-opened", {
           url: url.substring(0, 80),
           trigger: "manual-challenge-handler",
+          clearedExpiredToken: true,
         });
 
         manualChallengeResolveRef.current = resolve;
@@ -587,8 +625,8 @@ export function WebViewFetcherProvider({
           setManualChallengeUrl(null);
         }, 90000);
 
-        // Wait 5 seconds before starting polling (let user see the challenge)
-        // This prevents auto-dismiss from detecting stale cookies immediately
+        // Wait 10 seconds before starting polling (increased from 5s)
+        // This gives user time to complete the challenge without premature detection
         setTimeout(() => {
           // Only start polling if modal is still open
           if (!manualChallengeResolveRef.current) return;
@@ -596,33 +634,62 @@ export function WebViewFetcherProvider({
           console.log("[WebViewFetcher] Starting cf_clearance polling...");
           cfCheckIntervalRef.current = setInterval(async () => {
             const checkStart = Date.now();
-            const result = await checkForCfClearance(url);
 
-            if (result.success) {
-              console.log(
-                "[WebViewFetcher] cf_clearance detected, auto-dismissing"
-              );
+            // Use validity check to ensure we only detect NEW valid tokens
+            if (Platform.OS === "ios") {
+              const validity = await CookieSync.isCfClearanceValid(url);
+              if (validity.isValid) {
+                console.log(
+                  "[WebViewFetcher] Valid cf_clearance detected, auto-dismissing"
+                );
+                const cookies = await CookieSync.getCookieString(url);
 
-              await cfLogger.log(
-                "WebViewFetcher",
-                "Auto-dismiss - cf_clearance found",
-                {
-                  pollingDurationMs: Date.now() - checkStart,
-                  hasCookies: !!result.cookies,
-                  cookieLength: result.cookies?.length,
+                await cfLogger.log(
+                  "WebViewFetcher",
+                  "Auto-dismiss - valid token found",
+                  {
+                    pollingDurationMs: Date.now() - checkStart,
+                    cookieLength: cookies?.length,
+                  }
+                );
+
+                clearManualChallengeTimers();
+
+                if (manualChallengeResolveRef.current) {
+                  manualChallengeResolveRef.current({ success: true, cookies });
+                  manualChallengeResolveRef.current = null;
                 }
-              );
-
-              clearManualChallengeTimers();
-
-              if (manualChallengeResolveRef.current) {
-                manualChallengeResolveRef.current(result);
-                manualChallengeResolveRef.current = null;
+                setManualChallengeUrl(null);
               }
-              setManualChallengeUrl(null);
+            } else {
+              // Android fallback
+              const result = await checkForCfClearance(url);
+              if (result.success) {
+                console.log(
+                  "[WebViewFetcher] cf_clearance detected, auto-dismissing"
+                );
+
+                await cfLogger.log(
+                  "WebViewFetcher",
+                  "Auto-dismiss - cf_clearance found",
+                  {
+                    pollingDurationMs: Date.now() - checkStart,
+                    hasCookies: !!result.cookies,
+                    cookieLength: result.cookies?.length,
+                  }
+                );
+
+                clearManualChallengeTimers();
+
+                if (manualChallengeResolveRef.current) {
+                  manualChallengeResolveRef.current(result);
+                  manualChallengeResolveRef.current = null;
+                }
+                setManualChallengeUrl(null);
+              }
             }
           }, 2000);
-        }, 5000); // 5-second delay before starting polling
+        }, 10000); // Increased to 10 seconds
       });
     },
     [checkForCfClearance, clearManualChallengeTimers]
