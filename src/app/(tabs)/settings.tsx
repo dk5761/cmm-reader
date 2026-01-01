@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { useSyncStore } from "@/features/Library/stores/useSyncStore";
 import { useBackup } from "@/core/backup";
+import { useAppSettingsStore } from "@/shared/stores";
 
 type SettingItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -53,6 +54,67 @@ function SettingItem({
       </View>
       <Ionicons name="chevron-forward" size={18} color={muted} />
     </Pressable>
+  );
+}
+
+type ToggleSettingItemProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle?: string;
+  value: boolean;
+  onToggle: (value: boolean) => void;
+  warning?: boolean;
+};
+
+function ToggleSettingItem({
+  icon,
+  title,
+  subtitle,
+  value,
+  onToggle,
+  warning,
+}: ToggleSettingItemProps) {
+  const mutedColor = useCSSVariable("--color-muted");
+  const muted = typeof mutedColor === "string" ? mutedColor : "#71717a";
+  const primaryColor = useCSSVariable("--color-primary");
+  const primary = typeof primaryColor === "string" ? primaryColor : "#00d9ff";
+
+  return (
+    <View className="flex-row items-center px-4 py-4">
+      <View className="w-10 h-10 bg-surface rounded-lg items-center justify-center mr-3">
+        <Ionicons
+          name={icon}
+          size={20}
+          color={warning && value ? "#f59e0b" : muted}
+        />
+      </View>
+      <View className="flex-1">
+        <View className="flex-row items-center gap-2">
+          <Text className="text-foreground font-medium">{title}</Text>
+          {warning && value && (
+            <Ionicons name="warning" size={16} color="#f59e0b" />
+          )}
+        </View>
+        {subtitle && (
+          <Text className="text-muted text-xs mt-0.5">{subtitle}</Text>
+        )}
+      </View>
+      <Pressable onPress={() => onToggle(!value)} className="p-1" hitSlop={8}>
+        <View
+          className="w-12 h-7 rounded-full justify-center px-0.5"
+          style={{
+            backgroundColor: value ? primary : "#374151",
+          }}
+        >
+          <View
+            className="w-6 h-6 rounded-full bg-white"
+            style={{
+              transform: [{ translateX: value ? 20 : 0 }],
+            }}
+          />
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -224,6 +286,7 @@ function SyncHistorySection() {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { showNsfwSources, toggleNsfwSources } = useAppSettingsStore();
 
   return (
     <View className="flex-1 bg-background">
@@ -238,6 +301,21 @@ export default function SettingsScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
       >
+        {/* Content Preferences Section */}
+        <View className="mt-4">
+          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+            Content Preferences
+          </Text>
+          <ToggleSettingItem
+            icon="eye-off-outline"
+            title="Show NSFW Sources"
+            subtitle="Adult content sources (18+)"
+            value={showNsfwSources}
+            onToggle={toggleNsfwSources}
+            warning
+          />
+        </View>
+
         {/* Backup & Restore Section */}
         <View className="mt-4">
           <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">

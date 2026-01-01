@@ -23,9 +23,22 @@ export function getSource(id: string): Source | undefined {
   return SOURCES[id];
 }
 
-// Get all available sources
+// Get all available sources (no filtering)
 export function getAllSources(): Source[] {
   return Object.values(SOURCES);
+}
+
+/**
+ * Get available sources based on NSFW preference
+ * @param showNsfw - Whether to include NSFW sources
+ * @returns Filtered array of sources
+ */
+export function getAvailableSources(showNsfw: boolean): Source[] {
+  const allSources = getAllSources();
+  if (showNsfw) {
+    return allSources;
+  }
+  return allSources.filter((source) => !source.config.nsfw);
 }
 
 // Re-export types

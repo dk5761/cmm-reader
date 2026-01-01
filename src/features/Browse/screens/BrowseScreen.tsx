@@ -6,15 +6,17 @@ import axios from "axios";
 import { SearchBar } from "@/shared/components/SearchBar";
 import { SourceCard, type SourceCardData } from "../components/SourceCard";
 import { useBrowseStore } from "../stores/useBrowseStore";
-import { getAllSources } from "@/sources";
+import { getAvailableSources } from "@/sources";
+import { useAppSettingsStore } from "@/shared/stores";
 
 export function BrowseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { searchQuery, setSearchQuery } = useBrowseStore();
+  const { showNsfwSources } = useAppSettingsStore();
 
-  // Get real sources
-  const sources = getAllSources();
+  // Get sources filtered by NSFW preference
+  const sources = getAvailableSources(showNsfwSources);
 
   const filteredSources: SourceCardData[] = useMemo(() => {
     const sourceList = sources.map((s) => ({
