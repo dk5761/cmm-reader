@@ -20,7 +20,9 @@
     "ios": {
       "bundleIdentifier": "com.drshnk.mangareader",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Allow Manga Reader to save exported debug logs and backup files to your photo library.",
+        "NSPhotoLibraryAddUsageDescription": "Allow Manga Reader to save exported debug logs and backup files to your photo library."
       },
       "icon": {
         "dark": "./assets/icons/ios-dark.png",
