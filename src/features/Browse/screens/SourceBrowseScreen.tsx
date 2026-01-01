@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { toast } from "sonner-native";
 
 import { useCSSVariable } from "uniwind";
 import { SearchBar, MangaCard } from "@/shared/components";
@@ -21,6 +22,8 @@ import { getSource } from "@/sources";
 import { useSession } from "@/shared/contexts/SessionContext";
 import { useLibraryManga } from "@/features/Library/hooks";
 import type { Manga } from "@/sources";
+import { isCfError } from "@/core/http/utils/cfErrorHandler";
+import { resetCfRetryState } from "@/core/http/utils/resetCfRetryState";
 
 import { useDebounce } from "@/shared/hooks/useDebounce";
 
@@ -112,6 +115,34 @@ export function SourceBrowseScreen() {
   const fetchNextPage = currentQuery.fetchNextPage;
   const hasNextPage = currentQuery.hasNextPage;
   const isFetchingNextPage = currentQuery.isFetchingNextPage;
+  const error = currentQuery.error;
+
+  // Handle CF errors with toast notification
+  useEffect(() => {
+    if (error && isCfError(error) && !isLoading) {
+      console.log("[SourceBrowseScreen] CF error detected, showing toast");
+
+      toast.error(`Failed to load ${source?.name || "manga"}`, {
+        description: "Cloudflare verification needed",
+        action: {
+          label: "Retry",
+          onClick: () => {
+            console.log("[SourceBrowseScreen] Retry clicked");
+            toast.dismiss();
+
+            // Reset CF retry state to allow fresh attempt
+            if (source?.baseUrl) {
+              resetCfRetryState(source.baseUrl);
+            }
+
+            // Refetch the current query
+            currentQuery.refetch();
+          },
+        },
+        duration: Infinity, // Stay until user acts
+      });
+    }
+  }, [error, isLoading, source, currentQuery]);
 
   if (!source) {
     return (
@@ -180,6 +211,29 @@ export function SourceBrowseScreen() {
           <Text className="text-muted/60 text-xs mt-2">
             Preparing connection to {source.name}
           </Text>
+        </View>
+      ) : error && !isLoading ? (
+        <View className="flex-1 items-center justify-center px-8">
+          <Text className="text-muted text-center mb-2 text-lg">
+            {isCfError(error) ? "⚠️ Verification Needed" : "❌ Error"}
+          </Text>
+          <Text className="text-muted/70 text-center mb-6 text-sm">
+            {isCfError(error)
+              ? "Cloudflare verification required to access this source"
+              : "Failed to load manga from this source"}
+          </Text>
+          <Pressable
+            onPress={() => {
+              console.log("[SourceBrowseScreen] Retry button pressed");
+              if (source?.baseUrl) {
+                resetCfRetryState(source.baseUrl);
+              }
+              currentQuery.refetch();
+            }}
+            className="bg-primary px-6 py-3 rounded-full"
+          >
+            <Text className="text-black font-semibold">Retry</Text>
+          </Pressable>
         </View>
       ) : isLoading ? (
         <View className="flex-1 items-center justify-center">

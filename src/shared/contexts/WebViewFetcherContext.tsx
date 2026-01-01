@@ -666,10 +666,15 @@ export function WebViewFetcherProvider({
 
       console.log(
         "[WebViewFetcher] Manual challenge cookies:",
-        hasCfClearance ? "cf_clearance found" : "no cf_clearance"
+        hasCfClearance ? "cf_clearance found" : "no cf_clearance",
+        { cookieLength: cookieString?.length }
       );
 
       if (manualChallengeResolveRef.current) {
+        console.log("[WebViewFetcher] Resolving manual challenge promise:", {
+          success: hasCfClearance,
+          hasCookies: !!cookieString,
+        });
         manualChallengeResolveRef.current({
           success: hasCfClearance,
           cookies: cookieString,

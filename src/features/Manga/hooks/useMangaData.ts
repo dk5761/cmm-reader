@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useCallback, useState } from "react";
+import { toast } from "sonner-native";
 import { useSession } from "@/shared/contexts/SessionContext";
 import { useMangaDetails, useChapterList } from "../api/manga.queries";
 import {
@@ -13,6 +14,8 @@ import {
 } from "@/features/Library/hooks";
 import { getSource } from "@/sources";
 import type { MangaDetails, Chapter } from "@/sources";
+import { isCfError } from "@/core/http/utils/cfErrorHandler";
+import { resetCfRetryState } from "@/core/http/utils/resetCfRetryState";
 
 export type PreloadedManga = {
   title: string;
@@ -160,6 +163,51 @@ export function useMangaData(params: MangaDataParams) {
       updateLibraryChapters(libraryId, chapters);
     }
   }, [chapters, hasLocalData, libraryManga, libraryId, updateLibraryChapters]);
+
+  // Handle CF errors with toast notification
+  useEffect(() => {
+    const error = mangaError || chaptersError;
+
+    if (
+      error &&
+      isCfError(error) &&
+      fetchEnabled &&
+      !isMangaLoading &&
+      !isChaptersLoading
+    ) {
+      console.log("[useMangaData] CF error detected, showing toast");
+
+      toast.error("Failed to load manga details", {
+        description: "Cloudflare verification needed",
+        action: {
+          label: "Retry",
+          onClick: () => {
+            console.log("[useMangaData] Retry clicked");
+            toast.dismiss();
+
+            // Reset CF retry state
+            if (url) {
+              resetCfRetryState(url);
+            }
+
+            // Refetch both queries
+            refetchManga();
+            refetchChapters();
+          },
+        },
+        duration: Infinity,
+      });
+    }
+  }, [
+    mangaError,
+    chaptersError,
+    fetchEnabled,
+    isMangaLoading,
+    isChaptersLoading,
+    url,
+    refetchManga,
+    refetchChapters,
+  ]);
 
   // Build display data: preloaded -> fresh -> local (priority order)
   const displayManga: DisplayManga | null = manga

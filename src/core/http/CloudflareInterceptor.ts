@@ -137,6 +137,16 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
     Promise<{ html: string; cookies: string }>
   >();
 
+  // Export function to reset retry state for manual retries
+  (globalThis as any).__resetCfRetryState = (url: string) => {
+    const key = `GET:${url}`;
+    retryMap.delete(key);
+    ongoingSolves.delete(key);
+    console.log(
+      `[CF Interceptor] Reset retry state for ${url.substring(0, 60)}`
+    );
+  };
+
   // Response interceptor - detects CF challenges
   axiosInstance.interceptors.response.use(
     // Success - pass through
@@ -167,7 +177,8 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
 
           // Try manual challenge as fallback
           console.log(
-            "[CF Interceptor] Auto-bypass exhausted, trying manual..."
+            "[CF Interceptor] Auto-bypass exhausted, trying manual...",
+            { url: url.substring(0, 60), retries: currentRetries }
           );
           const manualResult = await solveCfChallengeManual(url);
 
@@ -181,7 +192,8 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
               },
             };
             console.log(
-              "[CF Interceptor] Manual solve success, retrying request..."
+              "[CF Interceptor] Manual solve success, retrying request...",
+              { url: url.substring(0, 60), hasCookies: !!manualResult.cookies }
             );
             return axiosInstance.request(retryConfig);
           }
@@ -241,10 +253,10 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           return axiosInstance.request(retryConfig);
         } catch (cfError) {
           // Auto-solve failed, try manual
-          console.log(
-            "[CF Interceptor] Auto-solve failed, trying manual...",
-            (cfError as Error).message
-          );
+          console.log("[CF Interceptor] Auto-solve failed, trying manual...", {
+            error: (cfError as Error).message,
+            url: url.substring(0, 60),
+          });
           ongoingSolves.delete(requestKey);
 
           const manualResult = await solveCfChallengeManual(url);
@@ -259,7 +271,8 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
               },
             };
             console.log(
-              "[CF Interceptor] Manual solve success, retrying request..."
+              "[CF Interceptor] Manual solve success, retrying request...",
+              { url: url.substring(0, 60), hasCookies: !!manualResult.cookies }
             );
             return axiosInstance.request(retryConfig);
           }
