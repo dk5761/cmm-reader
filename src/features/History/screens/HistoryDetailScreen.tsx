@@ -1,9 +1,18 @@
-import { View, Text, Pressable, FlatList } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  FlatList,
+  Alert,
+  Animated as RNAnimated,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useCSSVariable } from "uniwind";
+import { Swipeable, RectButton } from "react-native-gesture-handler";
+import { useRef } from "react";
 import {
   useMangaHistoryDetails,
   useRemoveHistoryEntry,
@@ -43,6 +52,7 @@ function ChapterHistoryItem({
   onPress,
   onRemove,
 }: ChapterHistoryItemProps) {
+  const swipeableRef = useRef<Swipeable>(null);
   const mutedColor = useCSSVariable("--color-muted");
   const muted = typeof mutedColor === "string" ? mutedColor : "#71717a";
   const primaryColor = useCSSVariable("--color-primary");
@@ -53,42 +63,88 @@ function ChapterHistoryItem({
     ? `Page ${item.pageReached}/${item.totalPages}`
     : `Page ${item.pageReached}`;
 
-  return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onRemove}
-      className="flex-row items-center px-4 py-3 active:bg-surface/50 border-b border-border"
-      android_ripple={{ color: "rgba(255,255,255,0.1)" }}
-    >
-      {/* Chapter Info */}
-      <View className="flex-1">
-        <Text className="text-foreground font-medium" numberOfLines={1}>
-          Chapter {item.chapterNumber}
-          {item.chapterTitle ? ` - ${item.chapterTitle}` : ""}
-        </Text>
-        <View className="flex-row items-center gap-2 mt-1">
-          {isCompleted ? (
-            <View className="flex-row items-center gap-1">
-              <Ionicons name="checkmark-circle" size={14} color={primary} />
-              <Text style={{ color: primary }} className="text-xs">
-                Completed
-              </Text>
-            </View>
-          ) : (
-            <Text className="text-muted text-xs">{progressText}</Text>
-          )}
-          <Text className="text-muted text-xs">•</Text>
-          <Text className="text-muted text-xs">
-            {formatTimeAgo(item.timestamp)}
-          </Text>
-        </View>
-      </View>
+  const handleDelete = () => {
+    swipeableRef.current?.close();
+    onRemove();
+  };
 
-      {/* Continue Arrow */}
-      <View className="justify-center">
-        <Ionicons name="play-circle-outline" size={24} color={primary} />
-      </View>
-    </Pressable>
+  const renderRightActions = (
+    progress: RNAnimated.AnimatedInterpolation<number>,
+    dragX: RNAnimated.AnimatedInterpolation<number>
+  ) => {
+    const translateX = dragX.interpolate({
+      inputRange: [-75, 0],
+      outputRange: [0, 75],
+      extrapolate: "clamp",
+    });
+
+    return (
+      <RNAnimated.View
+        style={{
+          flexDirection: "row",
+          transform: [{ translateX }],
+        }}
+      >
+        <RectButton
+          style={{
+            width: 75,
+            backgroundColor: "#ef4444",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          onPress={handleDelete}
+        >
+          <Ionicons name="trash-outline" size={22} color="#fff" />
+          <Text style={{ color: "#fff", fontSize: 10, marginTop: 4 }}>
+            Delete
+          </Text>
+        </RectButton>
+      </RNAnimated.View>
+    );
+  };
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      renderRightActions={renderRightActions}
+      rightThreshold={40}
+      overshootRight={false}
+    >
+      <Pressable
+        onPress={onPress}
+        className="flex-row items-center px-4 py-3 active:bg-surface/50 border-b border-border bg-background"
+        android_ripple={{ color: "rgba(255,255,255,0.1)" }}
+      >
+        {/* Chapter Info */}
+        <View className="flex-1">
+          <Text className="text-foreground font-medium" numberOfLines={1}>
+            Chapter {item.chapterNumber}
+            {item.chapterTitle ? ` - ${item.chapterTitle}` : ""}
+          </Text>
+          <View className="flex-row items-center gap-2 mt-1">
+            {isCompleted ? (
+              <View className="flex-row items-center gap-1">
+                <Ionicons name="checkmark-circle" size={14} color={primary} />
+                <Text style={{ color: primary }} className="text-xs">
+                  Completed
+                </Text>
+              </View>
+            ) : (
+              <Text className="text-muted text-xs">{progressText}</Text>
+            )}
+            <Text className="text-muted text-xs">•</Text>
+            <Text className="text-muted text-xs">
+              {formatTimeAgo(item.timestamp)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Continue Arrow */}
+        <View className="justify-center">
+          <Ionicons name="play-circle-outline" size={24} color={primary} />
+        </View>
+      </Pressable>
+    </Swipeable>
   );
 }
 
@@ -131,8 +187,21 @@ export function HistoryDetailScreen() {
   };
 
   const handleClearMangaHistory = () => {
-    removeMangaHistory(sourceId, mangaId);
-    router.back();
+    Alert.alert(
+      "Delete Manga History",
+      `Are you sure you want to delete all reading history for "${mangaTitle}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            removeMangaHistory(sourceId, mangaId);
+            router.back();
+          },
+        },
+      ]
+    );
   };
 
   return (
