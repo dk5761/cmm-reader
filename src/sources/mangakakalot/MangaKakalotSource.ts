@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { Source } from "../base/Source";
 import type {
   Manga,
@@ -18,7 +19,7 @@ export class MangaKakalotSource extends Source {
   readonly config: SourceConfig = {
     id: "mangakakalot",
     name: "MangaKakalot",
-    baseUrl: "https://www.mangakakalot.gg",
+    baseUrl: "https://www.mangakakalot.gg/",
     logo: require("@/assets/webp/managakakalot.webp"),
     language: "en",
     nsfw: false,
@@ -286,12 +287,18 @@ export class MangaKakalotSource extends Source {
   }
 
   async getPageList(chapterUrl: string): Promise<Page[]> {
+    console.log("[MangaKakalot] getPageList - Chapter URL:", chapterUrl);
+
     const html = await this.fetchHtml(chapterUrl);
     const doc = this.parseHtml(html);
 
     // Get cookies for image requests
     const domain = new URL(this.baseUrl).hostname;
     const cookies = await CookieManagerInstance.getCookies(domain);
+    console.log(
+      "[MangaKakalot] getPageList - Cookies:",
+      cookies ? "present" : "none"
+    );
 
     // Try multiple selectors for page images
     const selectors = [
@@ -323,6 +330,7 @@ export class MangaKakalotSource extends Source {
     ];
 
     let pages: Page[] = [];
+    let matchedSelector = "";
 
     for (const selector of selectors) {
       pages = doc.selectAll(selector, (el, index) => {
@@ -332,23 +340,61 @@ export class MangaKakalotSource extends Source {
           el.getAttribute("data-original") ||
           "";
 
+        console.log(`[MangaKakalot] getPageList - Page ${index} raw URL:`, src);
+
+        const userAgent =
+          Platform.OS === "ios"
+            ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+            : "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+
         return {
           index,
           imageUrl: this.absoluteUrl(src),
           headers: {
             Referer: this.baseUrl,
+            "User-Agent": userAgent,
             ...(cookies && { Cookie: cookies }),
           },
         };
       });
 
-      if (pages.length > 0) break;
+      if (pages.length > 0) {
+        matchedSelector = selector;
+        console.log(
+          `[MangaKakalot] getPageList - Matched selector: "${selector}", found ${pages.length} images`
+        );
+        break;
+      }
+    }
+
+    if (pages.length === 0) {
+      console.log(
+        "[MangaKakalot] getPageList - No images found with any selector!"
+      );
     }
 
     // Filter out empty URLs and advertisement images
-    return pages
+    const beforeFilterCount = pages.length;
+    const filtered = pages
       .filter((p) => p.imageUrl)
       .filter((p) => !adPatterns.some((pattern) => pattern.test(p.imageUrl)));
+
+    console.log(
+      `[MangaKakalot] getPageList - After filtering: ${
+        filtered.length
+      } pages (removed ${beforeFilterCount - filtered.length} ads/empty)`
+    );
+
+    filtered.forEach((page, idx) => {
+      console.log(`[MangaKakalot] getPageList - Final Page ${idx}:`, {
+        url: page.imageUrl,
+        hasReferer: !!page.headers?.Referer,
+        hasUserAgent: !!page.headers?.["User-Agent"],
+        hasCookie: !!page.headers?.Cookie,
+      });
+    });
+
+    return filtered;
   }
 
   private parseStatus(text: string): MangaDetails["status"] {

@@ -5,7 +5,7 @@
  * Handles loading, error, and ready states.
  */
 
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useState, useEffect } from "react";
 import { View, Text, Pressable, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import type { ReaderPage as ReaderPageType } from "../types/reader.types";
@@ -25,19 +25,40 @@ export const ReaderPage = memo(function ReaderPage({
   const [aspectRatio, setAspectRatio] = useState(0.7); // Default manga aspect ratio
   const [isError, setIsError] = useState(false);
 
+  useEffect(() => {
+    console.log(`[ReaderPage] Rendering page:`, {
+      imageUrl: page.imageUrl,
+      hasHeaders: !!page.headers,
+      headerKeys: Object.keys(page.headers || {}),
+    });
+  }, [page.imageUrl, page.headers]);
+
   const handleLoad = useCallback(
     (event: { source: { width: number; height: number } }) => {
       const { width, height } = event.source;
+      console.log(`[ReaderPage] Image loaded successfully:`, {
+        url: page.imageUrl,
+        dimensions: `${width}x${height}`,
+        aspectRatio: width / height,
+      });
       if (width && height) {
         setAspectRatio(width / height);
       }
     },
-    []
+    [page.imageUrl]
   );
 
-  const handleError = useCallback(() => {
-    setIsError(true);
-  }, []);
+  const handleError = useCallback(
+    (error: any) => {
+      console.error(`[ReaderPage] Image load failed:`, {
+        url: page.imageUrl,
+        headers: page.headers,
+        error: error?.error || error,
+      });
+      setIsError(true);
+    },
+    [page.imageUrl, page.headers]
+  );
 
   const handleRetry = useCallback(() => {
     setIsError(false);
