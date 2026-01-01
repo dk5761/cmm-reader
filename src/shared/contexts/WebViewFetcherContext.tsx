@@ -24,6 +24,7 @@ import { registerManualChallengeHandler } from "@/core/http/CloudflareIntercepto
 import { CookieManagerInstance } from "@/core/http/CookieManager";
 import { useSession } from "./SessionContext";
 import CookieSync from "cookie-sync";
+import { cfLogger } from "@/utils/cfDebugLogger";
 
 type RequestType = "navigate" | "post";
 
@@ -564,6 +565,12 @@ export function WebViewFetcherProvider({
     (url: string): Promise<{ success: boolean; cookies?: string }> => {
       return new Promise((resolve) => {
         console.log("[WebViewFetcher] Manual challenge requested for:", url);
+
+        cfLogger.logChallengeState("modal-opened", {
+          url: url.substring(0, 80),
+          trigger: "manual-challenge-handler",
+        });
+
         manualChallengeResolveRef.current = resolve;
         setManualChallengeUrl(url);
 
@@ -588,11 +595,24 @@ export function WebViewFetcherProvider({
 
           console.log("[WebViewFetcher] Starting cf_clearance polling...");
           cfCheckIntervalRef.current = setInterval(async () => {
+            const checkStart = Date.now();
             const result = await checkForCfClearance(url);
+
             if (result.success) {
               console.log(
                 "[WebViewFetcher] cf_clearance detected, auto-dismissing"
               );
+
+              await cfLogger.log(
+                "WebViewFetcher",
+                "Auto-dismiss - cf_clearance found",
+                {
+                  pollingDurationMs: Date.now() - checkStart,
+                  hasCookies: !!result.cookies,
+                  cookieLength: result.cookies?.length,
+                }
+              );
+
               clearManualChallengeTimers();
 
               if (manualChallengeResolveRef.current) {
@@ -675,6 +695,16 @@ export function WebViewFetcherProvider({
           success: hasCfClearance,
           hasCookies: !!cookieString,
         });
+
+        await cfLogger.logChallengeState(
+          hasCfClearance ? "completed" : "failed",
+          {
+            trigger: "user-pressed-done",
+            cookieLength: cookieString?.length,
+            maxAttempts: MAX_ATTEMPTS,
+          }
+        );
+
         manualChallengeResolveRef.current({
           success: hasCfClearance,
           cookies: cookieString,
@@ -697,6 +727,11 @@ export function WebViewFetcherProvider({
   // Handle manual challenge cancel
   const handleManualChallengeCancel = useCallback(() => {
     console.log("[WebViewFetcher] User cancelled manual challenge");
+
+    cfLogger.logChallengeState("cancelled", {
+      trigger: "user-pressed-cancel",
+    });
+
     clearManualChallengeTimers();
 
     if (manualChallengeResolveRef.current) {

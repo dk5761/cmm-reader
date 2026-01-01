@@ -9,6 +9,7 @@ import { WebViewFetcherService } from "./WebViewFetcherService";
 import { CookieManagerInstance } from "./CookieManager";
 import { CloudflareBypassException, ManualChallengeHandler } from "./types";
 import CookieSync from "cookie-sync";
+import { cfLogger } from "@/utils/cfDebugLogger";
 
 const MAX_CF_RETRIES = 1; // Try once and fail fast
 
@@ -65,10 +66,18 @@ async function solveCfChallengeAuto(
 ): Promise<{ html: string; cookies: string }> {
   const url = config.url!;
   const domain = new URL(url).hostname;
+  const startTime = Date.now();
 
   console.log(
     `[CF Interceptor] Auto-solving challenge for ${domain} (attempt ${attempt}/${MAX_CF_RETRIES})`
   );
+
+  await cfLogger.log("CF Interceptor", "Auto-solve started", {
+    url: url.substring(0, 80),
+    domain,
+    attempt,
+    maxRetries: MAX_CF_RETRIES,
+  });
 
   // Solve using WebView with increasing timeout
   const timeout = 30000 + attempt * 10000;
@@ -76,15 +85,36 @@ async function solveCfChallengeAuto(
 
   let hasCfClearance = false;
   let cookieString = "";
+  const cookieExtractStart = Date.now();
 
   // Use native module on iOS for reliable cookie extraction from WKWebView
   if (Platform.OS === "ios") {
     hasCfClearance = await CookieSync.hasCfClearance(url);
     if (hasCfClearance) {
       cookieString = await CookieSync.getCookieString(url);
+
+      const syncStart = Date.now();
       await CookieSync.syncCookiesToNative(url);
+      await cfLogger.logCookieSync("toNative", domain, {
+        success: true,
+        durationMs: Date.now() - syncStart,
+        cookieLength: cookieString.length,
+      });
+
+      const cacheStart = Date.now();
       await CookieManagerInstance.cacheCookieString(domain, cookieString);
+      await cfLogger.logCookieSync("toCache", domain, {
+        success: true,
+        durationMs: Date.now() - cacheStart,
+        cookieLength: cookieString.length,
+      });
     }
+
+    await cfLogger.logCookieExtraction("iOS-Native", url, {
+      success: hasCfClearance,
+      cookieString: hasCfClearance ? cookieString : undefined,
+      durationMs: Date.now() - cookieExtractStart,
+    });
   } else {
     // Android: use JS-based extraction (works fine)
     const cookiesArray = await CookieManagerInstance.extractFromWebView(url);
@@ -93,13 +123,37 @@ async function solveCfChallengeAuto(
       await CookieManagerInstance.setCookies(domain, cookiesArray);
       cookieString = (await CookieManagerInstance.getCookies(domain)) || "";
     }
+
+    await cfLogger.logCookieExtraction("Android-WebView", url, {
+      success: hasCfClearance,
+      cookies: cookiesArray,
+      cookieString: hasCfClearance ? cookieString : undefined,
+      durationMs: Date.now() - cookieExtractStart,
+    });
   }
 
   if (!hasCfClearance) {
-    throw new Error("Failed to obtain CF clearance cookie");
+    const error = "Failed to obtain CF clearance cookie";
+    await cfLogger.log(
+      "CF Interceptor",
+      "Auto-solve failed - no cf_clearance",
+      {
+        url: url.substring(0, 80),
+        domain,
+        durationMs: Date.now() - startTime,
+      }
+    );
+    throw new Error(error);
   }
 
   console.log(`[CF Interceptor] Successfully solved challenge for ${domain}`);
+
+  await cfLogger.log("CF Interceptor", "Auto-solve SUCCESS", {
+    url: url.substring(0, 80),
+    domain,
+    cookieLength: cookieString.length,
+    totalDurationMs: Date.now() - startTime,
+  });
 
   return {
     html,
@@ -170,6 +224,13 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           `[CF Interceptor] CF challenge detected for ${url.substring(0, 60)}`
         );
 
+        await cfLogger.logChallengeState("detected", {
+          url: url.substring(0, 80),
+          status: response.status,
+          currentRetries,
+          maxRetries: MAX_CF_RETRIES,
+        });
+
         // Prevent infinite retry loop
         if (currentRetries >= MAX_CF_RETRIES) {
           retryMap.delete(requestKey);
@@ -180,7 +241,23 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
             "[CF Interceptor] Auto-bypass exhausted, trying manual...",
             { url: url.substring(0, 60), retries: currentRetries }
           );
+
+          await cfLogger.logChallengeState("modal-opened", {
+            reason: "Auto-bypass exhausted",
+            retries: currentRetries,
+          });
+
+          const manualStart = Date.now();
           const manualResult = await solveCfChallengeManual(url);
+
+          await cfLogger.logChallengeState(
+            manualResult.success ? "completed" : "failed",
+            {
+              manualDurationMs: Date.now() - manualStart,
+              hasCookies: !!manualResult.cookies,
+              cookieLength: manualResult.cookies?.length,
+            }
+          );
 
           if (manualResult.success && manualResult.cookies) {
             // Retry request with new cookies

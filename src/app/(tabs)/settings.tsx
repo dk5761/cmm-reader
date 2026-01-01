@@ -343,6 +343,12 @@ export default function SettingsScreen() {
             subtitle="View all stored manga and chapters"
             onPress={() => router.push("/debug")}
           />
+          <SettingItem
+            icon="document-text-outline"
+            title="CF Debug Logs"
+            subtitle="View Cloudflare challenge logs"
+            onPress={() => router.push("/debug/cf")}
+          />
         </View>
       </ScrollView>
     </View>
