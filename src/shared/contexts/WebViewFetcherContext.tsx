@@ -565,39 +565,44 @@ export function WebViewFetcherProvider({
     async (url: string): Promise<{ success: boolean; cookies?: string }> => {
       console.log("[WebViewFetcher] Manual challenge requested for:", url);
 
-      // STEP 1: Check if existing token is still valid (not expired)
+      // IMPORTANT: If we got here, CF already returned 403 - the token is INVALID
+      // regardless of what the expiry date says (CF can revoke tokens server-side)
+      // Always clear existing token and show the modal
       if (Platform.OS === "ios") {
         try {
           const validity = await CookieSync.isCfClearanceValid(url);
-          console.log("[WebViewFetcher] Token validity check:", validity);
+          console.log(
+            "[WebViewFetcher] Token state (will clear regardless):",
+            validity
+          );
 
-          await cfLogger.log("WebViewFetcher", "Token validity check", {
+          await cfLogger.log("WebViewFetcher", "Token state before modal", {
             url: url.substring(0, 80),
             exists: validity.exists,
             isValid: validity.isValid,
             expiresDate: validity.expiresDate,
+            action: "clearing-and-showing-modal",
           });
 
-          if (validity.exists && validity.isValid) {
-            // Token exists and is NOT expired - this shouldn't happen if we got here
-            // but just in case, return success without showing modal
-            console.log("[WebViewFetcher] Valid token exists, skipping modal");
-            const cookies = await CookieSync.getCookieString(url);
-            return { success: true, cookies };
-          }
-
-          // STEP 2: Token is expired or invalid - clear it before showing modal
-          if (validity.exists && !validity.isValid) {
-            console.log("[WebViewFetcher] Clearing expired cf_clearance token");
+          // Always clear the token - 403 is authoritative, expiry is not
+          if (validity.exists) {
+            console.log(
+              "[WebViewFetcher] Clearing cf_clearance (403 received)"
+            );
             await CookieSync.clearCfClearance(url);
 
-            await cfLogger.log("WebViewFetcher", "Cleared expired token", {
-              url: url.substring(0, 80),
-              wasExpired: true,
-            });
+            await cfLogger.log(
+              "WebViewFetcher",
+              "Cleared token for fresh challenge",
+              {
+                url: url.substring(0, 80),
+                wasExpiredByDate: !validity.isValid,
+                reason: "403 received - server invalidated token",
+              }
+            );
           }
         } catch (e) {
-          console.log("[WebViewFetcher] Token validity check failed:", e);
+          console.log("[WebViewFetcher] Token handling failed:", e);
         }
       }
 

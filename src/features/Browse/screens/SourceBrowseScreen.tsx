@@ -54,6 +54,16 @@ export function SourceBrowseScreen() {
   const libraryManga = useLibraryManga();
   const libraryIds = new Set(libraryManga.map((m) => m.id));
 
+  // Debug: Log state transitions
+  useEffect(() => {
+    console.log("[SourceBrowseScreen] State:", {
+      searchQuery,
+      debouncedSearchQuery,
+      isSearching,
+      activeTab,
+    });
+  }, [searchQuery, debouncedSearchQuery, isSearching, activeTab]);
+
   // Handle debounced search
   useEffect(() => {
     if (debouncedSearchQuery.trim()) {
@@ -79,6 +89,16 @@ export function SourceBrowseScreen() {
     isSearching ? debouncedSearchQuery : "",
     sessionReady && isSearching
   );
+
+  // Debug: Log search query hook state
+  useEffect(() => {
+    console.log("[SourceBrowseScreen] Search hook:", {
+      enabled: sessionReady && isSearching,
+      query: isSearching ? debouncedSearchQuery : "",
+      isSearching,
+      debouncedSearchQuery,
+    });
+  }, [sessionReady, isSearching, debouncedSearchQuery]);
 
   const handleSearch = useCallback(() => {
     // Manual submit (optional now, but good for UX)
@@ -116,6 +136,26 @@ export function SourceBrowseScreen() {
   const hasNextPage = currentQuery.hasNextPage;
   const isFetchingNextPage = currentQuery.isFetchingNextPage;
   const error = currentQuery.error;
+
+  // Debug: Log query states
+  useEffect(() => {
+    console.log("[SourceBrowseScreen] Query states:", {
+      activeTab,
+      isSearching,
+      isLoading,
+      isFetchingNextPage,
+      hasNextPage,
+      mangaCount: mangaList.length,
+      queryKey: currentQuery.dataUpdatedAt, // Track query changes
+    });
+  }, [
+    activeTab,
+    isSearching,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    mangaList.length,
+  ]);
 
   // Handle CF errors with toast notification
   useEffect(() => {

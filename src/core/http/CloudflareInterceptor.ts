@@ -219,10 +219,29 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
         const requestKey = `${config.method}:${config.url}`;
         const currentRetries = retryMap.get(requestKey) || 0;
         const url = config.url || "";
+        const domain = new URL(url).hostname;
 
         console.log(
           `[CF Interceptor] CF challenge detected for ${url.substring(0, 60)}`
         );
+
+        // Log curl-like request info for debugging
+        const cookieHeader =
+          config.headers?.["Cookie"] || config.headers?.["cookie"] || "none";
+        await cfLogger.log("CF Interceptor", "Request that triggered 403", {
+          curl: `curl -X ${config.method?.toUpperCase()} "${url.substring(
+            0,
+            100
+          )}"`,
+          headers: {
+            Cookie:
+              typeof cookieHeader === "string"
+                ? cookieHeader.substring(0, 100)
+                : "none",
+            UserAgent: config.headers?.["User-Agent"] || "default",
+          },
+          status: response.status,
+        });
 
         await cfLogger.logChallengeState("detected", {
           url: url.substring(0, 80),
@@ -230,6 +249,27 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           currentRetries,
           maxRetries: MAX_CF_RETRIES,
         });
+
+        // CRITICAL: Clear invalid token when 403 is received
+        // The token exists but CF has invalidated it server-side
+        if (Platform.OS === "ios") {
+          try {
+            console.log(
+              `[CF Interceptor] Clearing potentially invalid token for ${domain}`
+            );
+            await CookieSync.clearCfClearance(url);
+            await cfLogger.log(
+              "CF Interceptor",
+              "Cleared invalid token on 403",
+              {
+                domain,
+                reason: "Server returned 403 despite token existing",
+              }
+            );
+          } catch (e) {
+            console.log("[CF Interceptor] Failed to clear token:", e);
+          }
+        }
 
         // Prevent infinite retry loop
         if (currentRetries >= MAX_CF_RETRIES) {
