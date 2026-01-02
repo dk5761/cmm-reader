@@ -172,6 +172,7 @@ async function attemptBackgroundRefresh(
 ): Promise<boolean> {
   const domain = new URL(url).hostname;
   const startTime = Date.now();
+  const TIMEOUT_MS = 30000; // 30s (match Mihon)
 
   console.log(`[CF Interceptor] Attempting background refresh for ${domain}`);
 
@@ -182,53 +183,64 @@ async function attemptBackgroundRefresh(
     oldCookieLength: oldCookieString?.length || 0,
   });
 
-  try {
-    // Load URL in hidden WebView with 15s timeout
-    await WebViewFetcherService.fetchHtml(url, 15000);
+  // Start WebView fetch in background
+  // fetchPromise will resolve/reject on its own, we just poll cookies
+  WebViewFetcherService.fetchHtml(url, TIMEOUT_MS).catch((e) => {
+    console.log(
+      `[CF Interceptor] Background fetch completed: ${e.message || e}`
+    );
+  });
 
-    // Get new cookie string
-    let newCookieString: string | null = null;
-    if (Platform.OS === "ios") {
-      newCookieString = await CookieSync.getCookieString(url);
-    } else {
-      const cookies = await CookieManagerInstance.extractFromWebView(url);
-      newCookieString = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+  try {
+    // Poll for cookies every 2s
+    while (Date.now() - startTime < TIMEOUT_MS) {
+      // Get new cookie string
+      let newCookieString: string | null = null;
+      if (Platform.OS === "ios") {
+        newCookieString = await CookieSync.getCookieString(url);
+      } else {
+        const cookies = await CookieManagerInstance.extractFromWebView(url);
+        newCookieString = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+      }
+
+      // Check validity
+      const hasCfClearance = newCookieString?.includes("cf_clearance") || false;
+      const isDifferent = newCookieString !== oldCookieString;
+
+      if (hasCfClearance && isDifferent) {
+        // SUCCESS! New cookie detected
+        await cfLogger.log("CF Interceptor", "Background refresh SUCCESS", {
+          domain,
+          durationMs: Date.now() - startTime,
+          hasCfClearance,
+          isDifferent,
+        });
+
+        console.log(
+          `[CF Interceptor] Background refresh succeeded for ${domain} in ${
+            Date.now() - startTime
+          }ms`
+        );
+        return true;
+      }
+
+      // Wait 2s before next check
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
-    // Check validity
-    const hasCfClearance = newCookieString?.includes("cf_clearance") || false;
-
-    // Key insight from Mihon: Compare cookie strings, not expiry dates
-    // Success = new cookie exists AND is different from old
-    const isDifferent = newCookieString !== oldCookieString;
-    const success = hasCfClearance && isDifferent;
-
+    // Timeout reached - no new cookie found
     await cfLogger.log(
       "CF Interceptor",
-      success ? "Background refresh SUCCESS" : "Background refresh FAILED",
+      "Background refresh FAILED (Timeout)",
       {
         domain,
-        hasCfClearance,
-        isDifferent,
-        oldCookieLength: oldCookieString?.length || 0,
-        newCookieLength: newCookieString?.length || 0,
-        durationMs: Date.now() - startTime,
+        durationMs: TIMEOUT_MS,
       }
     );
-
-    if (success) {
-      console.log(
-        `[CF Interceptor] Background refresh succeeded for ${domain} in ${
-          Date.now() - startTime
-        }ms`
-      );
-    } else {
-      console.log(
-        `[CF Interceptor] Background refresh failed for ${domain} - cookie comparison: has=${hasCfClearance}, different=${isDifferent}`
-      );
-    }
-
-    return success;
+    console.log(
+      `[CF Interceptor] Background refresh timeout for ${domain} - no new token`
+    );
+    return false;
   } catch (error) {
     console.log(
       `[CF Interceptor] Background refresh error for ${domain}:`,
