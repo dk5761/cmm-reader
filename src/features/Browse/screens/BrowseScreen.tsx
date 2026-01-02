@@ -1,36 +1,27 @@
-import { useMemo } from "react";
 import { View, Text, ScrollView, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import axios from "axios";
-import { SearchBar } from "@/shared/components/SearchBar";
 import { SourceCard, type SourceCardData } from "../components/SourceCard";
-import { useBrowseStore } from "../stores/useBrowseStore";
 import { getAvailableSources } from "@/sources";
 import { useAppSettingsStore } from "@/shared/stores";
 
 export function BrowseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { searchQuery, setSearchQuery } = useBrowseStore();
   const { showNsfwSources } = useAppSettingsStore();
 
   // Get sources filtered by NSFW preference
   const sources = getAvailableSources(showNsfwSources);
 
-  const filteredSources: SourceCardData[] = useMemo(() => {
-    const sourceList = sources.map((s) => ({
-      id: s.id,
-      name: s.name,
-      icon: s.config.icon,
-      logo: s.config.logo,
-      language: s.config.language,
-    }));
-    if (!searchQuery.trim()) return sourceList;
-    return sourceList.filter((src) =>
-      src.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery, sources]);
+  // Map sources to display format
+  const sourceList: SourceCardData[] = sources.map((s) => ({
+    id: s.id,
+    name: s.name,
+    icon: s.config.icon,
+    logo: s.config.logo,
+    language: s.config.language,
+  }));
 
   const handleView = (id: string) => {
     router.push(`/source/${id}`);
@@ -56,13 +47,22 @@ export function BrowseScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Search Bar */}
-        <View className="py-3">
-          <SearchBar
-            placeholder="Search sources..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+        {/* Global Search Button */}
+        <View className="px-4 pb-3">
+          <Pressable
+            onPress={() => router.push("/global-search")}
+            className="bg-surface border border-border rounded-lg p-4 flex-row items-center"
+          >
+            <View className="flex-1">
+              <Text className="text-foreground font-semibold text-base mb-1">
+                🔍 Search All Sources
+              </Text>
+              <Text className="text-muted text-sm">
+                Find manga across all sources at once
+              </Text>
+            </View>
+            <Text className="text-primary text-2xl">→</Text>
+          </Pressable>
         </View>
 
         {/* Test Axios Button */}
@@ -87,7 +87,7 @@ export function BrowseScreen() {
           </View>
 
           {/* Sources List */}
-          {filteredSources.map((source) => (
+          {sourceList.map((source) => (
             <SourceCard
               key={source.id}
               source={source}
@@ -96,7 +96,7 @@ export function BrowseScreen() {
           ))}
 
           {/* Empty state */}
-          {filteredSources.length === 0 && (
+          {sourceList.length === 0 && (
             <Text className="text-muted text-sm text-center py-8">
               No sources found
             </Text>
