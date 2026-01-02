@@ -162,6 +162,90 @@ async function solveCfChallengeAuto(
 }
 
 /**
+ * Attempt background refresh (Mihon-style)
+ * Tries to get a fresh token via hidden WebView without user interaction
+ * Returns true if successful (new cookie != old cookie)
+ */
+async function attemptBackgroundRefresh(
+  url: string,
+  oldCookieString: string | null
+): Promise<boolean> {
+  const domain = new URL(url).hostname;
+  const startTime = Date.now();
+
+  console.log(`[CF Interceptor] Attempting background refresh for ${domain}`);
+
+  await cfLogger.log("CF Interceptor", "Background refresh started", {
+    url: url.substring(0, 80),
+    domain,
+    hadOldCookie: !!oldCookieString,
+    oldCookieLength: oldCookieString?.length || 0,
+  });
+
+  try {
+    // Load URL in hidden WebView with 15s timeout
+    await WebViewFetcherService.fetchHtml(url, 15000);
+
+    // Get new cookie string
+    let newCookieString: string | null = null;
+    if (Platform.OS === "ios") {
+      newCookieString = await CookieSync.getCookieString(url);
+    } else {
+      const cookies = await CookieManagerInstance.extractFromWebView(url);
+      newCookieString = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+    }
+
+    // Check validity
+    const hasCfClearance = newCookieString?.includes("cf_clearance") || false;
+
+    // Key insight from Mihon: Compare cookie strings, not expiry dates
+    // Success = new cookie exists AND is different from old
+    const isDifferent = newCookieString !== oldCookieString;
+    const success = hasCfClearance && isDifferent;
+
+    await cfLogger.log(
+      "CF Interceptor",
+      success ? "Background refresh SUCCESS" : "Background refresh FAILED",
+      {
+        domain,
+        hasCfClearance,
+        isDifferent,
+        oldCookieLength: oldCookieString?.length || 0,
+        newCookieLength: newCookieString?.length || 0,
+        durationMs: Date.now() - startTime,
+      }
+    );
+
+    if (success) {
+      console.log(
+        `[CF Interceptor] Background refresh succeeded for ${domain} in ${
+          Date.now() - startTime
+        }ms`
+      );
+    } else {
+      console.log(
+        `[CF Interceptor] Background refresh failed for ${domain} - cookie comparison: has=${hasCfClearance}, different=${isDifferent}`
+      );
+    }
+
+    return success;
+  } catch (error) {
+    console.log(
+      `[CF Interceptor] Background refresh error for ${domain}:`,
+      error
+    );
+
+    await cfLogger.log("CF Interceptor", "Background refresh ERROR", {
+      domain,
+      error: error instanceof Error ? error.message : String(error),
+      durationMs: Date.now() - startTime,
+    });
+
+    return false;
+  }
+}
+
+/**
  * Attempt manual challenge via modal WebView
  */
 async function solveCfChallengeManual(
@@ -250,7 +334,22 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           maxRetries: MAX_CF_RETRIES,
         });
 
-        // CRITICAL: Clear invalid token when 403 is received
+        // STEP 1: Save old cookie before clearing (Mihon approach)
+        let oldCookieString: string | null = null;
+        if (Platform.OS === "ios") {
+          try {
+            oldCookieString = await CookieSync.getCookieString(url);
+            console.log(
+              `[CF Interceptor] Saved old cookie for comparison (length: ${
+                oldCookieString?.length || 0
+              })`
+            );
+          } catch (e) {
+            console.log("[CF Interceptor] Failed to get old cookie:", e);
+          }
+        }
+
+        // STEP 2: Clear invalid token when 403 is received
         // The token exists but CF has invalidated it server-side
         if (Platform.OS === "ios") {
           try {
@@ -270,6 +369,35 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
             console.log("[CF Interceptor] Failed to clear token:", e);
           }
         }
+
+        // STEP 3: Try background refresh (Mihon-style)
+        // Attempt to get fresh token via hidden WebView before showing modal
+        const backgroundRefreshed = await attemptBackgroundRefresh(
+          url,
+          oldCookieString
+        );
+
+        if (backgroundRefreshed) {
+          console.log(
+            `[CF Interceptor] Background refresh succeeded, retrying request automatically`
+          );
+
+          await cfLogger.log(
+            "CF Interceptor",
+            "Auto-retry after background refresh",
+            {
+              url: url.substring(0, 80),
+              domain,
+            }
+          );
+
+          // Retry the original request with fresh cookies
+          return axiosInstance.request(config);
+        }
+
+        console.log(
+          `[CF Interceptor] Background refresh failed, will try auto-solve or manual`
+        );
 
         // Prevent infinite retry loop
         if (currentRetries >= MAX_CF_RETRIES) {
