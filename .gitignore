@@ -12,8 +12,6 @@ expo-env.d.ts
 /android
 /ios
 
-mihon
-
 # Native
 *.orig.*
 *.jks
@@ -46,4 +44,6 @@ app-example
 
 cf-debug-*.log
 
-extensions-source
+# extensions-source
+
+# mihon

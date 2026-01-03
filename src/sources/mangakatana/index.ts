@@ -1,0 +1,1 @@
+export { MangaKatanaSource } from "./MangaKatanaSource";
