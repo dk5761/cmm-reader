@@ -192,6 +192,12 @@ class CookieManagerClass {
       return false;
     }
 
+    // Check cookieString first (used when caching from native module)
+    if (stored.cookieString?.includes("cf_clearance=")) {
+      return true;
+    }
+
+    // Fallback to checking cookies array
     return stored.cookies.some((c) => c.name === "cf_clearance");
   }
 

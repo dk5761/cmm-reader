@@ -2,6 +2,23 @@
  * HTTP types for network layer
  */
 
+/**
+ * Shared Cloudflare challenge detection patterns
+ * Used by both CloudflareInterceptor and WebViewFetcherService
+ */
+export const CF_CHALLENGE_PATTERNS = [
+  "cf-browser-verification",
+  "challenge-running",
+  "__cf_chl_jschl_tk__",
+  "cf_chl_opt",
+  "cf-turnstile",
+  "Just a moment...",
+  "Checking your browser",
+  "Enable JavaScript and cookies",
+  "_cf_chl",
+  "cf-please-wait",
+] as const;
+
 export interface Cookie {
   name: string;
   value: string;

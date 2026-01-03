@@ -7,11 +7,12 @@ import type {
 import { Platform } from "react-native";
 import { WebViewFetcherService } from "./WebViewFetcherService";
 import { CookieManagerInstance } from "./CookieManager";
-import { CloudflareBypassException, ManualChallengeHandler } from "./types";
+import { CloudflareBypassException, ManualChallengeHandler, CF_CHALLENGE_PATTERNS } from "./types";
 import CookieSync from "cookie-sync";
 import { cfLogger } from "@/utils/cfDebugLogger";
 
 const MAX_CF_RETRIES = 1; // Try once and fail fast
+const CF_SOLVE_TIMEOUT_MS = 60000; // 60 seconds max for CF solve
 
 /**
  * Registered manual challenge handler (set by WebViewFetcherContext)
@@ -42,13 +43,15 @@ function isCfChallenge(response?: AxiosResponse): boolean {
   if (!isCfStatus) return false;
 
   const html = typeof response.data === "string" ? response.data : "";
-  const hasCfMarkers =
-    html.includes("cf-browser-verification") ||
-    html.includes("challenge-running") ||
-    html.includes("__cf_chl_jschl_tk__") ||
-    html.includes("cf_chl_opt");
+  const htmlLower = html.toLowerCase();
 
-  // Check title through headers or response
+  // Check for CF challenge patterns (using shared constant)
+  const hasCfMarkers = CF_CHALLENGE_PATTERNS.some(
+    (pattern) =>
+      htmlLower.includes(pattern.toLowerCase()) || html.includes(pattern)
+  );
+
+  // Check title for "just a moment"
   const title = response.headers?.["title"] || "";
   const hasJustAMoment =
     title.toLowerCase().includes("just a moment") ||
@@ -89,10 +92,11 @@ async function solveCfChallengeAuto(
 
   // Use native module on iOS for reliable cookie extraction from WKWebView
   if (Platform.OS === "ios") {
-    hasCfClearance = await CookieSync.hasCfClearance(url);
-    if (hasCfClearance) {
-      cookieString = await CookieSync.getCookieString(url);
+    // Get cookie string first to avoid race condition between hasCfClearance and getCookieString
+    cookieString = await CookieSync.getCookieString(url);
+    hasCfClearance = cookieString.includes("cf_clearance=");
 
+    if (hasCfClearance) {
       const syncStart = Date.now();
       await CookieSync.syncCookiesToNative(url);
       await cfLogger.logCookieSync("toNative", domain, {
@@ -204,8 +208,17 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
 
   // Response interceptor - detects CF challenges
   axiosInstance.interceptors.response.use(
-    // Success - pass through
-    (response: AxiosResponse) => response,
+    // Success - pass through and clean up retry state
+    (response: AxiosResponse) => {
+      // Clean up retryMap for successful requests
+      if (response.config?.url) {
+        const requestKey = `${response.config.method}:${response.config.url}`;
+        if (retryMap.has(requestKey)) {
+          retryMap.delete(requestKey);
+        }
+      }
+      return response;
+    },
 
     // Error - check for CF challenge
     async (error: AxiosError) => {
@@ -256,12 +269,34 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           cookies: string;
         }) => void;
         let rejectDeferred!: (error: Error) => void;
+        let timeoutId: ReturnType<typeof setTimeout>;
+
         const deferredPromise = new Promise<{ html: string; cookies: string }>(
           (res, rej) => {
             resolveDeferred = res;
             rejectDeferred = rej;
+
+            // Timeout to prevent hanging forever if solve gets stuck
+            timeoutId = setTimeout(() => {
+              console.log(`[CF Interceptor] Solve timeout for ${domain}, cleaning up`);
+              ongoingSolves.delete(domain);
+              rej(new Error(`CF solve timeout for ${domain}`));
+            }, CF_SOLVE_TIMEOUT_MS);
           }
         );
+
+        // Wrap resolve/reject to clear timeout
+        const originalResolve = resolveDeferred;
+        const originalReject = rejectDeferred;
+        resolveDeferred = (result) => {
+          clearTimeout(timeoutId);
+          originalResolve(result);
+        };
+        rejectDeferred = (error) => {
+          clearTimeout(timeoutId);
+          originalReject(error);
+        };
+
         ongoingSolves.set(domain, deferredPromise);
         console.log(`[CF Interceptor] Domain lock set for: ${domain}`);
 

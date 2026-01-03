@@ -6,6 +6,8 @@
  * allowing non-React code (like Source classes) to use WebView fetching.
  */
 
+import { CF_CHALLENGE_PATTERNS } from "./types";
+
 type FetchFunction = (url: string, timeoutMs?: number) => Promise<string>;
 type PostFunction = (
   url: string,
@@ -38,17 +40,6 @@ export class CloudflareExpiredError extends Error {
     this.name = "CloudflareExpiredError";
   }
 }
-
-// Patterns that indicate a CF challenge page
-const CF_CHALLENGE_PATTERNS = [
-  "challenge-running",
-  "cf-turnstile",
-  "Just a moment...",
-  "Checking your browser",
-  "Enable JavaScript and cookies",
-  "_cf_chl",
-  "cf-please-wait",
-];
 
 class WebViewFetcherServiceClass {
   private fetchFunction: FetchFunction | null = null;
@@ -124,6 +115,23 @@ class WebViewFetcherServiceClass {
    */
   unregister() {
     console.log("[WebViewFetcherService] Unregistered");
+
+    // Reject all pending fetch requests
+    while (this.pendingFetchRequests.length > 0) {
+      const request = this.pendingFetchRequests.shift();
+      if (request) {
+        request.reject(new Error("WebViewFetcher unregistered"));
+      }
+    }
+
+    // Reject all pending POST requests
+    while (this.pendingPostRequests.length > 0) {
+      const request = this.pendingPostRequests.shift();
+      if (request) {
+        request.reject(new Error("WebViewFetcher unregistered"));
+      }
+    }
+
     this.fetchFunction = null;
     this.postFunction = null;
     this.invalidateSessionFn = null;
