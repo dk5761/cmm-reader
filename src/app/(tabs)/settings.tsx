@@ -15,6 +15,7 @@ import { useSyncStore } from "@/features/Library/stores/useSyncStore";
 import { useBackup } from "@/core/backup";
 import { useAppSettingsStore } from "@/shared/stores";
 import { useAuth } from "@/core/auth";
+import { useSyncManager } from "@/core/sync";
 
 type SettingItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -169,6 +170,76 @@ function AccountSection() {
         title="Sign Out"
         onPress={handleSignOut}
         loading={loading}
+      />
+    </View>
+  );
+}
+
+function SyncSection() {
+  const { syncState, syncNow, uploadAll } = useSyncManager();
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncNow = async () => {
+    setSyncing(true);
+    try {
+      await syncNow();
+      Alert.alert(
+        "Sync Complete",
+        "Your library has been synced to the cloud."
+      );
+    } catch (e) {
+      Alert.alert("Sync Failed", (e as Error).message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleFullUpload = async () => {
+    Alert.alert(
+      "Full Upload",
+      "This will upload your entire library to the cloud, replacing any existing data.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Upload",
+          onPress: async () => {
+            setSyncing(true);
+            try {
+              await uploadAll();
+              Alert.alert(
+                "Upload Complete",
+                "Your entire library has been uploaded."
+              );
+            } catch (e) {
+              Alert.alert("Upload Failed", (e as Error).message);
+            } finally {
+              setSyncing(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <View>
+      <SettingItem
+        icon="cloud-upload-outline"
+        title="Sync Now"
+        subtitle={
+          syncState.pendingChanges > 0
+            ? `${syncState.pendingChanges} pending changes`
+            : "Library is synced"
+        }
+        onPress={handleSyncNow}
+        loading={syncing}
+      />
+      <SettingItem
+        icon="refresh-outline"
+        title="Full Upload"
+        subtitle="Upload entire library to cloud"
+        onPress={handleFullUpload}
+        loading={syncing}
       />
     </View>
   );
@@ -350,6 +421,14 @@ export default function SettingsScreen() {
             Account
           </Text>
           <AccountSection />
+        </View>
+
+        {/* Cloud Sync Section */}
+        <View className="mt-4">
+          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+            Cloud Sync
+          </Text>
+          <SyncSection />
         </View>
 
         {/* Content Preferences Section */}

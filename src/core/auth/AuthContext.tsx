@@ -8,6 +8,10 @@ import React, {
 } from "react";
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// Key for storing Google OAuth token for JS SDK auth
+export const GOOGLE_OAUTH_TOKEN_KEY = "@google_oauth_id_token";
 
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
@@ -60,6 +64,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error("No ID token received from Google Sign-In");
       }
 
+      // Store Google OAuth token for JS SDK auth sync
+      await AsyncStorage.setItem(GOOGLE_OAUTH_TOKEN_KEY, idToken);
+
       // Create Firebase credential and sign in
       const googleCredential = auth.GoogleAuthProvider.credential(idToken);
       await auth().signInWithCredential(googleCredential);
@@ -76,6 +83,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const signOut = useCallback(async () => {
     try {
+      // Clear stored Google OAuth token
+      await AsyncStorage.removeItem(GOOGLE_OAUTH_TOKEN_KEY);
       await GoogleSignin.signOut();
       await auth().signOut();
       console.log("[AuthContext] Sign-out successful");

@@ -25,6 +25,11 @@ const withPodfileFix = (config) => {
         return config;
       }
 
+      // Inject $RNFirebaseAsStaticFramework = true at the top
+      if (!podfileContent.includes('$RNFirebaseAsStaticFramework = true')) {
+        podfileContent = `$RNFirebaseAsStaticFramework = true\n${podfileContent}`;
+      }
+
       // The fix code block to inject
       const fixBlock = `
     installer.pods_project.targets.each do |target|

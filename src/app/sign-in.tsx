@@ -25,7 +25,7 @@ export default function SignInScreen() {
     setError(null);
     try {
       await signInWithGoogle();
-      router.replace("/(tabs)/library");
+      router.replace("/sync?action=login");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Sign-in failed";
       setError(message);

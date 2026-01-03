@@ -65,6 +65,11 @@ export default function RootLayout() {
                         name="sign-in"
                         options={{ headerShown: false, title: "Sign In" }}
                       />
+                      {/* Sync screen - post login/logout */}
+                      <Stack.Screen
+                        name="sync"
+                        options={{ headerShown: false, gestureEnabled: false }}
+                      />
                     </Stack>
 
                     {/* Force Update Screen - blocks app until update is applied */}
