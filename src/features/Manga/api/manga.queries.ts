@@ -38,7 +38,8 @@ export function useMangaDetails(
       return failureCount < 3;
     },
     enabled: enabled && !!source && !!mangaUrl,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: Infinity, // Never auto-stale - use cached data
+    refetchOnMount: false, // Don't refetch on navigation
   });
 }
 
@@ -78,6 +79,7 @@ export function useChapterList(
       return failureCount < 3;
     },
     enabled: enabled && !!source && !!mangaUrl,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: Infinity, // Never auto-stale - use cached data
+    refetchOnMount: false, // Don't refetch on navigation
   });
 }
