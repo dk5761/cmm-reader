@@ -7,6 +7,9 @@ import type {
   Page,
   SearchResult,
   SourceConfig,
+  SourceFilters,
+  PublisherFilter,
+  SortOption,
 } from "../base/types";
 
 /**
@@ -31,6 +34,56 @@ export class ReadComicOnlineSource extends Source {
   // Preferences (hardcoded for MVP)
   private readonly quality: "hq" | "lq" = "hq";
   private readonly server: "" | "s2" = "";
+
+  /**
+   * Get comics with publisher and sort filters
+   * Publisher filter: Marvel, DC-Comics, or all
+   * Sort options: MostPopular, LatestUpdate, Newest, or Alphabet (empty)
+   */
+  async getWithFilters(
+    page = 1,
+    filters: SourceFilters = {}
+  ): Promise<SearchResult> {
+    const { publisher = "all", sort = "LatestUpdate" } = filters;
+
+    // Build URL based on filters
+    // If publisher selected: /Publisher/{publisher}/{sort}?page=X
+    // If no publisher: /ComicList/{sort}?page=X
+    let url: string;
+    if (publisher && publisher !== "all") {
+      const sortPath = sort || "";
+      url = `/Publisher/${publisher}${
+        sortPath ? `/${sortPath}` : ""
+      }?page=${page}`;
+    } else {
+      const sortPath = sort || "LatestUpdate";
+      url = `/ComicList/${sortPath}?page=${page}`;
+    }
+
+    console.log(`[ReadComicOnline] getWithFilters URL: ${url}`);
+    const html = await this.fetchHtml(url);
+    const doc = this.parseHtml(html);
+
+    const manga: Manga[] = doc.selectAll(this.itemSelector, (el) => {
+      const infoLink = el.querySelector(".col.info p a");
+      const title = infoLink?.textContent?.trim() || "";
+      const itemUrl = infoLink?.getAttribute("href") || "";
+
+      const coverImg = el.querySelector(".col.cover a img");
+      const cover = coverImg?.getAttribute("src") || "";
+
+      return {
+        id: this.getMangaIdFromUrl(itemUrl),
+        title,
+        cover: this.absoluteUrl(cover),
+        url: this.absoluteUrl(itemUrl),
+        sourceId: this.id,
+      };
+    });
+
+    const hasNextPage = doc.querySelector("a.next_bt") !== null;
+    return { manga: manga.filter((m) => m.title), hasNextPage };
+  }
 
   async getPopular(page = 1): Promise<SearchResult> {
     const url = `/ComicList/MostPopular?page=${page}`;

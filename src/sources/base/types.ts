@@ -54,3 +54,12 @@ export interface SourceConfig {
    */
   needsCloudflareBypass?: boolean;
 }
+
+// Filter types for sources that support filtering
+export type PublisherFilter = "all" | "Marvel" | "DC-Comics";
+export type SortOption = "" | "MostPopular" | "LatestUpdate" | "Newest";
+
+export interface SourceFilters {
+  publisher?: PublisherFilter;
+  sort?: SortOption;
+}

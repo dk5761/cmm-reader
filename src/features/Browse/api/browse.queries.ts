@@ -129,6 +129,59 @@ export function useLatestManga(sourceId: string, sessionReady = true) {
 }
 
 /**
+ * Get manga with filters (for ReadComicOnline only)
+ */
+export function useFilteredManga(
+  sourceId: string,
+  filters: { publisher?: string; sort?: string },
+  sessionReady = true
+) {
+  const source = getSource(sourceId);
+
+  return useInfiniteQuery({
+    queryKey: ["filtered", sourceId, filters.publisher, filters.sort],
+    queryFn: async ({ pageParam = 1 }) => {
+      console.log(
+        `[useFilteredManga] Fetching page ${pageParam} with filters:`,
+        filters
+      );
+      if (!source) throw new Error(`Source ${sourceId} not found`);
+
+      // Check if source has getWithFilters method (ReadComicOnline only)
+      if ("getWithFilters" in source) {
+        try {
+          const result = await (source as any).getWithFilters(
+            pageParam,
+            filters
+          );
+          console.log(
+            `[useFilteredManga] Success: ${result.manga.length} manga found`
+          );
+          return result;
+        } catch (error) {
+          console.error(`[useFilteredManga] Error:`, error);
+          throw error;
+        }
+      }
+
+      // Fallback to default popular
+      return source.getPopular(pageParam);
+    },
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.hasNextPage ? allPages.length + 1 : undefined,
+    retry: (failureCount, error) => {
+      if (isCfError(error)) {
+        console.log("[useFilteredManga] CF error detected, disabling retry");
+        return false;
+      }
+      return failureCount < 3;
+    },
+    enabled: !!source && sessionReady,
+    initialPageParam: 1,
+  });
+}
+
+/**
  * Flatten infinite query pages into single array
  */
 export function flattenMangaPages(pages: SearchResult[] | undefined): Manga[] {

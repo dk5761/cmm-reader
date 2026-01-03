@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { toast } from "sonner-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { useCSSVariable } from "uniwind";
 import { SearchBar, MangaCard } from "@/shared/components";
@@ -17,14 +18,17 @@ import {
   useSearchManga,
   usePopularManga,
   useLatestManga,
+  useFilteredManga,
   flattenMangaPages,
 } from "../api/browse.queries";
 import { getSource } from "@/sources";
 import { useSession } from "@/shared/contexts/SessionContext";
 import { useLibraryManga } from "@/features/Library/hooks";
 import type { Manga } from "@/sources";
+import type { PublisherFilter, SortOption } from "@/sources/base/types";
 import { isCfError } from "@/core/http/utils/cfErrorHandler";
 import { resetCfRetryState } from "@/core/http/utils/resetCfRetryState";
+import { SourceFilterSheet } from "../components";
 
 import { useDebounce } from "@/shared/hooks/useDebounce";
 
@@ -40,6 +44,16 @@ export function SourceBrowseScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery] = useDebounce(searchQuery, 800);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Filter state for ReadComicOnline
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  const [filters, setFilters] = useState<{
+    publisher: PublisherFilter;
+    sort: SortOption;
+  }>({ publisher: "all", sort: "LatestUpdate" });
+
+  // Check if source supports filtering (ReadComicOnline only)
+  const supportsFilters = sourceId === "readcomiconline";
 
   const source = getSource(sourceId || "");
   const fgColor = useCSSVariable("--color-foreground");
@@ -79,16 +93,22 @@ export function SourceBrowseScreen() {
   // Queries - only enable the active tab's query
   const popularQuery = usePopularManga(
     sourceId || "",
-    sessionReady && activeTab === "popular" && !isSearching
+    sessionReady && activeTab === "popular" && !isSearching && !supportsFilters
   );
   const latestQuery = useLatestManga(
     sourceId || "",
-    sessionReady && activeTab === "latest" && !isSearching
+    sessionReady && activeTab === "latest" && !isSearching && !supportsFilters
   );
   const searchQueryResult = useSearchManga(
     sourceId || "",
     isSearching ? debouncedSearchQuery : "",
     sessionReady && isSearching
+  );
+  // Filtered query for ReadComicOnline
+  const filteredQuery = useFilteredManga(
+    sourceId || "",
+    filters,
+    sessionReady && supportsFilters && !isSearching
   );
 
   // Debug: Log search query hook state
@@ -124,12 +144,13 @@ export function SourceBrowseScreen() {
   );
 
   // Determine which data to show
-  const currentQuery =
-    activeTab === "search"
-      ? searchQueryResult
-      : activeTab === "popular"
-      ? popularQuery
-      : latestQuery;
+  const currentQuery = isSearching
+    ? searchQueryResult
+    : supportsFilters
+    ? filteredQuery
+    : activeTab === "popular"
+    ? popularQuery
+    : latestQuery;
 
   const isLoading = currentQuery.isLoading;
   const isRefetching = currentQuery.isRefetching;
@@ -214,29 +235,32 @@ export function SourceBrowseScreen() {
       </View>
 
       {/* Tab Selector */}
-      <View className="flex-row px-4 gap-2 mb-3">
-        {(["popular", "latest"] as const).map((tab) => (
-          <Pressable
-            key={tab}
-            onPress={() => {
-              setActiveTab(tab);
-              setIsSearching(false);
-            }}
-            className={`px-4 py-2 rounded-full ${
-              activeTab === tab && !isSearching
-                ? "bg-primary"
-                : "bg-surface border border-border"
-            }`}
-          >
-            <Text
-              className={`text-xs font-semibold capitalize ${
-                activeTab === tab && !isSearching ? "text-black" : "text-muted"
+      <View className="flex-row px-4 gap-2 mb-3 items-center">
+        {!supportsFilters &&
+          (["popular", "latest"] as const).map((tab) => (
+            <Pressable
+              key={tab}
+              onPress={() => {
+                setActiveTab(tab);
+                setIsSearching(false);
+              }}
+              className={`px-4 py-2 rounded-full ${
+                activeTab === tab && !isSearching
+                  ? "bg-primary"
+                  : "bg-surface border border-border"
               }`}
             >
-              {tab}
-            </Text>
-          </Pressable>
-        ))}
+              <Text
+                className={`text-xs font-semibold capitalize ${
+                  activeTab === tab && !isSearching
+                    ? "text-black"
+                    : "text-muted"
+                }`}
+              >
+                {tab}
+              </Text>
+            </Pressable>
+          ))}
         {isSearching && (
           <View className="px-4 py-2 rounded-full bg-primary">
             <Text className="text-xs font-semibold text-black">
@@ -244,6 +268,24 @@ export function SourceBrowseScreen() {
             </Text>
           </View>
         )}
+
+        {/* Filter button for ReadComicOnline */}
+        {supportsFilters && !isSearching && (
+          <Pressable
+            onPress={() => setFilterSheetVisible(true)}
+            className="flex-row items-center gap-2 px-4 py-2 rounded-full bg-surface border border-border"
+          >
+            <Ionicons name="filter" size={16} color={foreground} />
+            <Text className="text-foreground text-xs font-semibold">
+              {filters.publisher !== "all"
+                ? filters.publisher.replace("-", " ")
+                : "Filters"}
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Spacer */}
+        <View className="flex-1" />
       </View>
 
       {/* Content */}
@@ -337,6 +379,17 @@ export function SourceBrowseScreen() {
               <Text className="text-muted">No manga found</Text>
             </View>
           }
+        />
+      )}
+
+      {/* Filter Sheet for ReadComicOnline */}
+      {supportsFilters && (
+        <SourceFilterSheet
+          visible={filterSheetVisible}
+          publisher={filters.publisher}
+          sort={filters.sort}
+          onApply={(newFilters) => setFilters(newFilters)}
+          onClose={() => setFilterSheetVisible(false)}
         />
       )}
     </View>
