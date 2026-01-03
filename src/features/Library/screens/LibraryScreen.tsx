@@ -18,8 +18,14 @@ import { useLibraryManga } from "../hooks";
 
 export function LibraryScreen() {
   const router = useRouter();
-  const { activeCategory, setActiveCategory, searchQuery, activeSource } =
-    useLibraryStore();
+  const {
+    activeCategory,
+    setActiveCategory,
+    searchQuery,
+    activeSource,
+    sortBy,
+    sortAscending,
+  } = useLibraryStore();
   const { showNsfwSources } = useAppSettingsStore();
 
   // Fetch from Realm database
@@ -61,6 +67,31 @@ export function LibraryScreen() {
       );
     }
 
+    // Apply sorting
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case "title":
+          cmp = a.title.localeCompare(b.title);
+          break;
+        case "dateAdded":
+          cmp = (b.addedAt ?? 0) - (a.addedAt ?? 0);
+          break;
+        case "lastRead":
+          cmp = (b.progress?.lastReadAt ?? 0) - (a.progress?.lastReadAt ?? 0);
+          break;
+        case "unread": {
+          const unreadA =
+            a.chapters.length - a.chapters.filter((ch) => ch.isRead).length;
+          const unreadB =
+            b.chapters.length - b.chapters.filter((ch) => ch.isRead).length;
+          cmp = unreadB - unreadA;
+          break;
+        }
+      }
+      return sortAscending ? -cmp : cmp;
+    });
+
     return result;
   }, [
     libraryManga,
@@ -68,6 +99,8 @@ export function LibraryScreen() {
     activeSource,
     activeCategory,
     showNsfwSources,
+    sortBy,
+    sortAscending,
   ]);
 
   // Transform Realm objects to grid format
