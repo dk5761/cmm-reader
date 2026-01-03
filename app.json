@@ -11,6 +11,7 @@
     "slug": "manga-reader",
     "android": {
       "package": "com.drshnk.mangareader",
+      "googleServicesFile": "./configs/google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/adaptive-icon.png",
         "monochromeImage": "./assets/icons/adaptive-icon.png",
@@ -19,6 +20,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.drshnk.mangareader",
+      "googleServicesFile": "./configs/GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "Allow Manga Reader to save exported debug logs and backup files to your photo library.",
@@ -53,7 +55,19 @@
           },
           "imageWidth": 200
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "./plugins/withPodfileFix.js"
     ]
   }
 }

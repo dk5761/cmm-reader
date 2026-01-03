@@ -12,6 +12,7 @@ import { WebViewFetcherProvider } from "@/shared/contexts/WebViewFetcherContext"
 import { DatabaseProvider } from "@/core/database";
 import { UpdateScreen } from "@/shared/components/UpdateScreen";
 import { requestNotificationPermissions } from "@/shared/services/notifications";
+import { AuthProvider, AuthGuard, configureGoogleSignIn } from "@/core/auth";
 
 // Keep splash screen visible while app loads
 SplashScreen.preventAutoHideAsync();
@@ -20,8 +21,9 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Request notification permissions and hide splash on startup
+  // Request notification permissions, configure auth, and hide splash on startup
   useEffect(() => {
+    configureGoogleSignIn();
     requestNotificationPermissions();
     // Hide splash screen after a brief delay to ensure providers are ready
     SplashScreen.hideAsync();
@@ -32,36 +34,45 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <DatabaseProvider>
           <QueryProvider>
-            <SessionProvider>
-              <WebViewFetcherProvider>
-                <Stack
-                  screenOptions={{
-                    headerShown: true,
-                    headerStyle: {
-                      backgroundColor: isDark ? "#0a0a0f" : "#ffffff",
-                    },
-                    headerTintColor: isDark ? "#fff" : "#000",
-                    headerTitleStyle: { fontWeight: "600" },
-                    headerShadowVisible: false,
-                    headerBackTitle: "",
-                  }}
-                >
-                  {/* Hide header for tabs - tabs have their own headers */}
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false, title: "" }}
-                  />
-                  {/* Hide header for reader - full screen experience */}
-                  <Stack.Screen
-                    name="reader/[chapterId]"
-                    options={{ headerShown: false }}
-                  />
-                </Stack>
+            <AuthProvider>
+              <AuthGuard>
+                <SessionProvider>
+                  <WebViewFetcherProvider>
+                    <Stack
+                      screenOptions={{
+                        headerShown: true,
+                        headerStyle: {
+                          backgroundColor: isDark ? "#0a0a0f" : "#ffffff",
+                        },
+                        headerTintColor: isDark ? "#fff" : "#000",
+                        headerTitleStyle: { fontWeight: "600" },
+                        headerShadowVisible: false,
+                        headerBackTitle: "",
+                      }}
+                    >
+                      {/* Hide header for tabs - tabs have their own headers */}
+                      <Stack.Screen
+                        name="(tabs)"
+                        options={{ headerShown: false, title: "" }}
+                      />
+                      {/* Hide header for reader - full screen experience */}
+                      <Stack.Screen
+                        name="reader/[chapterId]"
+                        options={{ headerShown: false }}
+                      />
+                      {/* Sign-in screen */}
+                      <Stack.Screen
+                        name="sign-in"
+                        options={{ headerShown: false, title: "Sign In" }}
+                      />
+                    </Stack>
 
-                {/* Force Update Screen - blocks app until update is applied */}
-                <UpdateScreen />
-              </WebViewFetcherProvider>
-            </SessionProvider>
+                    {/* Force Update Screen - blocks app until update is applied */}
+                    <UpdateScreen />
+                  </WebViewFetcherProvider>
+                </SessionProvider>
+              </AuthGuard>
+            </AuthProvider>
           </QueryProvider>
         </DatabaseProvider>
       </SafeAreaProvider>
