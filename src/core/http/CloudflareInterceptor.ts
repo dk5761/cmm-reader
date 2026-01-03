@@ -7,12 +7,16 @@ import type {
 import { Platform } from "react-native";
 import { WebViewFetcherService } from "./WebViewFetcherService";
 import { CookieManagerInstance } from "./CookieManager";
-import { CloudflareBypassException, ManualChallengeHandler, CF_CHALLENGE_PATTERNS } from "./types";
+import {
+  CloudflareBypassException,
+  ManualChallengeHandler,
+  CF_CHALLENGE_PATTERNS,
+} from "./types";
 import CookieSync from "cookie-sync";
 import { cfLogger } from "@/utils/cfDebugLogger";
 
 const MAX_CF_RETRIES = 1; // Try once and fail fast
-const CF_SOLVE_TIMEOUT_MS = 60000; // 60 seconds max for CF solve
+const CF_SOLVE_TIMEOUT_MS = 30000; // 60 seconds max for CF solve
 
 /**
  * Registered manual challenge handler (set by WebViewFetcherContext)
@@ -236,10 +240,49 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
         const domain = new URL(url).hostname;
 
         console.log(
-          `[CF Interceptor] CF challenge detected for ${url.substring(0, 60)}`
+          `[CF Interceptor] CF challenge detected for ${url.substring(
+            0,
+            60
+          )} (retry ${currentRetries}/${MAX_CF_RETRIES})`
         );
 
-        // STEP 1: Check if already solving for this domain (SYNC - atomic check-and-set)
+        // STEP 1: Check if max retries exceeded - go straight to manual
+        if (currentRetries >= MAX_CF_RETRIES) {
+          console.log(
+            `[CF Interceptor] Max retries (${MAX_CF_RETRIES}) exceeded, requesting manual check`
+          );
+
+          const manualResult = await solveCfChallengeManual(url);
+          if (manualResult.success && manualResult.cookies) {
+            // Reset retry count on manual success
+            retryMap.delete(requestKey);
+            const retryConfig = {
+              ...config,
+              headers: {
+                ...(config.headers || {}),
+                Cookie: manualResult.cookies,
+              },
+            };
+            console.log(
+              "[CF Interceptor] Manual solve success after retry limit, retrying..."
+            );
+            return axiosInstance.request(retryConfig);
+          }
+
+          // Manual also failed - give up
+          return Promise.reject(
+            new CloudflareBypassException(
+              `CF bypass failed after ${MAX_CF_RETRIES} retry - manual check required`,
+              currentRetries,
+              url
+            )
+          );
+        }
+
+        // Increment retry count BEFORE attempting solve
+        retryMap.set(requestKey, currentRetries + 1);
+
+        // STEP 2: Check if already solving for this domain (SYNC - atomic check-and-set)
         const existingSolve = ongoingSolves.get(domain);
         if (existingSolve) {
           console.log(
@@ -263,7 +306,7 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           }
         }
 
-        // STEP 2: Set lock IMMEDIATELY using deferred promise (sync - before any async work)
+        // STEP 3: Set lock IMMEDIATELY using deferred promise (sync - before any async work)
         let resolveDeferred!: (result: {
           html: string;
           cookies: string;
@@ -278,7 +321,9 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
 
             // Timeout to prevent hanging forever if solve gets stuck
             timeoutId = setTimeout(() => {
-              console.log(`[CF Interceptor] Solve timeout for ${domain}, cleaning up`);
+              console.log(
+                `[CF Interceptor] Solve timeout for ${domain}, cleaning up`
+              );
               ongoingSolves.delete(domain);
               rej(new Error(`CF solve timeout for ${domain}`));
             }, CF_SOLVE_TIMEOUT_MS);
@@ -301,7 +346,7 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
         console.log(`[CF Interceptor] Domain lock set for: ${domain}`);
 
         try {
-          // STEP 3: Clear invalid token
+          // STEP 4: Clear invalid token
           if (Platform.OS === "ios") {
             try {
               await CookieSync.clearCfClearance(url);
@@ -313,7 +358,7 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
             }
           }
 
-          // STEP 4: Auto-solve
+          // STEP 5: Auto-solve
           console.log(
             `[CF Interceptor] Starting auto CF solve for domain: ${domain}`
           );
@@ -340,7 +385,7 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
             error: (cfError as Error).message,
           });
 
-          // STEP 5: Manual solve fallback
+          // STEP 6: Manual solve fallback
           try {
             const manualResult = await solveCfChallengeManual(url);
 
