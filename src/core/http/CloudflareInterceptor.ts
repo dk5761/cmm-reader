@@ -80,7 +80,7 @@ async function solveCfChallengeAuto(
   });
 
   // Solve using WebView with increasing timeout
-  const timeout = 30000 + attempt * 10000;
+  const timeout = 15000 + attempt * 5000;
   const html = await WebViewFetcherService.fetchHtml(url, timeout);
 
   let hasCfClearance = false;
@@ -172,7 +172,7 @@ async function attemptBackgroundRefresh(
 ): Promise<boolean> {
   const domain = new URL(url).hostname;
   const startTime = Date.now();
-  const TIMEOUT_MS = 30000; // 30s (match Mihon)
+  const TIMEOUT_MS = 15000; // 15s (reduced for faster fallback)
 
   console.log(`[CF Interceptor] Attempting background refresh for ${domain}`);
 
