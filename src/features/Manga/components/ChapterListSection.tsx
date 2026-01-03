@@ -1,9 +1,10 @@
 /**
  * ChapterListSection - Displays chapter list with read/unread actions
- * Uses useChapterActions hook for optimistic updates
+ * Uses deferred rendering and batching for performance with large chapter lists
  */
 
-import { View, Text } from "react-native";
+import { useState, useEffect, useCallback, memo } from "react";
+import { View, Text, InteractionManager } from "react-native";
 import { useRouter } from "expo-router";
 import { ChapterCard } from "./ChapterCard";
 import { useChapterActions } from "../hooks";
@@ -17,6 +18,12 @@ export type ChapterListSectionProps = {
   sourceId: string;
   mangaUrl: string;
 };
+
+// Memoized chapter card to prevent unnecessary re-renders
+const MemoizedChapterCard = memo(ChapterCard);
+
+// Number of chapters to render per batch
+const BATCH_SIZE = 20;
 
 export function ChapterListSection({
   chapters,
@@ -35,27 +42,56 @@ export function ChapterListSection({
     markPreviousAsUnread,
   } = useChapterActions(mangaId);
 
-  const handleChapterPress = (
-    chapterId: string,
-    chapterUrl: string,
-    chapterNumber: number,
-    chapterTitle?: string
-  ) => {
-    router.push({
-      pathname: "/reader/[chapterId]",
-      params: {
-        chapterId,
-        sourceId,
-        url: chapterUrl,
-        mangaUrl,
-        mangaId,
-        mangaTitle,
-        mangaCover: mangaCover || "",
-        chapterNumber: chapterNumber.toString(),
-        chapterTitle: chapterTitle || "",
-      },
+  // Progressive rendering: start with 0 chapters, then load in batches
+  const [visibleCount, setVisibleCount] = useState(0);
+
+  useEffect(() => {
+    // Wait for screen transition to complete before rendering chapters
+    const handle = InteractionManager.runAfterInteractions(() => {
+      // Render first batch immediately after transition
+      setVisibleCount(BATCH_SIZE);
     });
-  };
+
+    return () => handle.cancel();
+  }, []);
+
+  // Progressive loading: render more chapters in batches
+  useEffect(() => {
+    if (visibleCount > 0 && visibleCount < chapters.length) {
+      const timer = setTimeout(() => {
+        setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, chapters.length));
+      }, 50); // Small delay between batches to keep UI responsive
+      return () => clearTimeout(timer);
+    }
+  }, [visibleCount, chapters.length]);
+
+  const handleChapterPress = useCallback(
+    (
+      chapterId: string,
+      chapterUrl: string,
+      chapterNumber: number,
+      chapterTitle?: string
+    ) => {
+      router.push({
+        pathname: "/reader/[chapterId]",
+        params: {
+          chapterId,
+          sourceId,
+          url: chapterUrl,
+          mangaUrl,
+          mangaId,
+          mangaTitle,
+          mangaCover: mangaCover || "",
+          chapterNumber: chapterNumber.toString(),
+          chapterTitle: chapterTitle || "",
+        },
+      });
+    },
+    [router, sourceId, mangaUrl, mangaId, mangaTitle, mangaCover]
+  );
+
+  // Slice chapters to only render visible ones
+  const visibleChapters = chapters.slice(0, visibleCount);
 
   return (
     <>
@@ -66,10 +102,10 @@ export function ChapterListSection({
         </Text>
       </View>
 
-      {/* Chapters */}
+      {/* Chapters - Progressively rendered */}
       <View className="pb-4">
-        {chapters.map((chapter) => (
-          <ChapterCard
+        {visibleChapters.map((chapter) => (
+          <MemoizedChapterCard
             key={chapter.id}
             chapter={chapter}
             isRead={readChapterIds.has(chapter.id)}
@@ -91,6 +127,15 @@ export function ChapterListSection({
             }
           />
         ))}
+
+        {/* Loading indicator for remaining chapters */}
+        {visibleCount < chapters.length && (
+          <View className="py-4 items-center">
+            <Text className="text-muted text-xs">
+              Loading chapters... ({visibleCount}/{chapters.length})
+            </Text>
+          </View>
+        )}
       </View>
     </>
   );
