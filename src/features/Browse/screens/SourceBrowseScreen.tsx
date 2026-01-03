@@ -5,6 +5,7 @@ import {
   Pressable,
   ActivityIndicator,
   FlatList,
+  RefreshControl,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -131,6 +132,8 @@ export function SourceBrowseScreen() {
       : latestQuery;
 
   const isLoading = currentQuery.isLoading;
+  const isRefetching = currentQuery.isRefetching;
+  const refetch = currentQuery.refetch;
   const mangaList = flattenMangaPages(currentQuery.data?.pages);
   const fetchNextPage = currentQuery.fetchNextPage;
   const hasNextPage = currentQuery.hasNextPage;
@@ -313,6 +316,14 @@ export function SourceBrowseScreen() {
               fetchNextPage();
             }
           }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={foreground}
+              colors={[foreground]}
+            />
+          }
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             isFetchingNextPage ? (
