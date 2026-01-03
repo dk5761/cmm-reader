@@ -8,12 +8,14 @@ import {
   SyncCompletionToast,
   LibrarySearchBar,
   SourceFilter,
+  CloudSyncBanner,
 } from "../components";
 import { EmptyState } from "@/shared/components";
 import { useAppSettingsStore } from "@/shared/stores";
 import { isNsfwSource } from "@/sources";
 import { LIBRARY_FILTERS } from "../data/mockData";
 import { useLibraryStore } from "../stores/useLibraryStore";
+import { useSyncStore } from "../stores/useSyncStore";
 import { useLibraryManga } from "../hooks";
 
 export function LibraryScreen() {
@@ -27,6 +29,7 @@ export function LibraryScreen() {
     sortAscending,
   } = useLibraryStore();
   const { showNsfwSources } = useAppSettingsStore();
+  const { isCloudSyncing, isSyncing } = useSyncStore();
 
   // Fetch from Realm database
   const libraryManga = useLibraryManga();
@@ -192,12 +195,14 @@ export function LibraryScreen() {
         ListHeaderComponent={
           <View className="pb-4">
             <LibrarySearchBar />
-            <SourceFilter />
+            <SourceFilter disabled={isCloudSyncing || isSyncing} />
             <LibraryFilter
               filters={LIBRARY_FILTERS}
               activeFilter={activeCategory}
               onFilterChange={setActiveCategory}
+              disabled={isCloudSyncing || isSyncing}
             />
+            <CloudSyncBanner />
             <SyncProgressBanner />
             <SyncCompletionToast />
           </View>

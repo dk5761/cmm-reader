@@ -6,3 +6,4 @@ export * from "./SyncCompletionToast";
 export * from "./LibrarySearchBar";
 export * from "./SourceFilter";
 export * from "./SortSheet";
+export * from "./CloudSyncBanner";

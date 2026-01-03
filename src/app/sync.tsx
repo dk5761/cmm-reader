@@ -11,7 +11,9 @@ export default function SyncScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
-  const { action } = useLocalSearchParams<{ action?: "login" | "logout" }>();
+  const { action } = useLocalSearchParams<{
+    action?: "login" | "logout" | "startup";
+  }>();
 
   const { downloadAndMerge, clearLocalData, clearSyncQueue, uploadAll } =
     useSyncManager();
@@ -31,6 +33,19 @@ export default function SyncScreen() {
           await clearSyncQueue();
           setStatus("Complete!");
           router.replace("/sign-in");
+          return;
+        }
+
+        if (action === "startup") {
+          // Startup sync: app restart with empty library
+          setStatus("Syncing your library...");
+          const result = await downloadAndMerge();
+          setProgress(result);
+          setStatus("Sync complete!");
+
+          // Brief pause to show completion
+          await new Promise((r) => setTimeout(r, 800));
+          router.replace("/(tabs)/library");
           return;
         }
 

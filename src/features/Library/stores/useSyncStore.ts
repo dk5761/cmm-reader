@@ -25,6 +25,9 @@ type SyncState = {
   currentManga: string | null;
   lastSync: SyncResult | null;
   syncHistory: SyncResult[]; // Keep last 10
+  // Cloud sync (Firebase) state
+  isCloudSyncing: boolean;
+  cloudSyncStatus: string | null;
 };
 
 type SyncActions = {
@@ -33,6 +36,10 @@ type SyncActions = {
   updateProgress: (current: number, source: string, manga: string) => void;
   completeSync: (result: SyncResult) => void;
   clearHistory: () => void;
+  // Cloud sync actions
+  startCloudSync: (status?: string) => void;
+  updateCloudSyncStatus: (status: string) => void;
+  completeCloudSync: () => void;
 };
 
 type SyncStore = SyncState & SyncActions;
@@ -46,6 +53,9 @@ const initialState: SyncState = {
   currentManga: null,
   lastSync: null,
   syncHistory: [],
+  // Cloud sync initial state
+  isCloudSyncing: false,
+  cloudSyncStatus: null,
 };
 
 export const useSyncStore = create<SyncStore>()(
@@ -93,6 +103,25 @@ export const useSyncStore = create<SyncStore>()(
 
       clearHistory: () => {
         set({ syncHistory: [], lastSync: null });
+      },
+
+      // Cloud sync actions
+      startCloudSync: (status?: string) => {
+        set({
+          isCloudSyncing: true,
+          cloudSyncStatus: status || "Syncing with cloud...",
+        });
+      },
+
+      updateCloudSyncStatus: (status: string) => {
+        set({ cloudSyncStatus: status });
+      },
+
+      completeCloudSync: () => {
+        set({
+          isCloudSyncing: false,
+          cloudSyncStatus: null,
+        });
       },
     }),
     {

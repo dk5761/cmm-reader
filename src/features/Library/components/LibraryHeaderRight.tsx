@@ -12,9 +12,12 @@ export function LibraryHeaderRight() {
   const color = typeof foregroundColor === "string" ? foregroundColor : "#fff";
 
   const { syncLibrary, isSyncing } = useSyncLibrary();
-  const { progress } = useSyncStore();
+  const { progress, isCloudSyncing } = useSyncStore();
   const { sortBy, sortAscending, setSortBy, toggleSortOrder } =
     useLibraryStore();
+
+  // Disable sync button during both library update sync and cloud sync
+  const syncDisabled = isSyncing || isCloudSyncing;
 
   const [sortSheetVisible, setSortSheetVisible] = useState(false);
 
@@ -42,7 +45,7 @@ export function LibraryHeaderRight() {
   });
 
   const handleSync = () => {
-    if (!isSyncing) {
+    if (!syncDisabled) {
       syncLibrary();
     }
   };
@@ -62,10 +65,10 @@ export function LibraryHeaderRight() {
         {/* Sync button */}
         <Pressable
           onPress={handleSync}
-          disabled={isSyncing}
+          disabled={syncDisabled}
           hitSlop={8}
           className="p-2 relative"
-          style={{ opacity: isSyncing ? 0.7 : 1 }}
+          style={{ opacity: syncDisabled ? 0.7 : 1 }}
         >
           <Animated.View style={{ transform: [{ rotate: spin }] }}>
             <Ionicons name="sync-outline" size={22} color={color} />

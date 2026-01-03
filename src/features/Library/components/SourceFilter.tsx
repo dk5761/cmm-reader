@@ -5,11 +5,17 @@ import { useLibraryStore } from "../stores/useLibraryStore";
 import { useLibraryManga } from "../hooks";
 import { getAllSources } from "@/sources";
 
+type SourceFilterProps = {
+  disabled?: boolean;
+};
+
 /**
  * Filter chips for filtering library by source.
  * Only shows sources that have manga in the library.
  */
-export const SourceFilter = memo(function SourceFilter() {
+export const SourceFilter = memo(function SourceFilter({
+  disabled = false,
+}: SourceFilterProps) {
   const activeSource = useLibraryStore((s) => s.activeSource);
   const setActiveSource = useLibraryStore((s) => s.setActiveSource);
   const libraryManga = useLibraryManga();
@@ -31,7 +37,7 @@ export const SourceFilter = memo(function SourceFilter() {
   const options = [allOption, ...availableSources];
 
   return (
-    <View>
+    <View style={disabled ? { opacity: 0.5 } : undefined}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -43,7 +49,8 @@ export const SourceFilter = memo(function SourceFilter() {
           return (
             <Pressable
               key={source.id}
-              onPress={() => setActiveSource(source.id)}
+              onPress={() => !disabled && setActiveSource(source.id)}
+              disabled={disabled}
               className={`flex-row items-center px-3 py-1 rounded-full border ${
                 isActive
                   ? "bg-accent border-accent"

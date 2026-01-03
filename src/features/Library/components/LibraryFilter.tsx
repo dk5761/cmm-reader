@@ -4,18 +4,20 @@ type LibraryFilterProps<T extends string> = {
   filters: readonly T[];
   activeFilter: T;
   onFilterChange: (filter: T) => void;
+  disabled?: boolean;
 };
 
 export function LibraryFilter<T extends string>({
   filters,
   activeFilter,
   onFilterChange,
+  disabled = false,
 }: LibraryFilterProps<T>) {
   // We can use these if we want dynamic non-tailwind colors,
   // but className logic is easier for switching bg colors.
 
   return (
-    <View>
+    <View style={disabled ? { opacity: 0.5 } : undefined}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -27,7 +29,8 @@ export function LibraryFilter<T extends string>({
           return (
             <Pressable
               key={filter}
-              onPress={() => onFilterChange(filter)}
+              onPress={() => !disabled && onFilterChange(filter)}
+              disabled={disabled}
               className={`px-4 py-1.5 rounded-full border ${
                 isActive
                   ? "bg-primary border-primary"
