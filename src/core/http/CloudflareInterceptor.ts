@@ -12,7 +12,6 @@ import CookieSync from "cookie-sync";
 import { cfLogger } from "@/utils/cfDebugLogger";
 
 const MAX_CF_RETRIES = 1; // Try once and fail fast
-const MAX_BG_REFRESH_RETRIES = 3; // Max attempts for background refresh before falling back
 
 /**
  * Registered manual challenge handler (set by WebViewFetcherContext)
@@ -163,102 +162,6 @@ async function solveCfChallengeAuto(
 }
 
 /**
- * Attempt background refresh (Mihon-style)
- * Tries to get a fresh token via hidden WebView without user interaction
- * Returns true if successful (new cookie != old cookie)
- */
-async function attemptBackgroundRefresh(
-  url: string,
-  oldCookieString: string | null
-): Promise<boolean> {
-  const domain = new URL(url).hostname;
-  const startTime = Date.now();
-  const TIMEOUT_MS = 15000; // 15s (reduced for faster fallback)
-
-  console.log(`[CF Interceptor] Attempting background refresh for ${domain}`);
-
-  await cfLogger.log("CF Interceptor", "Background refresh started", {
-    url: url.substring(0, 80),
-    domain,
-    hadOldCookie: !!oldCookieString,
-    oldCookieLength: oldCookieString?.length || 0,
-  });
-
-  // Start WebView fetch in background
-  // fetchPromise will resolve/reject on its own, we just poll cookies
-  WebViewFetcherService.fetchHtml(url, TIMEOUT_MS).catch((e) => {
-    console.log(
-      `[CF Interceptor] Background fetch completed: ${e.message || e}`
-    );
-  });
-
-  try {
-    // Poll for cookies every 2s
-    while (Date.now() - startTime < TIMEOUT_MS) {
-      // Get new cookie string
-      let newCookieString: string | null = null;
-      if (Platform.OS === "ios") {
-        newCookieString = await CookieSync.getCookieString(url);
-      } else {
-        const cookies = await CookieManagerInstance.extractFromWebView(url);
-        newCookieString = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
-      }
-
-      // Check validity
-      const hasCfClearance = newCookieString?.includes("cf_clearance") || false;
-      const isDifferent = newCookieString !== oldCookieString;
-
-      if (hasCfClearance && isDifferent) {
-        // SUCCESS! New cookie detected
-        await cfLogger.log("CF Interceptor", "Background refresh SUCCESS", {
-          domain,
-          durationMs: Date.now() - startTime,
-          hasCfClearance,
-          isDifferent,
-        });
-
-        console.log(
-          `[CF Interceptor] Background refresh succeeded for ${domain} in ${
-            Date.now() - startTime
-          }ms`
-        );
-        return true;
-      }
-
-      // Wait 2s before next check
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    }
-
-    // Timeout reached - no new cookie found
-    await cfLogger.log(
-      "CF Interceptor",
-      "Background refresh FAILED (Timeout)",
-      {
-        domain,
-        durationMs: TIMEOUT_MS,
-      }
-    );
-    console.log(
-      `[CF Interceptor] Background refresh timeout for ${domain} - no new token`
-    );
-    return false;
-  } catch (error) {
-    console.log(
-      `[CF Interceptor] Background refresh error for ${domain}:`,
-      error
-    );
-
-    await cfLogger.log("CF Interceptor", "Background refresh ERROR", {
-      domain,
-      error: error instanceof Error ? error.message : String(error),
-      durationMs: Date.now() - startTime,
-    });
-
-    return false;
-  }
-}
-
-/**
  * Attempt manual challenge via modal WebView
  */
 async function solveCfChallengeManual(
@@ -290,12 +193,13 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
 
   // Export function to reset retry state for manual retries
   (globalThis as any).__resetCfRetryState = (url: string) => {
-    const key = `GET:${url}`;
-    retryMap.delete(key);
-    ongoingSolves.delete(key);
-    console.log(
-      `[CF Interceptor] Reset retry state for ${url.substring(0, 60)}`
-    );
+    const domain = new URL(url).hostname;
+    // Clear all retry entries for this domain
+    for (const key of retryMap.keys()) {
+      if (key.includes(url)) retryMap.delete(key);
+    }
+    ongoingSolves.delete(domain);
+    console.log(`[CF Interceptor] Reset retry state for domain: ${domain}`);
   };
 
   // Response interceptor - detects CF challenges
@@ -347,22 +251,7 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           maxRetries: MAX_CF_RETRIES,
         });
 
-        // STEP 1: Save old cookie before clearing (Mihon approach)
-        let oldCookieString: string | null = null;
-        if (Platform.OS === "ios") {
-          try {
-            oldCookieString = await CookieSync.getCookieString(url);
-            console.log(
-              `[CF Interceptor] Saved old cookie for comparison (length: ${
-                oldCookieString?.length || 0
-              })`
-            );
-          } catch (e) {
-            console.log("[CF Interceptor] Failed to get old cookie:", e);
-          }
-        }
-
-        // STEP 2: Clear invalid token when 403 is received
+        // STEP 1: Clear invalid token when 403 is received
         // The token exists but CF has invalidated it server-side
         if (Platform.OS === "ios") {
           try {
@@ -383,66 +272,32 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           }
         }
 
-        // STEP 3: Try background refresh (Mihon-style)
-        // Attempt to get fresh token via hidden WebView before showing modal
-        const backgroundRefreshed = await attemptBackgroundRefresh(
-          url,
-          oldCookieString
-        );
-
-        if (backgroundRefreshed) {
+        // STEP 2: Check if already solving for this domain (domain-level lock)
+        let solvePromise = ongoingSolves.get(domain);
+        if (solvePromise) {
           console.log(
-            `[CF Interceptor] Background refresh succeeded, retrying request automatically`
+            `[CF Interceptor] Waiting for ongoing solve for domain: ${domain}`
           );
-
-          await cfLogger.log(
-            "CF Interceptor",
-            "Auto-retry after background refresh",
-            {
-              url: url.substring(0, 80),
-              domain,
-            }
-          );
-
-          // Increment retry counter to prevent infinite loops
-          retryMap.set(requestKey, currentRetries + 1);
-
-          // Check if we've exceeded max background refresh retries
-          if (currentRetries + 1 >= MAX_BG_REFRESH_RETRIES) {
-            console.log(
-              `[CF Interceptor] Max background refresh retries (${MAX_BG_REFRESH_RETRIES}) reached, falling back to manual`
-            );
-            // Don't retry, fall through to manual challenge
-          } else {
-            // Get fresh cookies from CookieManager and inject into retry request
-            const freshCookies = await CookieManagerInstance.getCookies(domain);
+          try {
+            const { cookies } = await solvePromise;
+            // Retry with obtained cookies
             const retryConfig = {
               ...config,
               headers: {
                 ...(config.headers || {}),
-                Cookie: freshCookies || "",
+                Cookie: cookies,
               },
             };
-
-            console.log(
-              `[CF Interceptor] Retrying with cookies (length: ${
-                freshCookies?.length || 0
-              })`
-            );
-
-            // Retry the original request with fresh cookies
             return axiosInstance.request(retryConfig);
+          } catch {
+            // Ongoing solve failed, will be handled by the original request
+            return Promise.reject(error);
           }
         }
 
-        console.log(
-          `[CF Interceptor] Background refresh failed, will try auto-solve or manual`
-        );
-
-        // Prevent infinite retry loop
         if (currentRetries >= MAX_CF_RETRIES) {
           retryMap.delete(requestKey);
-          ongoingSolves.delete(requestKey);
+          ongoingSolves.delete(domain);
 
           // Try manual challenge as fallback
           console.log(
@@ -496,30 +351,33 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
         retryMap.set(requestKey, currentRetries + 1);
 
         try {
-          // Check if we're already solving this URL
-          let solvePromise = ongoingSolves.get(requestKey);
+          // Check if we're already solving this domain (domain-level deduplication)
+          let solvePromise = ongoingSolves.get(domain);
 
           if (!solvePromise) {
-            // Start new auto-solve
+            // Start new auto-solve for this domain
             console.log(
-              `[CF Interceptor] Starting auto CF solve for ${requestKey}`
+              `[CF Interceptor] Starting auto CF solve for domain: ${domain}`
             );
             solvePromise = solveCfChallengeAuto(
               config as AxiosRequestConfig,
               1
             );
-            ongoingSolves.set(requestKey, solvePromise);
+            ongoingSolves.set(domain, solvePromise);
           } else {
             console.log(
-              `[CF Interceptor] Reusing ongoing CF solve for ${requestKey}`
+              `[CF Interceptor] Reusing ongoing CF solve for domain: ${domain} (request: ${url.substring(
+                0,
+                50
+              )})`
             );
           }
 
           // Wait for solve to complete
           const { cookies } = await solvePromise;
 
-          // Clean up
-          ongoingSolves.delete(requestKey);
+          // Clean up domain solve
+          ongoingSolves.delete(domain);
 
           // Update request config with cookies
           const retryConfig = {
@@ -542,7 +400,7 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
             error: (cfError as Error).message,
             url: url.substring(0, 60),
           });
-          ongoingSolves.delete(requestKey);
+          ongoingSolves.delete(domain);
 
           const manualResult = await solveCfChallengeManual(url);
 
