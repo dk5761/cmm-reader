@@ -2,6 +2,7 @@ import { MangaKakalotSource } from "./mangakakalot";
 import { KissMangaSource } from "./kissmanga";
 import { AsuraScansSource } from "./asurascans";
 import { Manhwa18NetSource } from "./manhwa18";
+import { ReadComicOnlineSource } from "./readcomiconline";
 import type { Source } from "./base";
 
 // Source instances
@@ -9,6 +10,7 @@ const mangakakalot = new MangaKakalotSource();
 const kissmanga = new KissMangaSource();
 const asurascans = new AsuraScansSource();
 const manhwa18net = new Manhwa18NetSource();
+const readcomiconline = new ReadComicOnlineSource();
 
 // Source registry - add new sources here
 export const SOURCES: Record<string, Source> = {
@@ -16,6 +18,7 @@ export const SOURCES: Record<string, Source> = {
   kissmanga,
   asurascans,
   manhwa18net,
+  readcomiconline,
 } as const;
 
 // Helper to get source by ID
