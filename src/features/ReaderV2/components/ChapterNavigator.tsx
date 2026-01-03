@@ -5,7 +5,7 @@
  * Implements Mihon's seek bar with haptic feedback.
  */
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState, useEffect } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
@@ -48,9 +48,20 @@ export function ChapterNavigator({
 }: ChapterNavigatorProps) {
   const currentPage = useReaderStoreV2((s) => s.currentPage);
   const totalPages = useReaderStoreV2((s) => s.totalPages);
+  const isSeeking = useReaderStoreV2((s) => s.isSeeking);
   const seekToPage = useReaderStoreV2((s) => s.seekToPage);
   const setIsSeeking = useReaderStoreV2((s) => s.setIsSeeking);
-  const setCurrentPage = useReaderStoreV2((s) => s.setCurrentPage);
+
+  // Local display state for slider feedback during seeking
+  // This prevents conflicts with store's isSeeking guard
+  const [displayPage, setDisplayPage] = useState(currentPage);
+
+  // Sync display page from store when not seeking
+  useEffect(() => {
+    if (!isSeeking) {
+      setDisplayPage(currentPage);
+    }
+  }, [currentPage, isSeeking]);
 
   const hasPrevChapter = viewerChapters.prevChapter !== null;
   const hasNextChapter = viewerChapters.nextChapter !== null;
@@ -61,14 +72,11 @@ export function ChapterNavigator({
     triggerHaptic("selection");
   }, [setIsSeeking]);
 
-  // Handle slider value change (live update display)
-  const handleSliderChange = useCallback(
-    (value: number) => {
-      // Update page display immediately for feedback
-      setCurrentPage(Math.round(value));
-    },
-    [setCurrentPage]
-  );
+  // Handle slider value change (update local display only)
+  const handleSliderChange = useCallback((value: number) => {
+    // Update local display immediately for feedback
+    setDisplayPage(Math.round(value));
+  }, []);
 
   // Handle slider drag complete (perform seek)
   const handleSliderComplete = useCallback(
@@ -95,11 +103,41 @@ export function ChapterNavigator({
     }
   }, [hasNextChapter, onNextChapter]);
 
+  // Hide slider when no pages or only 1 page
+  if (totalPages <= 1) {
+    return (
+      <View className="px-4">
+        <Text className="text-white text-sm font-medium text-center mb-2">
+          {totalPages === 1 ? "1 / 1" : "Loading..."}
+        </Text>
+        <View className="flex-row items-center justify-center">
+          <Pressable
+            onPress={handlePrevChapter}
+            disabled={!hasPrevChapter}
+            className="p-2"
+            style={{ opacity: hasPrevChapter ? 1 : 0.3 }}
+          >
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </Pressable>
+          <View className="w-16" />
+          <Pressable
+            onPress={handleNextChapter}
+            disabled={!hasNextChapter}
+            className="p-2"
+            style={{ opacity: hasNextChapter ? 1 : 0.3 }}
+          >
+            <Ionicons name="chevron-forward" size={24} color="#fff" />
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View className="px-4">
-      {/* Page indicator */}
+      {/* Page indicator - uses displayPage for live feedback during seeking */}
       <Text className="text-white text-sm font-medium text-center mb-2">
-        {currentPage + 1} / {totalPages}
+        {displayPage + 1} / {totalPages}
       </Text>
 
       {/* Slider with chapter navigation */}
@@ -122,7 +160,7 @@ export function ChapterNavigator({
             minimumValue={0}
             maximumValue={Math.max(0, totalPages - 1)}
             step={1}
-            value={currentPage}
+            value={displayPage}
             onSlidingStart={handleSliderStart}
             onValueChange={handleSliderChange}
             onSlidingComplete={handleSliderComplete}

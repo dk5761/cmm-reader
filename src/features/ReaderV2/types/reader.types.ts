@@ -107,6 +107,7 @@ export interface ReaderStoreState {
 
   // Loading states
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
 
   // Refs
@@ -134,6 +135,10 @@ export interface ReaderStoreActions {
   loadPrevChapter: () => Promise<void>;
   setNextChapterLoaded: (pages: ReaderPage[]) => void;
   setPrevChapterLoaded: (pages: ReaderPage[]) => void;
+  setNextChapterError: (error: string) => void;
+  setPrevChapterError: (error: string) => void;
+  retryNextChapter: () => void;
+  retryPrevChapter: () => void;
 
   // UI
   toggleOverlay: () => void;

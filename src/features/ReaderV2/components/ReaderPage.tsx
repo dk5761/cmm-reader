@@ -6,7 +6,7 @@
  * Prevents showing old images from recycled cells during fast scroll.
  */
 
-import { memo, useCallback, useState, useEffect } from "react";
+import { memo, useCallback, useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,75 +15,72 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import type { ReaderPage as ReaderPageType } from "../types/reader.types";
 
 interface ReaderPageProps {
   page: ReaderPageType;
-  onRetry?: () => void;
 }
 
 const blurhash = "L6PZfSi_.AyE_3t7t7R*~qo#DgR4";
 
-export const ReaderPage = memo(function ReaderPage({
-  page,
-  onRetry,
-}: ReaderPageProps) {
+export const ReaderPage = memo(function ReaderPage({ page }: ReaderPageProps) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   // Use screen aspect ratio as default (matches Mihon's parentHeight approach)
   // This creates a full-screen placeholder to prevent layout shifts during loading
   const [aspectRatio, setAspectRatio] = useState(screenWidth / screenHeight);
   const [isError, setIsError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // Retry counter for cache-busting on retry
+  const [retryCount, setRetryCount] = useState(0);
 
   // Reset loading state when image URL changes (prevents showing old recycled images)
   useEffect(() => {
     setIsLoading(true);
     setIsError(false);
+    setRetryCount(0);
     setAspectRatio(screenWidth / screenHeight); // Reset to default while loading
   }, [page.imageUrl, screenWidth, screenHeight]);
 
-  useEffect(() => {
-    console.log(`[ReaderPage] Rendering page:`, {
-      imageUrl: page.imageUrl,
-      hasHeaders: !!page.headers,
-      headerKeys: Object.keys(page.headers || {}),
-    });
-  }, [page.imageUrl, page.headers]);
+  // Build image URI with cache-busting on retry
+  const imageUri = useMemo(() => {
+    if (retryCount === 0) {
+      return page.imageUrl;
+    }
+    // Add cache-buster query param for retries
+    const separator = page.imageUrl.includes("?") ? "&" : "?";
+    return `${page.imageUrl}${separator}_retry=${retryCount}`;
+  }, [page.imageUrl, retryCount]);
 
   const handleLoad = useCallback(
     (event: { source: { width: number; height: number } }) => {
       const { width, height } = event.source;
-      console.log(`[ReaderPage] Image loaded successfully:`, {
-        url: page.imageUrl,
-        dimensions: `${width}x${height}`,
-        aspectRatio: width / height,
-      });
       if (width && height) {
         setAspectRatio(width / height);
       }
       setIsLoading(false);
     },
-    [page.imageUrl]
+    []
   );
 
   const handleError = useCallback(
     (error: any) => {
       console.error(`[ReaderPage] Image load failed:`, {
         url: page.imageUrl,
-        headers: page.headers,
         error: error?.error || error,
       });
       setIsError(true);
       setIsLoading(false);
     },
-    [page.imageUrl, page.headers]
+    [page.imageUrl]
   );
 
+  // Actual retry mechanism with cache-busting
   const handleRetry = useCallback(() => {
     setIsError(false);
     setIsLoading(true);
-    onRetry?.();
-  }, [onRetry]);
+    setRetryCount((c) => c + 1);
+  }, []);
 
   if (isError) {
     return (
@@ -91,12 +88,16 @@ export const ReaderPage = memo(function ReaderPage({
         className="w-full items-center justify-center bg-neutral-900"
         style={{ width: screenWidth, aspectRatio }}
       >
-        <Text className="text-white text-base mb-4">Failed to load image</Text>
+        <Ionicons name="image-outline" size={48} color="#6b7280" />
+        <Text className="text-neutral-400 text-base mt-4 mb-4">
+          Failed to load image
+        </Text>
         <Pressable
           onPress={handleRetry}
-          className="bg-blue-600 px-6 py-3 rounded-lg"
+          className="bg-blue-600 px-6 py-3 rounded-lg flex-row items-center"
         >
-          <Text className="text-white font-medium">Retry</Text>
+          <Ionicons name="refresh" size={16} color="#fff" />
+          <Text className="text-white font-medium ml-2">Retry</Text>
         </Pressable>
       </View>
     );
@@ -106,7 +107,7 @@ export const ReaderPage = memo(function ReaderPage({
     <View style={{ width: screenWidth, aspectRatio }}>
       <Image
         source={{
-          uri: page.imageUrl,
+          uri: imageUri,
           headers: page.headers,
         }}
         placeholder={blurhash}
@@ -114,7 +115,7 @@ export const ReaderPage = memo(function ReaderPage({
         transition={200}
         onLoad={handleLoad}
         onError={handleError}
-        recyclingKey={page.imageUrl} // Force new render when URL changes
+        recyclingKey={`${page.imageUrl}-${retryCount}`} // Force new render on retry
         style={{
           width: screenWidth,
           aspectRatio,

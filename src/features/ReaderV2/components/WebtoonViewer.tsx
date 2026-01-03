@@ -2,16 +2,11 @@
  * WebtoonViewer Component
  *
  * Main vertical scrolling reader using FlashList.
- * Uses onScroll with firstVisibleIndex for reliable page tracking.
+ * Uses onViewableItemsChanged for reliable page tracking.
  */
 
-import { memo, useCallback, useRef, useEffect } from "react";
-import {
-  View,
-  useWindowDimensions,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native";
+import { memo, useCallback, useRef, useEffect, useMemo } from "react";
+import { View, useWindowDimensions } from "react-native";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import type ViewToken from "@shopify/flash-list/dist/recyclerview/viewability/ViewToken";
 import { useReaderStoreV2 } from "../store/useReaderStoreV2";
@@ -38,6 +33,8 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
   const setFlashListRef = useReaderStoreV2((s) => s.setFlashListRef);
   const loadNextChapter = useReaderStoreV2((s) => s.loadNextChapter);
   const loadPrevChapter = useReaderStoreV2((s) => s.loadPrevChapter);
+  const retryNextChapter = useReaderStoreV2((s) => s.retryNextChapter);
+  const retryPrevChapter = useReaderStoreV2((s) => s.retryPrevChapter);
 
   // Register ref with store
   useEffect(() => {
@@ -49,44 +46,47 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
   }, [setFlashListRef]);
 
   // Build adapter items from viewer chapters
-  const items: AdapterItem[] = viewerChapters
-    ? buildAdapterItems(
-        viewerChapters,
-        viewerChapters.prevChapter?.state === "loading",
-        viewerChapters.nextChapter?.state === "loading"
-      )
-    : [];
+  const items: AdapterItem[] = useMemo(() => {
+    if (!viewerChapters) return [];
+    return buildAdapterItems(
+      viewerChapters,
+      viewerChapters.prevChapter?.state === "loading",
+      viewerChapters.nextChapter?.state === "loading"
+    );
+  }, [viewerChapters]);
 
-  // Stable viewability callback (prevent FlashList from ignoring updates)
-  const viewabilityRef = useRef({
-    onViewableItemsChanged: ({
-      viewableItems,
-    }: {
-      viewableItems: ViewToken<AdapterItem>[];
-    }) => {
+  // Simplified viewability callback using refs for stable function identity
+  // while still having access to latest store actions
+  const storeActionsRef = useRef({
+    setCurrentPage,
+    loadNextChapter,
+    loadPrevChapter,
+  });
+
+  // Keep ref updated with latest actions
+  useEffect(() => {
+    storeActionsRef.current = {
+      setCurrentPage,
+      loadNextChapter,
+      loadPrevChapter,
+    };
+  }, [setCurrentPage, loadNextChapter, loadPrevChapter]);
+
+  // Stable viewability callback that reads from ref
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<AdapterItem>[] }) => {
       // Skip empty updates (happens during layout shifts)
       if (viewableItems.length === 0) {
         return;
       }
 
-      /*
-      const visibleIndices = viewableItems
-        .map((v) =>
-          v.item?.type === "page" ? `P${v.item.page.index}` : v.item?.type
-        )
-        .join(", ");
-      console.log(
-        "[WebtoonViewer] Visible:",
-        visibleIndices
-      );
-      */
+      const { setCurrentPage, loadNextChapter, loadPrevChapter } =
+        storeActionsRef.current;
 
       // Find the first visible PAGE item (skip transitions)
       const firstPage = viewableItems.find((v) => v.item?.type === "page");
       if (firstPage?.item && firstPage.item.type === "page") {
-        const newPage = firstPage.item.page.index;
-        // console.log("[WebtoonViewer] Setting page to:", newPage);
-        setCurrentPage(newPage);
+        setCurrentPage(firstPage.item.page.index);
       }
 
       // Check for transition items (for chapter preloading)
@@ -99,36 +99,19 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
         }
       }
     },
-    viewabilityConfig: VIEWABILITY_CONFIG,
-  });
+    [] // Empty deps - uses ref for latest values
+  );
 
-  // Update ref when dependencies change
-  useEffect(() => {
-    viewabilityRef.current.onViewableItemsChanged = ({
-      viewableItems,
-    }: {
-      viewableItems: ViewToken<AdapterItem>[];
-    }) => {
-      // Find first visible page
-      const firstPage = viewableItems.find((v) => v.item?.type === "page");
-      if (firstPage?.item && firstPage.item.type === "page") {
-        setCurrentPage(firstPage.item.page.index);
-      }
-
-      // Check transitions
-      const lastItem = viewableItems[viewableItems.length - 1]?.item;
-      if (lastItem?.type === "transition") {
-        if (lastItem.direction === "next" && lastItem.targetChapter) {
-          loadNextChapter();
-        } else if (lastItem.direction === "prev" && lastItem.targetChapter) {
-          loadPrevChapter();
-        }
-      }
-    };
-  }, [setCurrentPage, loadNextChapter, loadPrevChapter]);
-
-  // Viewability config pairs (React Native pattern for stable callbacks)
-  const viewabilityConfigCallbackPairs = useRef([viewabilityRef.current]);
+  // Stable viewability config callback pairs
+  const viewabilityConfigCallbackPairs = useMemo(
+    () => [
+      {
+        onViewableItemsChanged: handleViewableItemsChanged,
+        viewabilityConfig: VIEWABILITY_CONFIG,
+      },
+    ],
+    [handleViewableItemsChanged]
+  );
 
   // Render item based on type
   const renderItem = useCallback(
@@ -136,14 +119,15 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
       if (item.type === "page") {
         return <ReaderPage page={item.page} />;
       }
-      return (
-        <ChapterTransition
-          item={item}
-          onLoad={item.direction === "next" ? loadNextChapter : loadPrevChapter}
-        />
-      );
+      // Pass retry handler for error states
+      const onRetry =
+        item.direction === "next" ? retryNextChapter : retryPrevChapter;
+      const onLoad =
+        item.direction === "next" ? loadNextChapter : loadPrevChapter;
+
+      return <ChapterTransition item={item} onLoad={onLoad} onRetry={onRetry} />;
     },
-    [loadNextChapter, loadPrevChapter]
+    [loadNextChapter, loadPrevChapter, retryNextChapter, retryPrevChapter]
   );
 
   // Get item type for recycling optimization
@@ -166,7 +150,7 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
       renderItem={renderItem}
       keyExtractor={getItemKey}
       getItemType={getItemType}
-      viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
+      viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
       showsVerticalScrollIndicator={false}
       // Match Mihon's extraLayoutSpace (3/4 screen height) for better preloading
       drawDistance={screenHeight * 0.75}

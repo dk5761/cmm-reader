@@ -18,12 +18,30 @@ const PRELOAD_COUNT = 4;
 export function usePreloaderV2(
   pages: ReaderPage[],
   currentPage: number,
+  chapterId?: string,
   headers?: Record<string, string>
 ) {
   // Track which URLs we've already started prefetching
   const prefetchedRef = useRef<Set<string>>(new Set());
   // Track last page to avoid unnecessary work
   const lastPageRef = useRef<number>(-1);
+  // Track chapter ID to clear cache on chapter change
+  const lastChapterIdRef = useRef<string>("");
+
+  // Clear cache when chapter changes (Fix #5: Memory leak)
+  useEffect(() => {
+    if (chapterId && chapterId !== lastChapterIdRef.current) {
+      if (lastChapterIdRef.current !== "") {
+        // Only log if this is a chapter switch, not initial load
+        console.log(
+          `[usePreloaderV2] Chapter changed, clearing prefetch cache`
+        );
+      }
+      prefetchedRef.current.clear();
+      lastPageRef.current = -1;
+      lastChapterIdRef.current = chapterId;
+    }
+  }, [chapterId]);
 
   useEffect(() => {
     // Skip if no pages or same page

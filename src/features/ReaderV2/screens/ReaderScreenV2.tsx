@@ -134,6 +134,8 @@ export function ReaderScreenV2() {
   // Infinite Scroll Logic
   const setNextChapterLoaded = useReaderStoreV2((s) => s.setNextChapterLoaded);
   const setPrevChapterLoaded = useReaderStoreV2((s) => s.setPrevChapterLoaded);
+  const setNextChapterError = useReaderStoreV2((s) => s.setNextChapterError);
+  const setPrevChapterError = useReaderStoreV2((s) => s.setPrevChapterError);
 
   const { fetchChapter } = usePrefetchChapter();
 
@@ -143,27 +145,39 @@ export function ReaderScreenV2() {
     // Load Next
     const next = viewerChapters.nextChapter;
     if (next && next.state === "loading") {
-      fetchChapter(sourceId, next.chapter).then((res) => {
-        if (res) {
-          console.log(
-            `[ReaderScreenV2] Next chapter loaded: ${res.pages.length} pages`
-          );
-          setNextChapterLoaded(res.pages);
-        }
-      });
+      fetchChapter(sourceId, next.chapter)
+        .then((res) => {
+          if (res) {
+            console.log(
+              `[ReaderScreenV2] Next chapter loaded: ${res.pages.length} pages`
+            );
+            setNextChapterLoaded(res.pages);
+          }
+        })
+        .catch((error) => {
+          const message =
+            error instanceof Error ? error.message : "Failed to load chapter";
+          setNextChapterError(message);
+        });
     }
 
     // Load Prev
     const prev = viewerChapters.prevChapter;
     if (prev && prev.state === "loading") {
-      fetchChapter(sourceId, prev.chapter).then((res) => {
-        if (res) {
-          console.log(
-            `[ReaderScreenV2] Prev chapter loaded: ${res.pages.length} pages`
-          );
-          setPrevChapterLoaded(res.pages);
-        }
-      });
+      fetchChapter(sourceId, prev.chapter)
+        .then((res) => {
+          if (res) {
+            console.log(
+              `[ReaderScreenV2] Prev chapter loaded: ${res.pages.length} pages`
+            );
+            setPrevChapterLoaded(res.pages);
+          }
+        })
+        .catch((error) => {
+          const message =
+            error instanceof Error ? error.message : "Failed to load chapter";
+          setPrevChapterError(message);
+        });
     }
   }, [
     viewerChapters?.nextChapter?.state,
@@ -172,6 +186,8 @@ export function ReaderScreenV2() {
     fetchChapter,
     setNextChapterLoaded,
     setPrevChapterLoaded,
+    setNextChapterError,
+    setPrevChapterError,
   ]);
 
   // Stage 1: Load chapter pages (metadata only)
@@ -184,7 +200,12 @@ export function ReaderScreenV2() {
 
   // Stage 3: Preload upcoming pages
   const pages = viewerChapters?.currChapter.pages ?? [];
-  const { clearPrefetchCache } = usePreloaderV2(pages, currentPage);
+  const currentChapterId = viewerChapters?.currChapter.chapter.id;
+  const { clearPrefetchCache } = usePreloaderV2(
+    pages,
+    currentPage,
+    currentChapterId
+  );
 
   // Stage 4: Save reading progress
   const progressData = useMemo(
@@ -200,7 +221,8 @@ export function ReaderScreenV2() {
         : null,
     [currentChapter, mangaId, mangaTitle, mangaCover, sourceId]
   );
-  useSaveProgressV2(progressData);
+  // Stage 4: Save reading progress
+  const { save: saveProgress } = useSaveProgressV2(progressData);
 
   // Initialize store when chapters list is ready
   useEffect(() => {
@@ -244,6 +266,9 @@ export function ReaderScreenV2() {
     const prevChapter = allChapters[idx + 1];
     if (!prevChapter) return;
 
+    // Force save progress before navigating
+    saveProgress(true);
+
     router.replace({
       pathname: "/reader/[chapterId]",
       params: {
@@ -267,6 +292,7 @@ export function ReaderScreenV2() {
     mangaId,
     mangaTitle,
     mangaCover,
+    saveProgress,
   ]);
 
   const handleNextChapter = useCallback(() => {
@@ -275,6 +301,9 @@ export function ReaderScreenV2() {
     if (idx <= 0) return;
     const nextChapter = allChapters[idx - 1];
     if (!nextChapter) return;
+
+    // Force save progress before navigating
+    saveProgress(true);
 
     router.replace({
       pathname: "/reader/[chapterId]",
@@ -299,6 +328,7 @@ export function ReaderScreenV2() {
     mangaId,
     mangaTitle,
     mangaCover,
+    saveProgress,
   ]);
 
   // Determine loading state
