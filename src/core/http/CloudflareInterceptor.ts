@@ -226,209 +226,119 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           `[CF Interceptor] CF challenge detected for ${url.substring(0, 60)}`
         );
 
-        // Log curl-like request info for debugging
-        const cookieHeader =
-          config.headers?.["Cookie"] || config.headers?.["cookie"] || "none";
-        await cfLogger.log("CF Interceptor", "Request that triggered 403", {
-          curl: `curl -X ${config.method?.toUpperCase()} "${url.substring(
-            0,
-            100
-          )}"`,
-          headers: {
-            Cookie:
-              typeof cookieHeader === "string"
-                ? cookieHeader.substring(0, 100)
-                : "none",
-            UserAgent: config.headers?.["User-Agent"] || "default",
-          },
-          status: response.status,
-        });
-
-        await cfLogger.logChallengeState("detected", {
-          url: url.substring(0, 80),
-          status: response.status,
-          currentRetries,
-          maxRetries: MAX_CF_RETRIES,
-        });
-
-        // STEP 1: Clear invalid token when 403 is received
-        // The token exists but CF has invalidated it server-side
-        if (Platform.OS === "ios") {
-          try {
-            console.log(
-              `[CF Interceptor] Clearing potentially invalid token for ${domain}`
-            );
-            await CookieSync.clearCfClearance(url);
-            await cfLogger.log(
-              "CF Interceptor",
-              "Cleared invalid token on 403",
-              {
-                domain,
-                reason: "Server returned 403 despite token existing",
-              }
-            );
-          } catch (e) {
-            console.log("[CF Interceptor] Failed to clear token:", e);
-          }
-        }
-
-        // STEP 2: Check if already solving for this domain (domain-level lock)
-        let solvePromise = ongoingSolves.get(domain);
-        if (solvePromise) {
+        // STEP 1: Check if already solving for this domain (SYNC - atomic check-and-set)
+        const existingSolve = ongoingSolves.get(domain);
+        if (existingSolve) {
           console.log(
-            `[CF Interceptor] Waiting for ongoing solve for domain: ${domain}`
+            `[CF Interceptor] Domain ${domain} already being solved, waiting...`
           );
           try {
-            const { cookies } = await solvePromise;
-            // Retry with obtained cookies
+            const { cookies } = await existingSolve;
             const retryConfig = {
               ...config,
-              headers: {
-                ...(config.headers || {}),
-                Cookie: cookies,
-              },
+              headers: { ...(config.headers || {}), Cookie: cookies },
             };
+            console.log(
+              `[CF Interceptor] Got cookies from parallel solve, retrying: ${url.substring(
+                0,
+                50
+              )}`
+            );
             return axiosInstance.request(retryConfig);
           } catch {
-            // Ongoing solve failed, will be handled by the original request
             return Promise.reject(error);
           }
         }
 
-        if (currentRetries >= MAX_CF_RETRIES) {
-          retryMap.delete(requestKey);
-          ongoingSolves.delete(domain);
-
-          // Try manual challenge as fallback
-          console.log(
-            "[CF Interceptor] Auto-bypass exhausted, trying manual...",
-            { url: url.substring(0, 60), retries: currentRetries }
-          );
-
-          await cfLogger.logChallengeState("modal-opened", {
-            reason: "Auto-bypass exhausted",
-            retries: currentRetries,
-          });
-
-          const manualStart = Date.now();
-          const manualResult = await solveCfChallengeManual(url);
-
-          await cfLogger.logChallengeState(
-            manualResult.success ? "completed" : "failed",
-            {
-              manualDurationMs: Date.now() - manualStart,
-              hasCookies: !!manualResult.cookies,
-              cookieLength: manualResult.cookies?.length,
-            }
-          );
-
-          if (manualResult.success && manualResult.cookies) {
-            // Retry request with new cookies
-            const retryConfig = {
-              ...config,
-              headers: {
-                ...(config.headers || {}),
-                Cookie: manualResult.cookies,
-              },
-            };
-            console.log(
-              "[CF Interceptor] Manual solve success, retrying request...",
-              { url: url.substring(0, 60), hasCookies: !!manualResult.cookies }
-            );
-            return axiosInstance.request(retryConfig);
+        // STEP 2: Set lock IMMEDIATELY using deferred promise (sync - before any async work)
+        let resolveDeferred!: (result: {
+          html: string;
+          cookies: string;
+        }) => void;
+        let rejectDeferred!: (error: Error) => void;
+        const deferredPromise = new Promise<{ html: string; cookies: string }>(
+          (res, rej) => {
+            resolveDeferred = res;
+            rejectDeferred = rej;
           }
-
-          // Manual also failed - throw exception
-          return Promise.reject(
-            new CloudflareBypassException(
-              `CF bypass failed (auto + manual) for ${url}`,
-              currentRetries,
-              url
-            )
-          );
-        }
-
-        retryMap.set(requestKey, currentRetries + 1);
+        );
+        ongoingSolves.set(domain, deferredPromise);
+        console.log(`[CF Interceptor] Domain lock set for: ${domain}`);
 
         try {
-          // Check if we're already solving this domain (domain-level deduplication)
-          let solvePromise = ongoingSolves.get(domain);
-
-          if (!solvePromise) {
-            // Start new auto-solve for this domain
-            console.log(
-              `[CF Interceptor] Starting auto CF solve for domain: ${domain}`
-            );
-            solvePromise = solveCfChallengeAuto(
-              config as AxiosRequestConfig,
-              1
-            );
-            ongoingSolves.set(domain, solvePromise);
-          } else {
-            console.log(
-              `[CF Interceptor] Reusing ongoing CF solve for domain: ${domain} (request: ${url.substring(
-                0,
-                50
-              )})`
-            );
+          // STEP 3: Clear invalid token
+          if (Platform.OS === "ios") {
+            try {
+              await CookieSync.clearCfClearance(url);
+              console.log(
+                `[CF Interceptor] Cleared invalid token for ${domain}`
+              );
+            } catch (e) {
+              console.log("[CF Interceptor] Failed to clear token:", e);
+            }
           }
 
-          // Wait for solve to complete
-          const { cookies } = await solvePromise;
+          // STEP 4: Auto-solve
+          console.log(
+            `[CF Interceptor] Starting auto CF solve for domain: ${domain}`
+          );
+          const result = await solveCfChallengeAuto(
+            config as AxiosRequestConfig,
+            1
+          );
 
-          // Clean up domain solve
+          // Success - resolve deferred promise for waiting requests
+          resolveDeferred(result);
           ongoingSolves.delete(domain);
 
-          // Update request config with cookies
+          // Retry this request
           const retryConfig = {
             ...config,
-            headers: {
-              ...(config.headers || {}),
-              Cookie: cookies,
-            },
+            headers: { ...(config.headers || {}), Cookie: result.cookies },
           };
-
-          // Clear retry counter on success
-          retryMap.delete(requestKey);
-
-          // Retry original request with cookies
-          console.log(`[CF Interceptor] Retrying request with cookies...`);
+          console.log(
+            `[CF Interceptor] Auto-solve success, retrying request...`
+          );
           return axiosInstance.request(retryConfig);
         } catch (cfError) {
-          // Auto-solve failed, try manual
           console.log("[CF Interceptor] Auto-solve failed, trying manual...", {
             error: (cfError as Error).message,
-            url: url.substring(0, 60),
           });
-          ongoingSolves.delete(domain);
 
-          const manualResult = await solveCfChallengeManual(url);
+          // STEP 5: Manual solve fallback
+          try {
+            const manualResult = await solveCfChallengeManual(url);
 
-          if (manualResult.success && manualResult.cookies) {
-            retryMap.delete(requestKey);
-            const retryConfig = {
-              ...config,
-              headers: {
-                ...(config.headers || {}),
-                Cookie: manualResult.cookies,
-              },
-            };
+            if (manualResult.success && manualResult.cookies) {
+              resolveDeferred({ html: "", cookies: manualResult.cookies });
+              ongoingSolves.delete(domain);
+
+              const retryConfig = {
+                ...config,
+                headers: {
+                  ...(config.headers || {}),
+                  Cookie: manualResult.cookies,
+                },
+              };
+              console.log("[CF Interceptor] Manual solve success, retrying...");
+              return axiosInstance.request(retryConfig);
+            }
+          } catch (manualError) {
             console.log(
-              "[CF Interceptor] Manual solve success, retrying request...",
-              { url: url.substring(0, 60), hasCookies: !!manualResult.cookies }
+              "[CF Interceptor] Manual solve also failed:",
+              manualError
             );
-            return axiosInstance.request(retryConfig);
           }
 
-          // Both failed
-          retryMap.delete(requestKey);
-          return Promise.reject(
-            new CloudflareBypassException(
-              `CF bypass failed for ${url}`,
-              currentRetries,
-              url
-            )
+          // Both failed - reject deferred promise and throw
+          const finalError = new CloudflareBypassException(
+            `CF bypass failed for ${url}`,
+            currentRetries,
+            url
           );
+          rejectDeferred(finalError);
+          ongoingSolves.delete(domain);
+          return Promise.reject(finalError);
         }
       }
 
