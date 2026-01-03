@@ -25,6 +25,7 @@ import {
   signInWithCredential,
 } from "firebase/auth";
 import auth from "@react-native-firebase/auth";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   SyncEvent,
@@ -72,7 +73,8 @@ function getFirestoreDb(): Firestore {
 // Key matching AuthContext
 const GOOGLE_OAUTH_TOKEN_KEY = "@google_oauth_id_token";
 
-// Sync auth state from native to JS SDK using stored Google OAuth token
+// Sync auth state from native to JS SDK using Google OAuth token
+// Handles token expiration by attempting silent refresh
 async function ensureJsAuth(): Promise<boolean> {
   const jsAuth = getAuth(getJsApp());
 
@@ -81,28 +83,56 @@ async function ensureJsAuth(): Promise<boolean> {
     return true;
   }
 
-  try {
-    // Retrieve the Google OAuth token stored during sign-in
-    const googleIdToken = await AsyncStorage.getItem(GOOGLE_OAUTH_TOKEN_KEY);
+  // First, try stored token
+  let googleIdToken = await AsyncStorage.getItem(GOOGLE_OAUTH_TOKEN_KEY);
 
-    if (!googleIdToken) {
-      console.log("[SyncService] No stored Google OAuth token");
-      return false;
+  // Try to sign in with stored token
+  if (googleIdToken) {
+    try {
+      const credential = GoogleAuthProvider.credential(googleIdToken);
+      await signInWithCredential(jsAuth, credential);
+      console.log(
+        "[SyncService] JS Auth synced with stored token - user:",
+        jsAuth.currentUser?.uid
+      );
+      return true;
+    } catch (e) {
+      console.log(
+        "[SyncService] Stored token expired, attempting silent refresh..."
+      );
+      // Token expired, try silent refresh below
     }
-
-    // Sign in to JS SDK using the Google OAuth token
-    const credential = GoogleAuthProvider.credential(googleIdToken);
-    await signInWithCredential(jsAuth, credential);
-
-    console.log(
-      "[SyncService] JS Auth synced - user:",
-      jsAuth.currentUser?.uid
-    );
-    return true;
-  } catch (e) {
-    console.error("[SyncService] Failed to sync JS auth:", e);
-    return false;
   }
+
+  // Attempt silent sign-in to get fresh token
+  try {
+    const isSignedIn = await GoogleSignin.hasPreviousSignIn();
+    if (isSignedIn) {
+      const userInfo = await GoogleSignin.signInSilently();
+      const freshToken = userInfo.data?.idToken;
+
+      if (freshToken) {
+        // Store the fresh token
+        await AsyncStorage.setItem(GOOGLE_OAUTH_TOKEN_KEY, freshToken);
+
+        // Sign in to JS SDK
+        const credential = GoogleAuthProvider.credential(freshToken);
+        await signInWithCredential(jsAuth, credential);
+        console.log(
+          "[SyncService] JS Auth synced with refreshed token - user:",
+          jsAuth.currentUser?.uid
+        );
+        return true;
+      }
+    }
+  } catch (e) {
+    console.error("[SyncService] Silent refresh failed:", e);
+  }
+
+  console.log(
+    "[SyncService] Failed to authenticate JS SDK - user may need to re-login"
+  );
+  return false;
 }
 
 class SyncServiceClass {
