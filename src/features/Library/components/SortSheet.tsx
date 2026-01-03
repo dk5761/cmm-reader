@@ -13,6 +13,7 @@ const SORT_OPTIONS: {
   { value: "lastRead", label: "Last Read", icon: "time-outline" },
   { value: "dateAdded", label: "Date Added", icon: "calendar-outline" },
   { value: "unread", label: "Unread Count", icon: "layers-outline" },
+  { value: "latestChapter", label: "Latest Chapter", icon: "flash-outline" },
 ];
 
 type SortSheetProps = {

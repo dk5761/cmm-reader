@@ -88,6 +88,23 @@ export function LibraryScreen() {
           cmp = unreadB - unreadA;
           break;
         }
+        case "latestChapter": {
+          const parseDate = (d?: string) => {
+            if (!d) return 0;
+            const parsed = Date.parse(d);
+            return isNaN(parsed) ? 0 : parsed;
+          };
+          const latestA = Math.max(
+            ...a.chapters.map((ch) => parseDate(ch.date)),
+            0
+          );
+          const latestB = Math.max(
+            ...b.chapters.map((ch) => parseDate(ch.date)),
+            0
+          );
+          cmp = latestB - latestA;
+          break;
+        }
       }
       return sortAscending ? -cmp : cmp;
     });

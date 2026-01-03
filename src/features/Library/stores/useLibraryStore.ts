@@ -5,7 +5,12 @@ import { LIBRARY_FILTERS } from "../data/mockData";
 
 export type LibraryCategory = (typeof LIBRARY_FILTERS)[number];
 export type ViewMode = "grid" | "list";
-export type SortBy = "title" | "lastRead" | "dateAdded" | "unread";
+export type SortBy =
+  | "title"
+  | "lastRead"
+  | "dateAdded"
+  | "unread"
+  | "latestChapter";
 
 interface LibraryState {
   // View preferences
