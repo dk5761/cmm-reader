@@ -29,6 +29,12 @@ export function getSource(id: string): Source | undefined {
   return SOURCES[id];
 }
 
+// Check if a source is NSFW by ID
+export function isNsfwSource(sourceId: string): boolean {
+  const source = getSource(sourceId);
+  return source?.config.nsfw ?? false;
+}
+
 // Get all available sources (no filtering)
 export function getAllSources(): Source[] {
   return Object.values(SOURCES);

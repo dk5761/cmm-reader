@@ -10,6 +10,8 @@ import {
   SourceFilter,
 } from "../components";
 import { EmptyState } from "@/shared/components";
+import { useAppSettingsStore } from "@/shared/stores";
+import { isNsfwSource } from "@/sources";
 import { LIBRARY_FILTERS } from "../data/mockData";
 import { useLibraryStore } from "../stores/useLibraryStore";
 import { useLibraryManga } from "../hooks";
@@ -18,13 +20,19 @@ export function LibraryScreen() {
   const router = useRouter();
   const { activeCategory, setActiveCategory, searchQuery, activeSource } =
     useLibraryStore();
+  const { showNsfwSources } = useAppSettingsStore();
 
   // Fetch from Realm database
   const libraryManga = useLibraryManga();
 
-  // Filter manga based on search, source, and category
+  // Filter manga based on search, source, category, and NSFW setting
   const filteredManga = useMemo(() => {
     let result = [...libraryManga];
+
+    // NSFW source filter
+    if (!showNsfwSources) {
+      result = result.filter((manga) => !isNsfwSource(manga.sourceId));
+    }
 
     // Search filter (case-insensitive title match)
     if (searchQuery.trim()) {
@@ -54,7 +62,13 @@ export function LibraryScreen() {
     }
 
     return result;
-  }, [libraryManga, searchQuery, activeSource, activeCategory]);
+  }, [
+    libraryManga,
+    searchQuery,
+    activeSource,
+    activeCategory,
+    showNsfwSources,
+  ]);
 
   // Transform Realm objects to grid format
   const gridData = useMemo(() => {
