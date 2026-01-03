@@ -12,6 +12,7 @@ import CookieSync from "cookie-sync";
 import { cfLogger } from "@/utils/cfDebugLogger";
 
 const MAX_CF_RETRIES = 1; // Try once and fail fast
+const MAX_BG_REFRESH_RETRIES = 3; // Max attempts for background refresh before falling back
 
 /**
  * Registered manual challenge handler (set by WebViewFetcherContext)
@@ -403,8 +404,35 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
             }
           );
 
-          // Retry the original request with fresh cookies
-          return axiosInstance.request(config);
+          // Increment retry counter to prevent infinite loops
+          retryMap.set(requestKey, currentRetries + 1);
+
+          // Check if we've exceeded max background refresh retries
+          if (currentRetries + 1 >= MAX_BG_REFRESH_RETRIES) {
+            console.log(
+              `[CF Interceptor] Max background refresh retries (${MAX_BG_REFRESH_RETRIES}) reached, falling back to manual`
+            );
+            // Don't retry, fall through to manual challenge
+          } else {
+            // Get fresh cookies from CookieManager and inject into retry request
+            const freshCookies = await CookieManagerInstance.getCookies(domain);
+            const retryConfig = {
+              ...config,
+              headers: {
+                ...(config.headers || {}),
+                Cookie: freshCookies || "",
+              },
+            };
+
+            console.log(
+              `[CF Interceptor] Retrying with cookies (length: ${
+                freshCookies?.length || 0
+              })`
+            );
+
+            // Retry the original request with fresh cookies
+            return axiosInstance.request(retryConfig);
+          }
         }
 
         console.log(
