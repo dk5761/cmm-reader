@@ -45,3 +45,5 @@ app-example
 .envrc
 
 cf-debug-*.log
+
+extensions-source
