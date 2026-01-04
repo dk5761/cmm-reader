@@ -19,6 +19,7 @@ import {
   useClearHistory,
 } from "@/features/Library/hooks";
 import { EmptyState } from "@/shared/components";
+import { useAppSettingsStore } from "@/shared/stores";
 
 function formatTimeAgo(timestamp: number): string {
   const now = Date.now();
@@ -166,7 +167,8 @@ function MangaHistoryItem({ item, onPress, onRemove }: MangaHistoryItemProps) {
 export function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const groupedManga = useGroupedMangaHistory();
+  const { showNsfwSources } = useAppSettingsStore();
+  const groupedManga = useGroupedMangaHistory(showNsfwSources);
   const removeMangaHistory = useRemoveMangaHistory();
   const clearHistory = useClearHistory();
 

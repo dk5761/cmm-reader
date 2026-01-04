@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useRealm, useQuery } from "@realm/react";
 import { ReadingHistorySchema } from "@/core/database";
+import { isNsfwSource } from "@/sources";
 
 type HistoryEntry = {
   mangaId: string;
@@ -125,8 +126,9 @@ type GroupedMangaHistory = {
 /**
  * Get history grouped by manga (sourceId + mangaId)
  * Each manga from a specific source appears once with latest read info
+ * @param showNsfw - Whether to include NSFW sources (default: true)
  */
-export function useGroupedMangaHistory() {
+export function useGroupedMangaHistory(showNsfw: boolean = true) {
   const history = useReadingHistory(500);
 
   return useMemo(() => {
@@ -158,10 +160,17 @@ export function useGroupedMangaHistory() {
       }
     });
 
-    return Array.from(groupedMap.values()).sort(
+    let result = Array.from(groupedMap.values()).sort(
       (a, b) => b.latestTimestamp - a.latestTimestamp
     );
-  }, [history]);
+
+    // Filter NSFW sources if toggle is off
+    if (!showNsfw) {
+      result = result.filter((manga) => !isNsfwSource(manga.sourceId));
+    }
+
+    return result;
+  }, [history, showNsfw]);
 }
 
 /**
