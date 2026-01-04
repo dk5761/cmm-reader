@@ -73,9 +73,9 @@ export function useChapterActions(mangaId: string) {
   // Mark all chapters up to a point as read
   const markPreviousAsRead = useCallback(
     (chapterNumber: number, chapters: { id: string; number: number }[]) => {
-      // Optimistic update - mark all chapters with number <= chapterNumber
+      // Optimistic update - mark all chapters with number < chapterNumber (NOT <=)
       const idsToMark = chapters
-        .filter((ch) => ch.number <= chapterNumber)
+        .filter((ch) => ch.number < chapterNumber)
         .map((ch) => ch.id);
 
       setOptimisticReadIds((prev) => {
@@ -98,9 +98,9 @@ export function useChapterActions(mangaId: string) {
   // Mark all chapters up to a point as unread
   const markPreviousAsUnread = useCallback(
     (chapterNumber: number, chapters: { id: string; number: number }[]) => {
-      // Optimistic update
+      // Optimistic update - mark all chapters with number < chapterNumber (NOT <=)
       const idsToMark = chapters
-        .filter((ch) => ch.number <= chapterNumber)
+        .filter((ch) => ch.number < chapterNumber)
         .map((ch) => ch.id);
 
       setOptimisticUnreadIds((prev) => {
