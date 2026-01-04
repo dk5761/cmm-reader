@@ -23,11 +23,12 @@ export function getLocalCoverPath(mangaId: string): string {
 }
 
 /**
- * Download a manga cover to local storage
+ * Download a manga cover to local storage with optional headers
  */
 export async function downloadCover(
   url: string,
-  mangaId: string
+  mangaId: string,
+  headers?: Record<string, string>
 ): Promise<string | null> {
   if (!url) return null;
 
@@ -35,16 +36,23 @@ export async function downloadCover(
     await ensureDirExists();
     const localPath = getLocalCoverPath(mangaId);
 
-    // Download the file
-    const result = await FileSystem.downloadAsync(url, localPath);
+    // Download the file with headers if provided
+    const downloadOptions: FileSystem.DownloadOptions = {};
+    if (headers && Object.keys(headers).length > 0) {
+      downloadOptions.headers = headers;
+    }
+
+    const result = await FileSystem.downloadAsync(url, localPath, downloadOptions);
 
     if (result.status === 200) {
       console.log("[ImageCache] Downloaded cover:", mangaId);
       return localPath;
     }
+
+    console.warn("[ImageCache] Download failed with status:", result.status, mangaId);
     return null;
   } catch (error) {
-    console.error("[ImageCache] Failed to download cover:", error);
+    console.error("[ImageCache] Failed to download cover:", mangaId, error);
     return null;
   }
 }

@@ -124,6 +124,7 @@ export function LibraryScreen() {
         title: manga.title,
         cover: manga.cover || "",
         localCover: manga.localCover,
+        sourceId: manga.sourceId,
         readingStatus: (manga.readingStatus || "reading") as
           | "reading"
           | "completed"

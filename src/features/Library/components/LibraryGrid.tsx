@@ -44,6 +44,7 @@ export function LibraryGrid({
                 title={item.title}
                 coverUrl={item.cover}
                 localCoverUrl={item.localCover}
+                sourceId={item.sourceId}
                 onPress={() => onMangaPress(item.id)}
                 badge={
                   item.unreadCount && item.unreadCount > 0

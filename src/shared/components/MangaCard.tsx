@@ -9,6 +9,7 @@ type MangaCardProps = {
   title: string;
   coverUrl: string;
   localCoverUrl?: string;
+  sourceId?: string;
   baseUrl?: string;
   headers?: Record<string, string>;
   onPress?: () => void;
@@ -22,6 +23,7 @@ function MangaCardComponent({
   title,
   coverUrl,
   localCoverUrl,
+  sourceId,
   baseUrl = "https://www.mangakakalot.gg",
   headers,
   onPress,
@@ -29,7 +31,7 @@ function MangaCardComponent({
   progress,
   subtitle,
 }: MangaCardProps) {
-  const effectiveCoverUrl = useLazyCover(id, coverUrl, localCoverUrl);
+  const effectiveCoverUrl = useLazyCover(id, coverUrl, localCoverUrl, sourceId);
   const isNavigatingRef = useRef(false);
 
   const handlePress = () => {
@@ -121,6 +123,7 @@ export const MangaCard = memo(
     prev.id === next.id &&
     prev.coverUrl === next.coverUrl &&
     prev.localCoverUrl === next.localCoverUrl &&
+    prev.sourceId === next.sourceId &&
     prev.badge === next.badge &&
     prev.progress === next.progress &&
     prev.subtitle === next.subtitle
