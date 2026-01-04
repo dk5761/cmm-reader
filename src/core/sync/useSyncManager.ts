@@ -18,6 +18,20 @@ import {
 import { SyncState } from "./SyncTypes";
 import { useSyncStore } from "@/features/Library/stores/useSyncStore";
 
+/**
+ * Module-level flag to track if startup sync has been initiated.
+ * This is shared across all instances of useSyncManager to prevent
+ * multiple redirects to the sync screen.
+ */
+let startupSyncInitiated = false;
+
+/**
+ * Reset the startup sync flag (call on logout)
+ */
+export function resetStartupSyncFlag(): void {
+  startupSyncInitiated = false;
+}
+
 export function useSyncManager() {
   const realm = useRealm();
   const router = useRouter();
@@ -25,7 +39,6 @@ export function useSyncManager() {
   const [syncState, setSyncState] = useState<SyncState>(SyncService.getState());
   const [isInitialSyncing, setIsInitialSyncing] = useState(false);
   const bridgeCleanupRef = useRef<(() => void) | null>(null);
-  const startupSyncDoneRef = useRef(false);
 
   const { startCloudSync, updateCloudSyncStatus, completeCloudSync } =
     useSyncStore();
@@ -39,7 +52,8 @@ export function useSyncManager() {
         bridgeCleanupRef.current();
         bridgeCleanupRef.current = null;
       }
-      startupSyncDoneRef.current = false;
+      // Reset the module-level flag on logout
+      startupSyncInitiated = false;
       return;
     }
 
@@ -49,8 +63,9 @@ export function useSyncManager() {
       bridgeCleanupRef.current = startRealmSyncBridge(realm);
 
       // Startup sync: check if we need to sync from cloud
-      if (!startupSyncDoneRef.current) {
-        startupSyncDoneRef.current = true;
+      // Use module-level flag to prevent multiple instances from triggering
+      if (!startupSyncInitiated) {
+        startupSyncInitiated = true;
 
         const localMangaCount = realm
           .objects(MangaSchema)
