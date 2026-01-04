@@ -67,7 +67,8 @@
           }
         }
       ],
-      "./plugins/withPodfileFix.js"
+      "./plugins/withPodfileFix.js",
+      "expo-live-activity"
     ]
   }
 }

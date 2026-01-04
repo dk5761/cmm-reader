@@ -4,8 +4,9 @@ import { MangaSchema, ChapterSchema } from "@/core/database";
 import { getSource } from "@/sources";
 import { useSyncStore, SyncResult, SyncFailure } from "../stores/useSyncStore";
 import {
-  sendSyncCompletionNotification,
-  sendSyncProgressNotification,
+  startSyncProgress,
+  updateSyncProgress,
+  completeSyncProgress,
 } from "@/shared/services/notifications";
 
 /**
@@ -46,6 +47,9 @@ export function useSyncLibrary() {
 
     startSync(mangaList.length);
 
+    // Start Live Activity / notification
+    await startSyncProgress(mangaList.length);
+
     const result: SyncResult = {
       timestamp: Date.now(),
       updated: 0,
@@ -74,13 +78,13 @@ export function useSyncLibrary() {
         processedCount++;
         updateProgress(processedCount, source.name, manga.title);
 
-        // Show progress notification
-        sendSyncProgressNotification(
+        // Update progress notification / Live Activity
+        await updateSyncProgress(
           manga.title,
           source.name,
           processedCount,
           mangaList.length
-        ).catch(() => {}); // Fire and forget
+        );
 
         try {
           // Fetch latest chapters
@@ -190,11 +194,11 @@ export function useSyncLibrary() {
     completeSync(result);
     console.log("[Sync] Complete:", result);
 
-    // Send local notification
+    // Show completion notification / stop Live Activity
     try {
-      await sendSyncCompletionNotification(result);
+      await completeSyncProgress(result);
     } catch (e) {
-      console.warn("[Sync] Failed to send notification:", e);
+      console.warn("[Sync] Failed to send completion notification:", e);
     }
 
     return result;
