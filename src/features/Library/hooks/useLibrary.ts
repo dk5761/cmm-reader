@@ -216,6 +216,11 @@ export function useUpdateLibraryChapters() {
             let hasChanges = false;
 
             if (existingCh.date !== newCh.date) {
+              console.log("[Library] Updating chapter date:", {
+                chapterId: existingCh.id,
+                oldDate: existingCh.date,
+                newDate: newCh.date,
+              });
               existingCh.date = newCh.date;
               hasChanges = true;
             }
