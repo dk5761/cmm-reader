@@ -52,6 +52,7 @@ export function useSyncLibrary() {
       newChapters: 0,
       failed: [],
       skippedSources: [],
+      mangaUpdates: [],
     };
 
     let processedCount = 0;
@@ -90,6 +91,8 @@ export function useSyncLibrary() {
           const newChapters = chapters.filter((ch) => !existingIds.has(ch.id));
 
           if (newChapters.length > 0) {
+            const syncTimestamp = Date.now();
+
             // Add new chapters to Realm
             realm.write(() => {
               const realmManga = realm.objectForPrimaryKey(
@@ -111,6 +114,24 @@ export function useSyncLibrary() {
               });
 
               realmManga.lastUpdated = Date.now();
+            });
+
+            // Track per-manga update
+            result.mangaUpdates.push({
+              mangaId: manga.id,
+              mangaTitle: manga.title,
+              cover: manga.cover,
+              sourceId: manga.sourceId,
+              sourceName: source.name,
+              newChapters: newChapters.map((ch) => ({
+                chapterId: ch.id,
+                chapterNumber: ch.number,
+                chapterTitle: ch.title,
+                addedAt: syncTimestamp,
+              })),
+              previousChapterCount: manga.chapters.length - newChapters.length,
+              currentChapterCount: manga.chapters.length,
+              syncedAt: syncTimestamp,
             });
 
             result.updated++;

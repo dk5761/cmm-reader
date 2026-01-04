@@ -12,6 +12,8 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { useSyncStore } from "@/features/Library/stores/useSyncStore";
+import { MangaSyncListItem } from "@/features/Library/components/MangaSyncListItem";
+import { SyncDetailsModal } from "@/features/Library/components/SyncDetailsModal";
 import { useBackup } from "@/core/backup";
 import { useAppSettingsStore } from "@/shared/stores";
 import { useAuth } from "@/core/auth";
@@ -317,10 +319,9 @@ function BackupSection() {
 
 function SyncHistorySection() {
   const { lastSync, syncHistory, clearHistory } = useSyncStore();
+  const [selectedMangaId, setSelectedMangaId] = useState<string | null>(null);
   const primaryColor = useCSSVariable("--color-primary");
   const primary = typeof primaryColor === "string" ? primaryColor : "#00d9ff";
-  const mutedColor = useCSSVariable("--color-muted");
-  const muted = typeof mutedColor === "string" ? mutedColor : "#71717a";
 
   if (!lastSync) {
     return (
@@ -330,11 +331,14 @@ function SyncHistorySection() {
     );
   }
 
+  const hasMangaUpdates =
+    lastSync.mangaUpdates && lastSync.mangaUpdates.length > 0;
+
   return (
-    <View className="px-4 py-3">
-      {/* Last Sync Summary */}
-      <View className="bg-surface rounded-lg p-4 mb-3">
-        <View className="flex-row justify-between items-center mb-3">
+    <View>
+      {/* Summary Header */}
+      <View className="px-4 py-3 bg-surface/50">
+        <View className="flex-row justify-between items-center mb-2">
           <Text className="text-foreground font-medium">Last Sync</Text>
           <Text className="text-muted text-xs">
             {formatTimeAgo(lastSync.timestamp)}
@@ -355,43 +359,74 @@ function SyncHistorySection() {
             <Text className="text-muted text-xs">new chapters</Text>
           </View>
         </View>
-
-        {/* Failed */}
-        {lastSync.failed.length > 0 && (
-          <View className="mt-3 pt-3 border-t border-border">
-            <Text className="text-red-500 text-sm font-medium mb-1">
-              ⚠️ {lastSync.failed.length} failed
-            </Text>
-            {lastSync.failed.slice(0, 3).map((f, i) => (
-              <Text key={i} className="text-muted text-xs">
-                • {f.mangaTitle}: {f.error}
-              </Text>
-            ))}
-          </View>
-        )}
-
-        {/* Skipped Sources */}
-        {lastSync.skippedSources.length > 0 && (
-          <View className="mt-3 pt-3 border-t border-border">
-            <Text className="text-yellow-500 text-sm font-medium mb-1">
-              ⏭️ {lastSync.skippedSources.length} sources skipped
-            </Text>
-            {lastSync.skippedSources.map((s, i) => (
-              <Text key={i} className="text-muted text-xs">
-                • {s} (session expired)
-              </Text>
-            ))}
-          </View>
-        )}
       </View>
+
+      {/* Manga Updates List */}
+      {hasMangaUpdates && (
+        <View className="mt-2">
+          <Text className="px-4 py-2 text-muted text-xs font-medium">
+            UPDATED MANGA
+          </Text>
+          {lastSync.mangaUpdates.slice(0, 10).map((update) => (
+            <MangaSyncListItem
+              key={update.mangaId}
+              update={update}
+              onPress={() => setSelectedMangaId(update.mangaId)}
+            />
+          ))}
+          {lastSync.mangaUpdates.length > 10 && (
+            <Text className="px-4 py-2 text-muted text-xs text-center">
+              +{lastSync.mangaUpdates.length - 10} more
+            </Text>
+          )}
+        </View>
+      )}
+
+      {/* Failed */}
+      {lastSync.failed.length > 0 && (
+        <View className="px-4 py-3 mt-2 bg-red-500/10">
+          <Text className="text-red-500 text-sm font-medium mb-1">
+            ⚠️ {lastSync.failed.length} failed
+          </Text>
+          {lastSync.failed.slice(0, 3).map((f, i) => (
+            <Text key={i} className="text-muted text-xs">
+              • {f.mangaTitle}: {f.error}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {/* Skipped Sources */}
+      {lastSync.skippedSources.length > 0 && (
+        <View className="px-4 py-3 mt-2 bg-yellow-500/10">
+          <Text className="text-yellow-500 text-sm font-medium mb-1">
+            ⏭️ {lastSync.skippedSources.length} sources skipped
+          </Text>
+          {lastSync.skippedSources.map((s, i) => (
+            <Text key={i} className="text-muted text-xs">
+              • {s} (session expired)
+            </Text>
+          ))}
+        </View>
+      )}
 
       {/* Clear History */}
       {syncHistory.length > 0 && (
-        <Pressable onPress={clearHistory} className="py-2">
+        <Pressable onPress={clearHistory} className="py-3">
           <Text className="text-red-500 text-sm text-center">
             Clear sync history
           </Text>
         </Pressable>
+      )}
+
+      {/* Details Modal */}
+      {selectedMangaId && (
+        <SyncDetailsModal
+          visible={selectedMangaId !== null}
+          onClose={() => setSelectedMangaId(null)}
+          mangaId={selectedMangaId}
+          syncHistory={syncHistory}
+        />
       )}
     </View>
   );

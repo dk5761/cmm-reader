@@ -8,12 +8,32 @@ export type SyncFailure = {
   error: string;
 };
 
+export type ChapterUpdate = {
+  chapterId: string;
+  chapterNumber: number;
+  chapterTitle?: string;
+  addedAt: number;
+};
+
+export type MangaSyncUpdate = {
+  mangaId: string;
+  mangaTitle: string;
+  cover?: string;
+  sourceId: string;
+  sourceName: string;
+  newChapters: ChapterUpdate[];
+  previousChapterCount: number;
+  currentChapterCount: number;
+  syncedAt: number;
+};
+
 export type SyncResult = {
   timestamp: number;
   updated: number;
   newChapters: number;
   failed: SyncFailure[];
   skippedSources: string[];
+  mangaUpdates: MangaSyncUpdate[];
 };
 
 type SyncState = {
