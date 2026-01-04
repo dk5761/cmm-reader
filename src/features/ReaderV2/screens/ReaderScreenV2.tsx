@@ -145,11 +145,21 @@ export function ReaderScreenV2() {
     // Load Next
     const next = viewerChapters.nextChapter;
     if (next && next.state === "loading") {
+      console.log("[ReaderScreenV2] 📥 Fetching next chapter:", {
+        chapterId: next.chapter.id,
+        chapterNumber: next.chapter.number,
+        currentPage,
+      });
+
       fetchChapter(sourceId, next.chapter)
         .then((res) => {
           if (res) {
             console.log(
-              `[ReaderScreenV2] Next chapter loaded: ${res.pages.length} pages`
+              `[ReaderScreenV2] ✅ Next chapter loaded: ${res.pages.length} pages`,
+              {
+                chapterId: res.chapter.id,
+                chapterNumber: res.chapter.number,
+              }
             );
             setNextChapterLoaded(res.pages);
           }
@@ -157,6 +167,10 @@ export function ReaderScreenV2() {
         .catch((error) => {
           const message =
             error instanceof Error ? error.message : "Failed to load chapter";
+          console.error("[ReaderScreenV2] ❌ Next chapter load failed:", {
+            error: message,
+            chapterId: next.chapter.id,
+          });
           setNextChapterError(message);
         });
     }
@@ -164,11 +178,21 @@ export function ReaderScreenV2() {
     // Load Prev
     const prev = viewerChapters.prevChapter;
     if (prev && prev.state === "loading") {
+      console.log("[ReaderScreenV2] 📥 Fetching previous chapter:", {
+        chapterId: prev.chapter.id,
+        chapterNumber: prev.chapter.number,
+        currentPage,
+      });
+
       fetchChapter(sourceId, prev.chapter)
         .then((res) => {
           if (res) {
             console.log(
-              `[ReaderScreenV2] Prev chapter loaded: ${res.pages.length} pages`
+              `[ReaderScreenV2] ✅ Previous chapter loaded: ${res.pages.length} pages`,
+              {
+                chapterId: res.chapter.id,
+                chapterNumber: res.chapter.number,
+              }
             );
             setPrevChapterLoaded(res.pages);
           }
@@ -176,6 +200,10 @@ export function ReaderScreenV2() {
         .catch((error) => {
           const message =
             error instanceof Error ? error.message : "Failed to load chapter";
+          console.error("[ReaderScreenV2] ❌ Previous chapter load failed:", {
+            error: message,
+            chapterId: prev.chapter.id,
+          });
           setPrevChapterError(message);
         });
     }
@@ -188,6 +216,7 @@ export function ReaderScreenV2() {
     setPrevChapterLoaded,
     setNextChapterError,
     setPrevChapterError,
+    currentPage,
   ]);
 
   // Stage 1: Load chapter pages (metadata only)

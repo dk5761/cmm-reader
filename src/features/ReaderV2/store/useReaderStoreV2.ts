@@ -163,19 +163,26 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     // ========================================================================
 
     setCurrentPage: (page: number) => {
-      const { isSeeking, currentPage, totalPages, viewerChapters } = get();
+      const { isSeeking, currentPage, totalPages, viewerChapters, currentChapterIndex } = get();
       // Prevent jitter: don't update if actively seeking
       if (!isSeeking) {
         // DEBUG: Log page updates
         if (page !== currentPage) {
-          console.log("[ReaderStoreV2] setCurrentPage:", {
+          console.log("[ReaderStoreV2] 📖 setCurrentPage:", {
             newPage: page,
             oldPage: currentPage,
             totalPages,
             currChapterId: viewerChapters?.currChapter?.chapter.id,
+            currChapterNumber: viewerChapters?.currChapter?.chapter.number,
+            currentChapterIndex,
           });
         }
         set({ currentPage: page });
+      } else {
+        console.log("[ReaderStoreV2] ⏭️  setCurrentPage SKIPPED (isSeeking):", {
+          requestedPage: page,
+          currentPage,
+        });
       }
     },
 
@@ -228,15 +235,30 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     // ========================================================================
 
     loadNextChapter: async () => {
-      const { viewerChapters } = get();
-      if (!viewerChapters?.nextChapter) return;
+      const { viewerChapters, currentPage } = get();
+
+      if (!viewerChapters?.nextChapter) {
+        console.warn("[ReaderStoreV2] loadNextChapter: No next chapter");
+        return;
+      }
       if (
         viewerChapters.nextChapter.state === "loading" ||
         viewerChapters.nextChapter.state === "loaded"
-      )
+      ) {
+        console.log("[ReaderStoreV2] loadNextChapter: Already loading/loaded", {
+          state: viewerChapters.nextChapter.state,
+          chapterId: viewerChapters.nextChapter.chapter.id,
+          currentPage,
+        });
         return;
+      }
 
-      console.log("[ReaderStoreV2] Loading next chapter...");
+      console.log("[ReaderStoreV2] 📥 Loading next chapter...", {
+        chapterId: viewerChapters.nextChapter.chapter.id,
+        chapterNumber: viewerChapters.nextChapter.chapter.number,
+        currentState: viewerChapters.nextChapter.state,
+        currentPage,
+      });
 
       // Update state to loading
       set((state) => ({
@@ -253,6 +275,13 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     },
 
     setNextChapterLoaded: (pages: ReaderPage[]) => {
+      console.log("[ReaderStoreV2] setNextChapterLoaded() called:", {
+        pagesCount: pages.length,
+        currentPage: get().currentPage,
+        currentChapterId: get().viewerChapters?.currChapter?.chapter.id,
+        nextChapterId: get().viewerChapters?.nextChapter?.chapter.id,
+      });
+
       set((state) => ({
         viewerChapters: state.viewerChapters
           ? {
@@ -389,9 +418,19 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     // ========================================================================
 
     transitionToNextChapter: () => {
-      const { viewerChapters, allChapters, currentChapterIndex } = get();
-      if (!viewerChapters?.nextChapter) return;
-      if (viewerChapters.nextChapter.state !== "loaded") return;
+      const { viewerChapters, allChapters, currentChapterIndex, currentPage } = get();
+
+      if (!viewerChapters?.nextChapter) {
+        console.warn("[ReaderStoreV2] transitionToNextChapter: No next chapter");
+        return;
+      }
+      if (viewerChapters.nextChapter.state !== "loaded") {
+        console.warn(
+          "[ReaderStoreV2] transitionToNextChapter: Next chapter not loaded",
+          { state: viewerChapters.nextChapter.state },
+        );
+        return;
+      }
 
       // The next chapter becomes the current chapter
       const newCurrChapter = viewerChapters.nextChapter;
@@ -413,9 +452,13 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
             }
           : null;
 
-      console.log("[ReaderStoreV2] Transitioning to next chapter:", {
-        from: viewerChapters.currChapter.chapter.id,
-        to: newCurrChapter.chapter.id,
+      console.log("[ReaderStoreV2] 🔄 Transitioning to next chapter:", {
+        fromChapterId: viewerChapters.currChapter.chapter.id,
+        fromChapterNumber: viewerChapters.currChapter.chapter.number,
+        fromCurrentPage: currentPage,
+        toChapterId: newCurrChapter.chapter.id,
+        toChapterNumber: newCurrChapter.chapter.number,
+        toPagesCount: newCurrChapter.pages.length,
         newChapterIndex,
         hasNewNext: !!newNextChapter,
       });
@@ -430,12 +473,27 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         totalPages: newCurrChapter.pages.length,
         currentPage: 0, // Reset to first page of new chapter
       });
+
+      console.log("[ReaderStoreV2] ✅ Next chapter transition complete:", {
+        newCurrentPage: 0,
+        newTotalPages: newCurrChapter.pages.length,
+      });
     },
 
     transitionToPrevChapter: () => {
-      const { viewerChapters, allChapters, currentChapterIndex } = get();
-      if (!viewerChapters?.prevChapter) return;
-      if (viewerChapters.prevChapter.state !== "loaded") return;
+      const { viewerChapters, allChapters, currentChapterIndex, currentPage } = get();
+
+      if (!viewerChapters?.prevChapter) {
+        console.warn("[ReaderStoreV2] transitionToPrevChapter: No prev chapter");
+        return;
+      }
+      if (viewerChapters.prevChapter.state !== "loaded") {
+        console.warn(
+          "[ReaderStoreV2] transitionToPrevChapter: Prev chapter not loaded",
+          { state: viewerChapters.prevChapter.state },
+        );
+        return;
+      }
 
       // The prev chapter becomes the current chapter
       const newCurrChapter = viewerChapters.prevChapter;
@@ -457,9 +515,13 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
             }
           : null;
 
-      console.log("[ReaderStoreV2] Transitioning to previous chapter:", {
-        from: viewerChapters.currChapter.chapter.id,
-        to: newCurrChapter.chapter.id,
+      console.log("[ReaderStoreV2] 🔄 Transitioning to previous chapter:", {
+        fromChapterId: viewerChapters.currChapter.chapter.id,
+        fromChapterNumber: viewerChapters.currChapter.chapter.number,
+        fromCurrentPage: currentPage,
+        toChapterId: newCurrChapter.chapter.id,
+        toChapterNumber: newCurrChapter.chapter.number,
+        toPagesCount: newCurrChapter.pages.length,
         newChapterIndex,
         hasNewPrev: !!newPrevChapter,
       });
@@ -473,6 +535,11 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         currentChapterIndex: newChapterIndex,
         totalPages: newCurrChapter.pages.length,
         currentPage: newCurrChapter.pages.length - 1, // Last page of new chapter
+      });
+
+      console.log("[ReaderStoreV2] ✅ Previous chapter transition complete:", {
+        newCurrentPage: newCurrChapter.pages.length - 1,
+        newTotalPages: newCurrChapter.pages.length,
       });
     },
 
