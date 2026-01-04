@@ -34,6 +34,10 @@ export const ReaderOverlay = memo(function ReaderOverlay({
   const isOverlayVisible = useReaderStoreV2((s) => s.isOverlayVisible);
   const viewerChapters = useReaderStoreV2((s) => s.viewerChapters);
 
+  // Use the current chapter from store (updates during infinite scroll)
+  // Fall back to prop for initial render
+  const currentChapter = viewerChapters?.currChapter?.chapter ?? chapter;
+
   // Animated styles for header
   const headerStyle = useAnimatedStyle(() => ({
     opacity: withTiming(isOverlayVisible ? 1 : 0, { duration: 200 }),
@@ -60,7 +64,7 @@ export const ReaderOverlay = memo(function ReaderOverlay({
 
   if (!viewerChapters) return null;
 
-  const chapterTitle = formatChapterTitle(chapter);
+  const chapterTitle = formatChapterTitle(currentChapter);
 
   return (
     <>

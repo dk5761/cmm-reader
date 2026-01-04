@@ -35,12 +35,18 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
   const loadPrevChapter = useReaderStoreV2((s) => s.loadPrevChapter);
   const retryNextChapter = useReaderStoreV2((s) => s.retryNextChapter);
   const retryPrevChapter = useReaderStoreV2((s) => s.retryPrevChapter);
+  const transitionToNextChapter = useReaderStoreV2(
+    (s) => s.transitionToNextChapter,
+  );
+  const transitionToPrevChapter = useReaderStoreV2(
+    (s) => s.transitionToPrevChapter,
+  );
 
   // Register ref with store
   useEffect(() => {
     if (flashListRef.current) {
       setFlashListRef(
-        flashListRef as React.RefObject<FlashListRef<AdapterItem>>
+        flashListRef as React.RefObject<FlashListRef<AdapterItem>>,
       );
     }
   }, [setFlashListRef]);
@@ -51,7 +57,7 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
     return buildAdapterItems(
       viewerChapters,
       viewerChapters.prevChapter?.state === "loading",
-      viewerChapters.nextChapter?.state === "loading"
+      viewerChapters.nextChapter?.state === "loading",
     );
   }, [viewerChapters]);
 
@@ -61,6 +67,8 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
     setCurrentPage,
     loadNextChapter,
     loadPrevChapter,
+    transitionToNextChapter,
+    transitionToPrevChapter,
   });
 
   // Keep ref updated with latest actions
@@ -69,8 +77,36 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
       setCurrentPage,
       loadNextChapter,
       loadPrevChapter,
+      transitionToNextChapter,
+      transitionToPrevChapter,
     };
-  }, [setCurrentPage, loadNextChapter, loadPrevChapter]);
+  }, [
+    setCurrentPage,
+    loadNextChapter,
+    loadPrevChapter,
+    transitionToNextChapter,
+    transitionToPrevChapter,
+  ]);
+
+  // Track the current chapter ID from store to detect when we need to transition
+  const currentChapterId = viewerChapters?.currChapter?.chapter.id;
+  const nextChapterId = viewerChapters?.nextChapter?.chapter.id;
+  const prevChapterId = viewerChapters?.prevChapter?.chapter.id;
+
+  // Ref to track current chapter for transition detection
+  const chapterIdsRef = useRef({
+    currentChapterId,
+    nextChapterId,
+    prevChapterId,
+  });
+
+  useEffect(() => {
+    chapterIdsRef.current = {
+      currentChapterId,
+      nextChapterId,
+      prevChapterId,
+    };
+  }, [currentChapterId, nextChapterId, prevChapterId]);
 
   // Stable viewability callback that reads from ref
   const handleViewableItemsChanged = useCallback(
@@ -80,18 +116,89 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
         return;
       }
 
-      const { setCurrentPage, loadNextChapter, loadPrevChapter } =
-        storeActionsRef.current;
+      const {
+        setCurrentPage,
+        loadNextChapter,
+        loadPrevChapter,
+        transitionToNextChapter,
+        transitionToPrevChapter,
+      } = storeActionsRef.current;
 
-      // Find the first visible PAGE item (skip transitions)
-      const firstPage = viewableItems.find((v) => v.item?.type === "page");
+      const { currentChapterId, nextChapterId, prevChapterId } =
+        chapterIdsRef.current;
+
+      // Get all visible page items
+      const visiblePages = viewableItems.filter(
+        (v) => v.item?.type === "page",
+      ) as ViewToken<AdapterItem & { type: "page" }>[];
+
+      if (visiblePages.length === 0) {
+        // Check for transition items (for chapter preloading)
+        const lastItem = viewableItems[viewableItems.length - 1]?.item;
+        if (lastItem?.type === "transition") {
+          console.log("[WebtoonViewer] Transition item visible:", {
+            direction: lastItem.direction,
+            targetChapterId: lastItem.targetChapter?.chapter.id,
+          });
+          if (lastItem.direction === "next" && lastItem.targetChapter) {
+            loadNextChapter();
+          } else if (lastItem.direction === "prev" && lastItem.targetChapter) {
+            loadPrevChapter();
+          }
+        }
+        return;
+      }
+
+      // Find the first visible page
+      const firstPage = visiblePages[0];
       if (firstPage?.item && firstPage.item.type === "page") {
-        setCurrentPage(firstPage.item.page.index);
+        const visibleChapterId = firstPage.item.chapterId;
+        const pageIndex = firstPage.item.page.index;
+
+        // DEBUG: Log page tracking info
+        console.log("[WebtoonViewer] Viewable page changed:", {
+          pageIndex,
+          chapterId: visibleChapterId,
+          currentChapterId,
+          visibleItemsCount: viewableItems.length,
+        });
+
+        // Check if we've transitioned to a different chapter
+        if (visibleChapterId !== currentChapterId) {
+          // Check if ALL visible pages are from the new chapter (fully transitioned)
+          const allPagesFromSameChapter = visiblePages.every(
+            (v) =>
+              v.item.type === "page" && v.item.chapterId === visibleChapterId,
+          );
+
+          if (allPagesFromSameChapter) {
+            if (visibleChapterId === nextChapterId) {
+              console.log(
+                "[WebtoonViewer] Detected transition to NEXT chapter:",
+                visibleChapterId,
+              );
+              transitionToNextChapter();
+            } else if (visibleChapterId === prevChapterId) {
+              console.log(
+                "[WebtoonViewer] Detected transition to PREV chapter:",
+                visibleChapterId,
+              );
+              transitionToPrevChapter();
+            }
+          }
+        }
+
+        // Update current page (this will now be correct after transition)
+        setCurrentPage(pageIndex);
       }
 
       // Check for transition items (for chapter preloading)
       const lastItem = viewableItems[viewableItems.length - 1]?.item;
       if (lastItem?.type === "transition") {
+        console.log("[WebtoonViewer] Transition item visible:", {
+          direction: lastItem.direction,
+          targetChapterId: lastItem.targetChapter?.chapter.id,
+        });
         if (lastItem.direction === "next" && lastItem.targetChapter) {
           loadNextChapter();
         } else if (lastItem.direction === "prev" && lastItem.targetChapter) {
@@ -99,7 +206,7 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
         }
       }
     },
-    [] // Empty deps - uses ref for latest values
+    [], // Empty deps - uses ref for latest values
   );
 
   // Stable viewability config callback pairs
@@ -110,7 +217,7 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
         viewabilityConfig: VIEWABILITY_CONFIG,
       },
     ],
-    [handleViewableItemsChanged]
+    [handleViewableItemsChanged],
   );
 
   // Render item based on type
@@ -125,9 +232,11 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
       const onLoad =
         item.direction === "next" ? loadNextChapter : loadPrevChapter;
 
-      return <ChapterTransition item={item} onLoad={onLoad} onRetry={onRetry} />;
+      return (
+        <ChapterTransition item={item} onLoad={onLoad} onRetry={onRetry} />
+      );
     },
-    [loadNextChapter, loadPrevChapter, retryNextChapter, retryPrevChapter]
+    [loadNextChapter, loadPrevChapter, retryNextChapter, retryPrevChapter],
   );
 
   // Get item type for recycling optimization

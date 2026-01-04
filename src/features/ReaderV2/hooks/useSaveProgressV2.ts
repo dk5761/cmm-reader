@@ -3,6 +3,7 @@
  *
  * Saves reading progress (history) with debounce.
  * Prevents excessive DB writes during rapid page changes.
+ * Uses current chapter from store (updates during infinite scroll).
  */
 
 import { useCallback, useRef, useEffect } from "react";
@@ -18,7 +19,7 @@ interface ProgressData {
   mangaTitle: string;
   mangaCover?: string;
   mangaUrl?: string;
-  chapter: Chapter;
+  chapter: Chapter; // Initial chapter (fallback only)
   sourceId: string;
 }
 
@@ -37,13 +38,18 @@ export function useSaveProgressV2(data: ProgressData | null) {
 
   const currentPage = useReaderStoreV2((s) => s.currentPage);
   const totalPages = useReaderStoreV2((s) => s.totalPages);
+  const viewerChapters = useReaderStoreV2((s) => s.viewerChapters);
+
+  // Use the current chapter from store (updates during infinite scroll)
+  // Fall back to prop for initial render before store is initialized
+  const currentChapter = viewerChapters?.currChapter?.chapter ?? data?.chapter;
 
   const save = useCallback(
     (forceUpdate = false) => {
-      if (!data) return;
+      if (!data || !currentChapter) return;
 
       const now = Date.now();
-      const isNewChapter = data.chapter.id !== lastChapterIdRef.current;
+      const isNewChapter = currentChapter.id !== lastChapterIdRef.current;
 
       // Force save on chapter change or if forceUpdate is true
       const shouldForce = forceUpdate || isNewChapter;
@@ -54,12 +60,14 @@ export function useSaveProgressV2(data: ProgressData | null) {
       }
 
       lastSavedRef.current = now;
-      lastChapterIdRef.current = data.chapter.id;
+      lastChapterIdRef.current = currentChapter.id;
 
       console.log("[useSaveProgressV2] Saving:", {
         manga: data.mangaTitle,
-        chapter: data.chapter.number,
+        chapter: currentChapter.number,
+        chapterId: currentChapter.id,
         page: currentPage + 1,
+        totalPages,
         forced: shouldForce,
       });
 
@@ -68,16 +76,16 @@ export function useSaveProgressV2(data: ProgressData | null) {
         mangaTitle: data.mangaTitle,
         mangaCover: data.mangaCover,
         mangaUrl: data.mangaUrl,
-        chapterId: data.chapter.id,
-        chapterNumber: data.chapter.number,
-        chapterTitle: data.chapter.title,
-        chapterUrl: data.chapter.url,
+        chapterId: currentChapter.id,
+        chapterNumber: currentChapter.number,
+        chapterTitle: currentChapter.title,
+        chapterUrl: currentChapter.url,
         pageReached: currentPage + 1, // 1-indexed for display
         totalPages,
         sourceId: data.sourceId,
       });
     },
-    [data, currentPage, totalPages, addHistoryEntry]
+    [data, currentChapter, currentPage, totalPages, addHistoryEntry],
   );
 
   // Auto-save on page change (debounced)
@@ -89,36 +97,37 @@ export function useSaveProgressV2(data: ProgressData | null) {
 
   // Define markRead callback first
   const markRead = useCallback(() => {
-    if (!data) return;
+    if (!data || !currentChapter) return;
 
     // Smart libraryId construction: handle both raw mangaId and already-prefixed formats
     const libraryId = data.mangaId.startsWith(data.sourceId + "_")
       ? data.mangaId // Already in libraryId format
       : `${data.sourceId}_${data.mangaId}`; // Construct it
 
-    markedAsReadRef.current = data.chapter.id;
+    markedAsReadRef.current = currentChapter.id;
 
     console.log("[useSaveProgressV2] Marking as read (95%):", {
       manga: data.mangaTitle,
-      chapter: data.chapter.number,
+      chapter: currentChapter.number,
       libraryId,
-      chapterId: data.chapter.id,
+      chapterId: currentChapter.id,
       progress: (((currentPage + 1) / totalPages) * 100).toFixed(1) + "%",
     });
 
-    markChapterRead(libraryId, data.chapter.id, totalPages);
-  }, [data, currentPage, totalPages, markChapterRead]);
+    markChapterRead(libraryId, currentChapter.id, totalPages);
+  }, [data, currentChapter, currentPage, totalPages, markChapterRead]);
 
   // Auto-mark as read at 95% threshold
   useEffect(() => {
-    if (!data || totalPages === 0) return;
+    if (!data || !currentChapter || totalPages === 0) return;
 
     const progress = (currentPage + 1) / totalPages;
-    const chapterId = data.chapter.id;
+    const chapterId = currentChapter.id;
     const alreadyMarked = markedAsReadRef.current === chapterId;
 
     console.log("[useSaveProgressV2] Auto-read check:", {
-      chapter: data.chapter.number,
+      chapter: currentChapter.number,
+      chapterId: currentChapter.id,
       page: `${currentPage + 1}/${totalPages}`,
       progress: (progress * 100).toFixed(1) + "%",
       meetsThreshold: progress >= READ_THRESHOLD,
@@ -134,7 +143,7 @@ export function useSaveProgressV2(data: ProgressData | null) {
       console.log("[useSaveProgressV2] Reset mark flag");
       markedAsReadRef.current = "";
     }
-  }, [currentPage, totalPages, data, markRead]);
+  }, [currentPage, totalPages, data, currentChapter, markRead]);
 
   // Force save on unmount
   useEffect(() => {
