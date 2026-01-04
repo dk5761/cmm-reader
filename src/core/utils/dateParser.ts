@@ -8,6 +8,33 @@ export function parseChapterDate(dateStr?: string): number {
   const trimmed = dateStr.trim().toLowerCase();
   const now = Date.now();
 
+  // Handle ordinal format: "December 22nd 2022" or "January 1st 2023"
+  const ordinalMatch = dateStr.match(
+    /^([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)\s+(\d{4})$/i
+  );
+  if (ordinalMatch) {
+    const [, month, day, year] = ordinalMatch;
+    const monthMap: Record<string, number> = {
+      january: 0,
+      february: 1,
+      march: 2,
+      april: 3,
+      may: 4,
+      june: 5,
+      july: 6,
+      august: 7,
+      september: 8,
+      october: 9,
+      november: 10,
+      december: 11,
+    };
+    const monthIndex = monthMap[month.toLowerCase()];
+    if (monthIndex !== undefined) {
+      const date = new Date(parseInt(year), monthIndex, parseInt(day));
+      return date.getTime();
+    }
+  }
+
   // Handle format: "Dec-20-2025 10:20" or "Jan-04-2026"
   const dashDateMatch = dateStr.match(
     /^([A-Z][a-z]{2})-(\d{2})-(\d{4})(?:\s+(\d{2}):(\d{2}))?$/i
@@ -39,6 +66,14 @@ export function parseChapterDate(dateStr?: string): number {
       );
       return date.getTime();
     }
+  }
+
+  // Handle numeric format: "1/3/2026" or "11/21/2025" (M/D/YYYY)
+  const slashDateMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashDateMatch) {
+    const [, month, day, year] = slashDateMatch;
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return date.getTime();
   }
 
   // Try standard Date.parse first (handles ISO, RFC, etc.)
