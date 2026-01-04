@@ -13,6 +13,7 @@ import {
   startRealmSyncBridge,
   exportAllForSync,
   importFromCloud,
+  setSyncingFromCloud,
 } from "./RealmSyncBridge";
 import { SyncState } from "./SyncTypes";
 import { useSyncStore } from "@/features/Library/stores/useSyncStore";
@@ -57,13 +58,13 @@ export function useSyncManager() {
 
         console.log(
           "[useSyncManager] Startup sync check - local manga:",
-          localMangaCount
+          localMangaCount,
         );
 
         if (localMangaCount === 0) {
           // Empty library - redirect to sync screen for loading UI
           console.log(
-            "[useSyncManager] Empty library, redirecting to sync screen"
+            "[useSyncManager] Empty library, redirecting to sync screen",
           );
           router.replace("/sync?action=startup");
         } else {
@@ -74,11 +75,16 @@ export function useSyncManager() {
             const cloudData = await SyncService.downloadAll(user.uid);
             if (cloudData.manga.length > 0 || cloudData.history.length > 0) {
               updateCloudSyncStatus("Merging data...");
-              importFromCloud(realm, cloudData);
+              setSyncingFromCloud(true);
+              try {
+                importFromCloud(realm, cloudData);
+              } finally {
+                setSyncingFromCloud(false);
+              }
               console.log(
                 "[useSyncManager] Background sync complete:",
                 cloudData.manga.length,
-                "manga"
+                "manga",
               );
             }
           } catch (e) {
@@ -145,11 +151,13 @@ export function useSyncManager() {
     if (!user) return { mangaCount: 0, historyCount: 0 };
 
     setIsInitialSyncing(true);
+    setSyncingFromCloud(true);
     try {
       const cloudData = await SyncService.downloadAll(user.uid);
       const result = importFromCloud(realm, cloudData);
       return result;
     } finally {
+      setSyncingFromCloud(false);
       setIsInitialSyncing(false);
     }
   }, [user, realm]);

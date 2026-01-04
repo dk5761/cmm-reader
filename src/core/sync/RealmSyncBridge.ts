@@ -8,6 +8,26 @@ import { SyncService } from "./SyncService";
 import { CloudManga, CloudHistoryEntry } from "./SyncTypes";
 
 /**
+ * Flag to prevent infinite sync loop.
+ * When true, Realm listeners will not enqueue changes to SyncService.
+ * This is set to true during importFromCloud() to prevent downloaded
+ * data from being immediately re-queued for upload.
+ */
+let isSyncingFromCloud = false;
+
+/**
+ * Set the syncing from cloud flag.
+ * Call with true before importing cloud data, false after.
+ */
+export function setSyncingFromCloud(value: boolean): void {
+  isSyncingFromCloud = value;
+  console.log(
+    "[RealmSyncBridge] Cloud sync mode:",
+    value ? "PAUSED (importing)" : "ACTIVE (listening)",
+  );
+}
+
+/**
  * Convert Realm manga to cloud format
  * Note: Firestore doesn't accept undefined, so we omit those fields
  */
@@ -82,10 +102,15 @@ export function startRealmSyncBridge(realm: Realm): () => void {
   // Track manga changes
   const mangaListener = (
     collection: Realm.Results<MangaSchema>,
-    changes: Realm.CollectionChangeSet
+    changes: Realm.CollectionChangeSet,
   ) => {
     // Skip initial callback (no changes object properties)
     if (!changes.insertions && !changes.modifications && !changes.deletions) {
+      return;
+    }
+
+    // Skip if we're importing from cloud (prevents infinite loop)
+    if (isSyncingFromCloud) {
       return;
     }
 
@@ -117,10 +142,15 @@ export function startRealmSyncBridge(realm: Realm): () => void {
   // Track history changes
   const historyListener = (
     collection: Realm.Results<ReadingHistorySchema>,
-    changes: Realm.CollectionChangeSet
+    changes: Realm.CollectionChangeSet,
   ) => {
     // Skip initial callback
     if (!changes.insertions && !changes.modifications && !changes.deletions) {
+      return;
+    }
+
+    // Skip if we're importing from cloud (prevents infinite loop)
+    if (isSyncingFromCloud) {
       return;
     }
 
@@ -171,7 +201,7 @@ export function exportAllForSync(realm: Realm): {
  */
 export function importFromCloud(
   realm: Realm,
-  cloudData: { manga: CloudManga[]; history: CloudHistoryEntry[] }
+  cloudData: { manga: CloudManga[]; history: CloudHistoryEntry[] },
 ): { mangaCount: number; historyCount: number } {
   let mangaCount = 0;
   let historyCount = 0;
@@ -201,7 +231,7 @@ export function importFromCloud(
             }
             localCh.lastPageRead = Math.max(
               localCh.lastPageRead,
-              cloudCh.lastPageRead
+              cloudCh.lastPageRead,
             );
           }
         });
@@ -238,7 +268,7 @@ export function importFromCloud(
     for (const cloudHistory of cloudData.history) {
       const existing = realm.objectForPrimaryKey(
         ReadingHistorySchema,
-        cloudHistory.id
+        cloudHistory.id,
       );
       if (!existing) {
         realm.create(ReadingHistorySchema, cloudHistory);
@@ -252,7 +282,7 @@ export function importFromCloud(
     mangaCount,
     "manga,",
     historyCount,
-    "history"
+    "history",
   );
   return { mangaCount, historyCount };
 }
