@@ -2,34 +2,23 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
 import {
-  LibraryFilter,
   LibraryGrid,
   SyncProgressBanner,
   SyncCompletionToast,
   LibrarySearchBar,
-  SourceFilter,
   CloudSyncBanner,
 } from "../components";
 import { EmptyState } from "@/shared/components";
 import { useAppSettingsStore } from "@/shared/stores";
 import { isNsfwSource } from "@/sources";
-import { LIBRARY_FILTERS } from "../data/mockData";
 import { useLibraryStore } from "../stores/useLibraryStore";
-import { useSyncStore } from "../stores/useSyncStore";
 import { useLibraryManga } from "../hooks";
 
 export function LibraryScreen() {
   const router = useRouter();
-  const {
-    activeCategory,
-    setActiveCategory,
-    searchQuery,
-    activeSource,
-    sortBy,
-    sortAscending,
-  } = useLibraryStore();
+  const { activeCategory, searchQuery, activeSource, sortBy, sortAscending } =
+    useLibraryStore();
   const { showNsfwSources } = useAppSettingsStore();
-  const { isCloudSyncing, isSyncing } = useSyncStore();
 
   // Fetch from Realm database
   const libraryManga = useLibraryManga();
@@ -47,7 +36,7 @@ export function LibraryScreen() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter((manga) =>
-        manga.title.toLowerCase().includes(query)
+        manga.title.toLowerCase().includes(query),
       );
     }
 
@@ -66,7 +55,7 @@ export function LibraryScreen() {
         Dropped: "dropped",
       };
       result = result.filter(
-        (manga) => manga.readingStatus === statusMap[activeCategory]
+        (manga) => manga.readingStatus === statusMap[activeCategory],
       );
     }
 
@@ -99,11 +88,11 @@ export function LibraryScreen() {
           };
           const latestA = Math.max(
             ...a.chapters.map((ch) => parseDate(ch.date)),
-            0
+            0,
           );
           const latestB = Math.max(
             ...b.chapters.map((ch) => parseDate(ch.date)),
-            0
+            0,
           );
           cmp = latestB - latestA;
           break;
@@ -188,20 +177,13 @@ export function LibraryScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Grid with filters as list header */}
+      {/* Grid with search as list header */}
       <LibraryGrid
         manga={gridData}
         onMangaPress={handleMangaPress}
         ListHeaderComponent={
           <View className="pb-4">
             <LibrarySearchBar />
-            <SourceFilter disabled={isCloudSyncing || isSyncing} />
-            <LibraryFilter
-              filters={LIBRARY_FILTERS}
-              activeFilter={activeCategory}
-              onFilterChange={setActiveCategory}
-              disabled={isCloudSyncing || isSyncing}
-            />
             <CloudSyncBanner />
             <SyncProgressBanner />
             <SyncCompletionToast />

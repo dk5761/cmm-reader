@@ -5,21 +5,25 @@ import { useCSSVariable } from "uniwind";
 import { useSyncLibrary } from "../hooks";
 import { useSyncStore } from "../stores/useSyncStore";
 import { useLibraryStore } from "../stores/useLibraryStore";
-import { SortSheet } from "./SortSheet";
+import { FilterSheet } from "./FilterSheet";
 
 export function LibraryHeaderRight() {
   const foregroundColor = useCSSVariable("--color-foreground");
+  const primaryColor = useCSSVariable("--color-primary");
   const color = typeof foregroundColor === "string" ? foregroundColor : "#fff";
+  const primary = typeof primaryColor === "string" ? primaryColor : "#8b5cf6";
 
   const { syncLibrary, isSyncing } = useSyncLibrary();
-  const { progress, isCloudSyncing } = useSyncStore();
-  const { sortBy, sortAscending, setSortBy, toggleSortOrder } =
-    useLibraryStore();
+  const { isCloudSyncing } = useSyncStore();
+  const { activeCategory, activeSource } = useLibraryStore();
 
   // Disable sync button during both library update sync and cloud sync
   const syncDisabled = isSyncing || isCloudSyncing;
 
-  const [sortSheetVisible, setSortSheetVisible] = useState(false);
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+
+  // Check if any filters are active (not default)
+  const hasActiveFilters = activeCategory !== "All" || activeSource !== "all";
 
   // Rotation animation for sync icon
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -32,7 +36,7 @@ export function LibraryHeaderRight() {
           duration: 1000,
           easing: Easing.linear,
           useNativeDriver: true,
-        })
+        }),
       ).start();
     } else {
       spinValue.setValue(0);
@@ -52,14 +56,21 @@ export function LibraryHeaderRight() {
 
   return (
     <>
-      <View className="flex-row gap-2 mr-2">
-        {/* Sort button */}
+      <View className="flex-row gap-1 mr-2">
+        {/* Filter button */}
         <Pressable
-          onPress={() => setSortSheetVisible(true)}
+          onPress={() => setFilterSheetVisible(true)}
           hitSlop={8}
-          className="p-2"
+          className="p-2 relative"
         >
-          <Ionicons name="swap-vertical-outline" size={22} color={color} />
+          <Ionicons name="options-outline" size={22} color={color} />
+          {/* Active filter indicator */}
+          {hasActiveFilters && (
+            <View
+              className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-background"
+              style={{ backgroundColor: primary }}
+            />
+          )}
         </Pressable>
 
         {/* Sync button */}
@@ -81,14 +92,11 @@ export function LibraryHeaderRight() {
         </Pressable>
       </View>
 
-      {/* Sort Sheet */}
-      <SortSheet
-        visible={sortSheetVisible}
-        currentSort={sortBy}
-        sortAscending={sortAscending}
-        onSelect={setSortBy}
-        onToggleOrder={toggleSortOrder}
-        onClose={() => setSortSheetVisible(false)}
+      {/* Filter Sheet */}
+      <FilterSheet
+        visible={filterSheetVisible}
+        onClose={() => setFilterSheetVisible(false)}
+        disabled={syncDisabled}
       />
     </>
   );
