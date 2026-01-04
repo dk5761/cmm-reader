@@ -2,6 +2,7 @@ import { memo, useRef } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { useLazyCover } from "@/shared/hooks/useLazyCover";
 
 type MangaCardProps = {
   id: string;
@@ -28,6 +29,7 @@ function MangaCardComponent({
   progress,
   subtitle,
 }: MangaCardProps) {
+  const effectiveCoverUrl = useLazyCover(id, coverUrl, localCoverUrl);
   const isNavigatingRef = useRef(false);
 
   const handlePress = () => {
@@ -58,24 +60,15 @@ function MangaCardComponent({
       {/* Cover Image Container */}
       <View className="relative w-full aspect-2/3 rounded-xl overflow-hidden bg-zinc-800">
         {/* Cover Image */}
-        {localCoverUrl ? (
-          <Image
-            key={`${id}-local`}
-            source={{ uri: localCoverUrl }}
-            style={{ width: "100%", height: "100%", borderRadius: 8 }}
-            contentFit="cover"
-          />
-        ) : (
-          <Image
-            key={`${id}-remote`}
-            source={{
-              uri: coverUrl,
-              headers: headers || {},
-            }}
-            style={{ width: "100%", height: "100%", borderRadius: 8 }}
-            contentFit="cover"
-          />
-        )}
+        <Image
+          key={`${id}-${effectiveCoverUrl}`}
+          source={{
+            uri: effectiveCoverUrl,
+            headers: headers || {},
+          }}
+          style={{ width: "100%", height: "100%", borderRadius: 8 }}
+          contentFit="cover"
+        />
 
         {/* Badge - Top Left */}
         {badge && (
