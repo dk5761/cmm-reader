@@ -13,6 +13,7 @@ import { useAppSettingsStore } from "@/shared/stores";
 import { isNsfwSource } from "@/sources";
 import { useLibraryStore } from "../stores/useLibraryStore";
 import { useLibraryManga } from "../hooks";
+import { parseChapterDate } from "@/core/utils/dateParser";
 
 export function LibraryScreen() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export function LibraryScreen() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter((manga) =>
-        manga.title.toLowerCase().includes(query),
+        manga.title.toLowerCase().includes(query)
       );
     }
 
@@ -55,7 +56,7 @@ export function LibraryScreen() {
         Dropped: "dropped",
       };
       result = result.filter(
-        (manga) => manga.readingStatus === statusMap[activeCategory],
+        (manga) => manga.readingStatus === statusMap[activeCategory]
       );
     }
 
@@ -81,18 +82,13 @@ export function LibraryScreen() {
           break;
         }
         case "latestChapter": {
-          const parseDate = (d?: string) => {
-            if (!d) return 0;
-            const parsed = Date.parse(d);
-            return isNaN(parsed) ? 0 : parsed;
-          };
           const latestA = Math.max(
-            ...a.chapters.map((ch) => parseDate(ch.date)),
-            0,
+            ...a.chapters.map((ch) => parseChapterDate(ch.date)),
+            0
           );
           const latestB = Math.max(
-            ...b.chapters.map((ch) => parseDate(ch.date)),
-            0,
+            ...b.chapters.map((ch) => parseChapterDate(ch.date)),
+            0
           );
           cmp = latestB - latestA;
           break;
