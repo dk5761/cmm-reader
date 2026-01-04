@@ -5,7 +5,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import { useRealm } from "@realm/react";
-import { useRouter } from "expo-router";
 import { useAuth } from "@/core/auth";
 import { MangaSchema } from "@/core/database";
 import { SyncService } from "./SyncService";
@@ -34,7 +33,6 @@ export function resetStartupSyncFlag(): void {
 
 export function useSyncManager() {
   const realm = useRealm();
-  const router = useRouter();
   const { user } = useAuth();
   const [syncState, setSyncState] = useState<SyncState>(SyncService.getState());
   const [isInitialSyncing, setIsInitialSyncing] = useState(false);
@@ -62,8 +60,8 @@ export function useSyncManager() {
       await SyncService.initialize();
       bridgeCleanupRef.current = startRealmSyncBridge(realm);
 
-      // Startup sync: check if we need to sync from cloud
-      // Use module-level flag to prevent multiple instances from triggering
+      // Background sync for users with existing library
+      // Empty library case is handled by index.tsx redirecting to sync screen
       if (!startupSyncInitiated) {
         startupSyncInitiated = true;
 
@@ -76,14 +74,9 @@ export function useSyncManager() {
           localMangaCount,
         );
 
-        if (localMangaCount === 0) {
-          // Empty library - redirect to sync screen for loading UI
-          console.log(
-            "[useSyncManager] Empty library, redirecting to sync screen",
-          );
-          router.replace("/sync?action=startup");
-        } else {
-          // Has library items - background sync with banner
+        // Only do background sync if user has library items
+        // Empty library users are redirected to sync screen by index.tsx
+        if (localMangaCount > 0) {
           console.log("[useSyncManager] Background startup sync");
           startCloudSync("Syncing with cloud...");
           try {
