@@ -164,22 +164,30 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
 
     setCurrentPage: (page: number) => {
       const { isSeeking, currentPage, totalPages, viewerChapters, currentChapterIndex } = get();
+
+      // Always log page changes for debugging
+      console.log("[ReaderStoreV2] 📖 setCurrentPage called:", {
+        requestedPage: page,
+        currentPage,
+        totalPages,
+        isSeeking,
+        currChapterId: viewerChapters?.currChapter?.chapter.id,
+        currChapterNumber: viewerChapters?.currChapter?.chapter.number,
+        currentChapterIndex,
+        willUpdate: !isSeeking && page !== currentPage,
+      });
+
       // Prevent jitter: don't update if actively seeking
       if (!isSeeking) {
-        // DEBUG: Log page updates
         if (page !== currentPage) {
-          console.log("[ReaderStoreV2] 📖 setCurrentPage:", {
-            newPage: page,
-            oldPage: currentPage,
-            totalPages,
-            currChapterId: viewerChapters?.currChapter?.chapter.id,
-            currChapterNumber: viewerChapters?.currChapter?.chapter.number,
-            currentChapterIndex,
+          console.log("[ReaderStoreV2] ✅ Page updated:", {
+            from: currentPage,
+            to: page,
           });
         }
         set({ currentPage: page });
       } else {
-        console.log("[ReaderStoreV2] ⏭️  setCurrentPage SKIPPED (isSeeking):", {
+        console.log("[ReaderStoreV2] ⏭️ setCurrentPage SKIPPED (isSeeking):", {
           requestedPage: page,
           currentPage,
         });
@@ -275,11 +283,16 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     },
 
     setNextChapterLoaded: (pages: ReaderPage[]) => {
-      console.log("[ReaderStoreV2] setNextChapterLoaded() called:", {
+      const state = get();
+      console.log("[ReaderStoreV2] 📥 setNextChapterLoaded() called:", {
         pagesCount: pages.length,
-        currentPage: get().currentPage,
-        currentChapterId: get().viewerChapters?.currChapter?.chapter.id,
-        nextChapterId: get().viewerChapters?.nextChapter?.chapter.id,
+        currentPage: state.currentPage,
+        totalPages: state.totalPages,
+        currentChapterId: state.viewerChapters?.currChapter?.chapter.id,
+        currentChapterNumber: state.viewerChapters?.currChapter?.chapter.number,
+        nextChapterId: state.viewerChapters?.nextChapter?.chapter.id,
+        nextChapterNumber: state.viewerChapters?.nextChapter?.chapter.number,
+        currentChapterIndex: state.currentChapterIndex,
       });
 
       set((state) => ({
@@ -294,6 +307,8 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
             }
           : null,
       }));
+
+      console.log("[ReaderStoreV2] ✅ Next chapter marked as loaded");
     },
 
     loadPrevChapter: async () => {
@@ -418,7 +433,18 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     // ========================================================================
 
     transitionToNextChapter: () => {
-      const { viewerChapters, allChapters, currentChapterIndex, currentPage } = get();
+      const { viewerChapters, allChapters, currentChapterIndex, currentPage, flashListRef } = get();
+
+      console.log("[ReaderStoreV2] 🚀 transitionToNextChapter called:", {
+        currentChapterIndex,
+        currentPage,
+        currChapterId: viewerChapters?.currChapter?.chapter.id,
+        currChapterNumber: viewerChapters?.currChapter?.chapter.number,
+        nextChapterId: viewerChapters?.nextChapter?.chapter.id,
+        nextChapterNumber: viewerChapters?.nextChapter?.chapter.number,
+        nextChapterState: viewerChapters?.nextChapter?.state,
+        nextChapterPages: viewerChapters?.nextChapter?.pages.length,
+      });
 
       if (!viewerChapters?.nextChapter) {
         console.warn("[ReaderStoreV2] transitionToNextChapter: No next chapter");
@@ -452,15 +478,27 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
             }
           : null;
 
-      console.log("[ReaderStoreV2] 🔄 Transitioning to next chapter:", {
-        fromChapterId: viewerChapters.currChapter.chapter.id,
-        fromChapterNumber: viewerChapters.currChapter.chapter.number,
-        fromCurrentPage: currentPage,
-        toChapterId: newCurrChapter.chapter.id,
-        toChapterNumber: newCurrChapter.chapter.number,
-        toPagesCount: newCurrChapter.pages.length,
-        newChapterIndex,
-        hasNewNext: !!newNextChapter,
+      console.log("[ReaderStoreV2] 🔄 Transitioning to next chapter - BEFORE set:", {
+        oldState: {
+          prevChapterId: viewerChapters.prevChapter?.chapter.id,
+          prevChapterPages: viewerChapters.prevChapter?.pages.length,
+          currChapterId: viewerChapters.currChapter.chapter.id,
+          currChapterPages: viewerChapters.currChapter.pages.length,
+          nextChapterId: viewerChapters.nextChapter?.chapter.id,
+          nextChapterPages: viewerChapters.nextChapter?.pages.length,
+          currentChapterIndex,
+          currentPage,
+        },
+        newState: {
+          prevChapterId: newPrevChapter.chapter.id,
+          prevChapterPages: newPrevChapter.pages.length,
+          currChapterId: newCurrChapter.chapter.id,
+          currChapterPages: newCurrChapter.pages.length,
+          nextChapterId: newNextChapter?.chapter.id,
+          nextChapterPages: newNextChapter?.pages.length ?? 0,
+          newChapterIndex,
+          newCurrentPage: 0,
+        },
       });
 
       set({
@@ -474,9 +512,11 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         currentPage: 0, // Reset to first page of new chapter
       });
 
-      console.log("[ReaderStoreV2] ✅ Next chapter transition complete:", {
+      console.log("[ReaderStoreV2] ✅ Next chapter transition complete - AFTER set:", {
         newCurrentPage: 0,
         newTotalPages: newCurrChapter.pages.length,
+        newChapterIndex,
+        newCurrChapterId: newCurrChapter.chapter.id,
       });
     },
 

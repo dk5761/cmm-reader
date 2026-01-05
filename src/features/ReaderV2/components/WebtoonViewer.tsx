@@ -28,30 +28,6 @@ const VIEWABILITY_CONFIG = {
 const TRANSITION_SETTLE_DELAY = 300; // ms to wait for FlashList to settle after scroll
 const DRAW_DISTANCE_MULTIPLIER = 0.75; // 3/4 screen height for preloading
 
-/**
- * Calculate the index of the next chapter transition item in the adapter
- */
-function calculateNextTransitionIndex(
-  viewerChapters: ViewerChapters | null
-): number {
-  if (!viewerChapters) return 0;
-  const currPages = viewerChapters.currChapter.pages.length;
-  const prevPages =
-    viewerChapters.prevChapter?.state === "loaded"
-      ? viewerChapters.prevChapter.pages.length + 1
-      : 1;
-  return currPages + prevPages;
-}
-
-/**
- * Calculate the index of the previous chapter transition item in the adapter
- */
-function calculatePrevTransitionIndex(
-  viewerChapters: ViewerChapters | null
-): number {
-  return viewerChapters?.prevChapter?.pages.length ?? 0;
-}
-
 export const WebtoonViewer = memo(function WebtoonViewer() {
   const flashListRef = useRef<FlashListRef<AdapterItem>>(null);
   const { height: screenHeight } = useWindowDimensions();
@@ -89,17 +65,30 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
       viewerChapters.nextChapter?.state === "loading"
     );
 
-    if (__DEV__) {
-      console.log("[WebtoonViewer] Building adapter items:", {
-        currChapterId: viewerChapters.currChapter?.chapter.id,
-        prevChapterState: viewerChapters.prevChapter?.state,
-        prevChapterPages: viewerChapters.prevChapter?.pages.length ?? 0,
-        nextChapterState: viewerChapters.nextChapter?.state,
-        nextChapterPages: viewerChapters.nextChapter?.pages.length ?? 0,
-        currChapterPages: viewerChapters.currChapter?.pages.length ?? 0,
-        totalItems: builtItems.length,
-      });
-    }
+    // Always log adapter items for debugging the jump issue
+    console.log("[WebtoonViewer] 🔨 Building adapter items:", {
+      currChapterId: viewerChapters.currChapter?.chapter.id,
+      currChapterNumber: viewerChapters.currChapter?.chapter.number,
+      prevChapterState: viewerChapters.prevChapter?.state,
+      prevChapterPages: viewerChapters.prevChapter?.pages.length ?? 0,
+      nextChapterState: viewerChapters.nextChapter?.state,
+      nextChapterPages: viewerChapters.nextChapter?.pages.length ?? 0,
+      currChapterPages: viewerChapters.currChapter?.pages.length ?? 0,
+      totalItems: builtItems.length,
+      itemBreakdown: {
+        prevItems: viewerChapters.prevChapter
+          ? viewerChapters.prevChapter.state === "loaded"
+            ? viewerChapters.prevChapter.pages.length + 1
+            : 1
+          : 0,
+        currItems: viewerChapters.currChapter.pages.length,
+        nextItems: viewerChapters.nextChapter
+          ? viewerChapters.nextChapter.state === "loaded"
+            ? viewerChapters.nextChapter.pages.length + 1
+            : 1
+          : 0,
+      },
+    });
 
     return builtItems;
   }, [viewerChapters]);
@@ -152,48 +141,43 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
     const wasLoading = nextChapterLoadingRef.current;
     const isNowLoaded = nextChapterState === "loaded";
 
+    console.log("[WebtoonViewer] 🔄 Next chapter state effect:", {
+      wasLoading,
+      isNowLoaded,
+      nextChapterState,
+      nextChapterId: viewerChapters?.nextChapter?.chapter.id,
+      nextChapterPages: viewerChapters?.nextChapter?.pages.length,
+      isTransitioning: isTransitioningRef.current,
+    });
+
     if (wasLoading && isNowLoaded && viewerChapters?.nextChapter) {
       // Guard against multiple simultaneous transitions
       if (isTransitioningRef.current) {
-        if (__DEV__) {
-          console.warn(
-            "[WebtoonViewer] ⚠️ Already transitioning, skipping next chapter scroll"
-          );
-        }
+        console.warn(
+          "[WebtoonViewer] ⚠️ Already transitioning, skipping next chapter scroll"
+        );
         return;
       }
 
-      if (__DEV__) {
-        console.log(
-          "[WebtoonViewer] 🎯 Next chapter just loaded, scrolling to transition"
-        );
-      }
+      console.log(
+        "[WebtoonViewer] 🎯 Next chapter just loaded - NOT scrolling (let user scroll naturally)"
+      );
+
+      // REMOVED: scrollToIndex call
+      // The scrollToIndex was causing jumps because:
+      // 1. FlashList's size estimation may be inaccurate for variable-height webtoon pages
+      // 2. The user is already near/at the transition naturally
+      // 3. Forcing a scroll can conflict with the user's current scroll position
+      //
+      // Instead, we just set the transition guard briefly to prevent
+      // viewability callback from firing during the adapter rebuild
 
       isTransitioningRef.current = true;
-
-      const transitionIndex = calculateNextTransitionIndex(viewerChapters);
-
-      try {
-        flashListRef.current?.scrollToIndex({
-          index: transitionIndex,
-          animated: false,
-          viewPosition: 0,
-        });
-        if (__DEV__) {
-          console.log("[WebtoonViewer] ✅ Scrolled to transition:", {
-            transitionIndex,
-          });
-        }
-      } catch (error) {
-        console.warn("[WebtoonViewer] Failed to scroll to transition:", error);
-      }
 
       // Allow viewability updates after a short delay to let FlashList settle
       setTimeout(() => {
         isTransitioningRef.current = false;
-        if (__DEV__) {
-          console.log("[WebtoonViewer] 🔓 Transition guard released");
-        }
+        console.log("[WebtoonViewer] 🔓 Transition guard released after delay");
       }, TRANSITION_SETTLE_DELAY);
     }
 
@@ -209,48 +193,25 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
     if (wasLoading && isNowLoaded && viewerChapters?.prevChapter) {
       // Guard against multiple simultaneous transitions
       if (isTransitioningRef.current) {
-        if (__DEV__) {
-          console.warn(
-            "[WebtoonViewer] ⚠️ Already transitioning, skipping prev chapter scroll"
-          );
-        }
+        console.warn(
+          "[WebtoonViewer] ⚠️ Already transitioning, skipping prev chapter scroll"
+        );
         return;
       }
 
-      if (__DEV__) {
-        console.log(
-          "[WebtoonViewer] 🎯 Previous chapter just loaded, scrolling to transition"
-        );
-      }
+      console.log(
+        "[WebtoonViewer] 🎯 Previous chapter just loaded - NOT scrolling (let user scroll naturally)"
+      );
+
+      // REMOVED: scrollToIndex call
+      // Same reasoning as next chapter - let user scroll naturally
+      // The transition guard prevents viewability jitter during rebuild
 
       isTransitioningRef.current = true;
 
-      const transitionIndex = calculatePrevTransitionIndex(viewerChapters);
-
-      try {
-        flashListRef.current?.scrollToIndex({
-          index: transitionIndex,
-          animated: false,
-          viewPosition: 1,
-        });
-        if (__DEV__) {
-          console.log(
-            "[WebtoonViewer] ✅ Scrolled to prev chapter transition:",
-            { transitionIndex }
-          );
-        }
-      } catch (error) {
-        console.warn(
-          "[WebtoonViewer] Failed to scroll to prev chapter transition:",
-          error
-        );
-      }
-
       setTimeout(() => {
         isTransitioningRef.current = false;
-        if (__DEV__) {
-          console.log("[WebtoonViewer] 🔓 Prev transition guard released");
-        }
+        console.log("[WebtoonViewer] 🔓 Prev transition guard released");
       }, TRANSITION_SETTLE_DELAY);
     }
 
@@ -265,12 +226,20 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
         return;
       }
 
+      // Log every viewability change for debugging
+      console.log("[WebtoonViewer] 👁️ onViewableItemsChanged:", {
+        viewableCount: viewableItems.length,
+        isTransitioning: isTransitioningRef.current,
+        firstItemType: viewableItems[0]?.item?.type,
+        firstItemIndex: viewableItems[0]?.index,
+        lastItemType: viewableItems[viewableItems.length - 1]?.item?.type,
+        lastItemIndex: viewableItems[viewableItems.length - 1]?.index,
+      });
+
       if (isTransitioningRef.current) {
-        if (__DEV__) {
-          console.log(
-            "[WebtoonViewer] ⏸️ Skipping viewability during transition"
-          );
-        }
+        console.log(
+          "[WebtoonViewer] ⏸️ Skipping viewability update during transition"
+        );
         return;
       }
 
@@ -294,13 +263,12 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
         // Check for transition items (for chapter preloading)
         const lastItem = viewableItems[viewableItems.length - 1]?.item;
         if (lastItem?.type === "transition") {
-          if (__DEV__) {
-            console.log("[WebtoonViewer] Transition item visible (no pages):", {
-              direction: lastItem.direction,
-              targetChapterId: lastItem.targetChapter?.chapter.id,
-              viewableItemsCount: viewableItems.length,
-            });
-          }
+          console.log("[WebtoonViewer] 🔀 Transition item visible (no pages):", {
+            direction: lastItem.direction,
+            targetChapterId: lastItem.targetChapter?.chapter.id,
+            targetChapterState: lastItem.targetChapter?.state,
+            viewableItemsCount: viewableItems.length,
+          });
           if (lastItem.direction === "next" && lastItem.targetChapter) {
             loadNextChapter();
           } else if (lastItem.direction === "prev" && lastItem.targetChapter) {
@@ -316,18 +284,17 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
         const visibleChapterId = firstPage.item.chapterId;
         const pageIndex = firstPage.item.page.index;
 
-        // DEBUG: Log page tracking info
-        if (__DEV__) {
-          console.log("[WebtoonViewer] Viewable page changed:", {
-            pageIndex,
-            chapterId: visibleChapterId,
-            currentChapterId,
-            nextChapterId,
-            prevChapterId,
-            visibleItemsCount: viewableItems.length,
-            isDifferentChapter: visibleChapterId !== currentChapterId,
-          });
-        }
+        // Log detailed page tracking info
+        console.log("[WebtoonViewer] 📖 Viewable page detected:", {
+          pageIndex,
+          chapterId: visibleChapterId,
+          currentChapterId,
+          nextChapterId,
+          prevChapterId,
+          visiblePagesCount: visiblePages.length,
+          isDifferentChapter: visibleChapterId !== currentChapterId,
+          allVisibleChapterIds: visiblePages.map((v) => v.item.chapterId),
+        });
 
         // Check if we've transitioned to a different chapter
         if (visibleChapterId !== currentChapterId) {
@@ -337,57 +304,50 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
               v.item.type === "page" && v.item.chapterId === visibleChapterId
           );
 
-          if (__DEV__) {
-            console.log("[WebtoonViewer] Chapter transition detected:", {
-              fromChapter: currentChapterId,
-              toChapter: visibleChapterId,
-              allPagesFromSameChapter,
-              expectedNextChapter: nextChapterId,
-              expectedPrevChapter: prevChapterId,
-            });
-          }
+          console.log("[WebtoonViewer] 🔄 Chapter transition check:", {
+            fromChapter: currentChapterId,
+            toChapter: visibleChapterId,
+            allPagesFromSameChapter,
+            expectedNextChapter: nextChapterId,
+            expectedPrevChapter: prevChapterId,
+            isNextChapter: visibleChapterId === nextChapterId,
+            isPrevChapter: visibleChapterId === prevChapterId,
+          });
 
           if (allPagesFromSameChapter) {
             if (visibleChapterId === nextChapterId) {
-              if (__DEV__) {
-                console.log(
-                  "[WebtoonViewer] ✅ Calling transitionToNextChapter()",
-                  visibleChapterId
-                );
-              }
+              console.log(
+                "[WebtoonViewer] ✅ Calling transitionToNextChapter()",
+                { targetChapterId: visibleChapterId }
+              );
               transitionToNextChapter();
             } else if (visibleChapterId === prevChapterId) {
-              if (__DEV__) {
-                console.log(
-                  "[WebtoonViewer] ✅ Calling transitionToPrevChapter()",
-                  visibleChapterId
-                );
-              }
+              console.log(
+                "[WebtoonViewer] ✅ Calling transitionToPrevChapter()",
+                { targetChapterId: visibleChapterId }
+              );
               transitionToPrevChapter();
             }
           }
         }
 
         // Update current page (this will now be correct after transition)
-        if (__DEV__) {
-          console.log("[WebtoonViewer] Calling setCurrentPage():", {
-            pageIndex,
-            chapterId: visibleChapterId,
-          });
-        }
+        console.log("[WebtoonViewer] 📄 Calling setCurrentPage:", {
+          pageIndex,
+          chapterId: visibleChapterId,
+        });
         setCurrentPage(pageIndex);
       }
 
       // Check for transition items (for chapter preloading)
       const lastItem = viewableItems[viewableItems.length - 1]?.item;
       if (lastItem?.type === "transition") {
-        if (__DEV__) {
-          console.log("[WebtoonViewer] Transition item visible (with pages):", {
-            direction: lastItem.direction,
-            targetChapterId: lastItem.targetChapter?.chapter.id,
-            viewableItemsCount: viewableItems.length,
-          });
-        }
+        console.log("[WebtoonViewer] 🔀 Transition item visible (with pages):", {
+          direction: lastItem.direction,
+          targetChapterId: lastItem.targetChapter?.chapter.id,
+          targetChapterState: lastItem.targetChapter?.state,
+          viewableItemsCount: viewableItems.length,
+        });
         if (lastItem.direction === "next" && lastItem.targetChapter) {
           loadNextChapter();
         } else if (lastItem.direction === "prev" && lastItem.targetChapter) {
