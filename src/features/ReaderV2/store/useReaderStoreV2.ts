@@ -40,7 +40,9 @@ const initialState: ReaderStoreState = {
 interface ReaderStoreActionsV2 extends ReaderStoreActions {
   // Accept pre-loaded chapter data (from react-query hook)
   setCurrentChapterData: (chapterData: ReaderChapter) => void;
-  // Chapter transitions for infinite scroll
+  // Update active chapter metadata (for overlay/slider) - called immediately when entering new chapter
+  updateActiveChapter: (chapterId: string, pageIndex: number) => void;
+  // Chapter transitions for infinite scroll - called when safe to remove old pages from adapter
   transitionToNextChapter: () => void;
   transitionToPrevChapter: () => void;
   // Get current chapter info (for components that need actual visible chapter)
@@ -155,6 +157,49 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         totalPages: chapterData.pages.length,
         hasPrev: !!prevChapter,
         hasNext: !!nextChapter,
+      });
+    },
+
+    // Update active chapter metadata (for overlay/slider)
+    // Called immediately when user scrolls to page 1 of a different chapter
+    // This updates the UI without modifying the adapter structure
+    updateActiveChapter: (chapterId: string, pageIndex: number) => {
+      const { allChapters, currentChapterIndex, viewerChapters } = get();
+
+      // Find the chapter in allChapters
+      const newChapterIndex = allChapters.findIndex((c) => c.id === chapterId);
+      if (newChapterIndex === -1) {
+        console.warn("[ReaderStoreV2] updateActiveChapter: Chapter not found", { chapterId });
+        return;
+      }
+
+      // Skip if already on this chapter
+      if (newChapterIndex === currentChapterIndex) {
+        return;
+      }
+
+      // Find the chapter data in viewerChapters to get totalPages
+      let totalPages = 0;
+      if (viewerChapters?.nextChapter?.chapter.id === chapterId) {
+        totalPages = viewerChapters.nextChapter.pages.length;
+      } else if (viewerChapters?.prevChapter?.chapter.id === chapterId) {
+        totalPages = viewerChapters.prevChapter.pages.length;
+      } else if (viewerChapters?.currChapter?.chapter.id === chapterId) {
+        totalPages = viewerChapters.currChapter.pages.length;
+      }
+
+      console.log("[ReaderStoreV2] 🎯 updateActiveChapter:", {
+        fromChapterIndex: currentChapterIndex,
+        toChapterIndex: newChapterIndex,
+        chapterId,
+        pageIndex,
+        totalPages,
+      });
+
+      set({
+        currentChapterIndex: newChapterIndex,
+        currentPage: pageIndex,
+        totalPages,
       });
     },
 
@@ -430,20 +475,19 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
 
     // ========================================================================
     // Chapter Transitions (for infinite scroll)
+    // These functions ONLY handle the adapter cleanup (shifting ViewerChapters)
+    // Metadata updates (currentChapterIndex, totalPages, currentPage) are handled
+    // by updateActiveChapter() which is called earlier
     // ========================================================================
 
     transitionToNextChapter: () => {
-      const { viewerChapters, allChapters, currentChapterIndex, currentPage, flashListRef } = get();
+      const { viewerChapters, allChapters, currentChapterIndex } = get();
 
-      console.log("[ReaderStoreV2] 🚀 transitionToNextChapter called:", {
+      console.log("[ReaderStoreV2] 🚀 transitionToNextChapter (adapter cleanup):", {
         currentChapterIndex,
-        currentPage,
         currChapterId: viewerChapters?.currChapter?.chapter.id,
-        currChapterNumber: viewerChapters?.currChapter?.chapter.number,
         nextChapterId: viewerChapters?.nextChapter?.chapter.id,
-        nextChapterNumber: viewerChapters?.nextChapter?.chapter.number,
         nextChapterState: viewerChapters?.nextChapter?.state,
-        nextChapterPages: viewerChapters?.nextChapter?.pages.length,
       });
 
       if (!viewerChapters?.nextChapter) {
@@ -458,11 +502,11 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         return;
       }
 
-      // The next chapter becomes the current chapter
+      // The next chapter becomes the current chapter in the adapter
       const newCurrChapter = viewerChapters.nextChapter;
-      const newChapterIndex = currentChapterIndex - 1; // Moving to newer chapter (lower index)
+      const newChapterIndex = currentChapterIndex; // Already updated by updateActiveChapter
 
-      // The current chapter becomes the previous chapter
+      // The current chapter becomes the previous chapter (drop old prev)
       const newPrevChapter: ReaderChapter = {
         ...viewerChapters.currChapter,
         // Keep it loaded so user can scroll back
@@ -478,50 +522,34 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
             }
           : null;
 
-      console.log("[ReaderStoreV2] 🔄 Transitioning to next chapter - BEFORE set:", {
-        oldState: {
-          prevChapterId: viewerChapters.prevChapter?.chapter.id,
-          prevChapterPages: viewerChapters.prevChapter?.pages.length,
-          currChapterId: viewerChapters.currChapter.chapter.id,
-          currChapterPages: viewerChapters.currChapter.pages.length,
-          nextChapterId: viewerChapters.nextChapter?.chapter.id,
-          nextChapterPages: viewerChapters.nextChapter?.pages.length,
-          currentChapterIndex,
-          currentPage,
-        },
-        newState: {
-          prevChapterId: newPrevChapter.chapter.id,
-          prevChapterPages: newPrevChapter.pages.length,
-          currChapterId: newCurrChapter.chapter.id,
-          currChapterPages: newCurrChapter.pages.length,
-          nextChapterId: newNextChapter?.chapter.id,
-          nextChapterPages: newNextChapter?.pages.length ?? 0,
-          newChapterIndex,
-          newCurrentPage: 0,
-        },
+      console.log("[ReaderStoreV2] 🔄 Adapter cleanup (next) - shifting ViewerChapters:", {
+        droppingPrev: viewerChapters.prevChapter?.chapter.id,
+        oldCurrBecomesNewPrev: viewerChapters.currChapter.chapter.id,
+        oldNextBecomesNewCurr: newCurrChapter.chapter.id,
+        newNextChapter: newNextChapter?.chapter.id,
       });
 
+      // ONLY update viewerChapters - metadata already updated by updateActiveChapter
       set({
         viewerChapters: {
           prevChapter: newPrevChapter,
           currChapter: newCurrChapter,
           nextChapter: newNextChapter,
         },
-        currentChapterIndex: newChapterIndex,
-        totalPages: newCurrChapter.pages.length,
-        currentPage: 0, // Reset to first page of new chapter
       });
 
-      console.log("[ReaderStoreV2] ✅ Next chapter transition complete - AFTER set:", {
-        newCurrentPage: 0,
-        newTotalPages: newCurrChapter.pages.length,
-        newChapterIndex,
-        newCurrChapterId: newCurrChapter.chapter.id,
-      });
+      console.log("[ReaderStoreV2] ✅ Adapter cleanup (next) complete");
     },
 
     transitionToPrevChapter: () => {
-      const { viewerChapters, allChapters, currentChapterIndex, currentPage } = get();
+      const { viewerChapters, allChapters, currentChapterIndex } = get();
+
+      console.log("[ReaderStoreV2] 🚀 transitionToPrevChapter (adapter cleanup):", {
+        currentChapterIndex,
+        currChapterId: viewerChapters?.currChapter?.chapter.id,
+        prevChapterId: viewerChapters?.prevChapter?.chapter.id,
+        prevChapterState: viewerChapters?.prevChapter?.state,
+      });
 
       if (!viewerChapters?.prevChapter) {
         console.warn("[ReaderStoreV2] transitionToPrevChapter: No prev chapter");
@@ -535,11 +563,11 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         return;
       }
 
-      // The prev chapter becomes the current chapter
+      // The prev chapter becomes the current chapter in the adapter
       const newCurrChapter = viewerChapters.prevChapter;
-      const newChapterIndex = currentChapterIndex + 1; // Moving to older chapter (higher index)
+      const newChapterIndex = currentChapterIndex; // Already updated by updateActiveChapter
 
-      // The current chapter becomes the next chapter
+      // The current chapter becomes the next chapter (drop old next)
       const newNextChapter: ReaderChapter = {
         ...viewerChapters.currChapter,
         // Keep it loaded so user can scroll forward
@@ -555,32 +583,23 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
             }
           : null;
 
-      console.log("[ReaderStoreV2] 🔄 Transitioning to previous chapter:", {
-        fromChapterId: viewerChapters.currChapter.chapter.id,
-        fromChapterNumber: viewerChapters.currChapter.chapter.number,
-        fromCurrentPage: currentPage,
-        toChapterId: newCurrChapter.chapter.id,
-        toChapterNumber: newCurrChapter.chapter.number,
-        toPagesCount: newCurrChapter.pages.length,
-        newChapterIndex,
-        hasNewPrev: !!newPrevChapter,
+      console.log("[ReaderStoreV2] 🔄 Adapter cleanup (prev) - shifting ViewerChapters:", {
+        droppingNext: viewerChapters.nextChapter?.chapter.id,
+        oldCurrBecomesNewNext: viewerChapters.currChapter.chapter.id,
+        oldPrevBecomesNewCurr: newCurrChapter.chapter.id,
+        newPrevChapter: newPrevChapter?.chapter.id,
       });
 
+      // ONLY update viewerChapters - metadata already updated by updateActiveChapter
       set({
         viewerChapters: {
           prevChapter: newPrevChapter,
           currChapter: newCurrChapter,
           nextChapter: newNextChapter,
         },
-        currentChapterIndex: newChapterIndex,
-        totalPages: newCurrChapter.pages.length,
-        currentPage: newCurrChapter.pages.length - 1, // Last page of new chapter
       });
 
-      console.log("[ReaderStoreV2] ✅ Previous chapter transition complete:", {
-        newCurrentPage: newCurrChapter.pages.length - 1,
-        newTotalPages: newCurrChapter.pages.length,
-      });
+      console.log("[ReaderStoreV2] ✅ Adapter cleanup (prev) complete");
     },
 
     getCurrentChapter: () => {

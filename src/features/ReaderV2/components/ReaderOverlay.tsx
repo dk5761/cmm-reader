@@ -33,10 +33,16 @@ export const ReaderOverlay = memo(function ReaderOverlay({
   const insets = useSafeAreaInsets();
   const isOverlayVisible = useReaderStoreV2((s) => s.isOverlayVisible);
   const viewerChapters = useReaderStoreV2((s) => s.viewerChapters);
+  const allChapters = useReaderStoreV2((s) => s.allChapters);
+  const currentChapterIndex = useReaderStoreV2((s) => s.currentChapterIndex);
 
-  // Use the current chapter from store (updates during infinite scroll)
-  // Fall back to prop for initial render
-  const currentChapter = viewerChapters?.currChapter?.chapter ?? chapter;
+  // Use the active chapter from store (updates immediately via updateActiveChapter)
+  // This is based on currentChapterIndex which updates at page 0 of new chapter
+  // Fall back to viewerChapters.currChapter, then to prop for initial render
+  const activeChapter =
+    currentChapterIndex >= 0 && allChapters[currentChapterIndex]
+      ? allChapters[currentChapterIndex]
+      : viewerChapters?.currChapter?.chapter ?? chapter;
 
   // Animated styles for header
   const headerStyle = useAnimatedStyle(() => ({
@@ -64,7 +70,7 @@ export const ReaderOverlay = memo(function ReaderOverlay({
 
   if (!viewerChapters) return null;
 
-  const chapterTitle = formatChapterTitle(currentChapter);
+  const chapterTitle = formatChapterTitle(activeChapter);
 
   return (
     <>
