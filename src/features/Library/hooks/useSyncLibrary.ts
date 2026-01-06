@@ -87,8 +87,11 @@ export function useSyncLibrary() {
         );
 
         try {
-          // Fetch latest chapters
-          const chapters = await source.getChapterList(manga.url);
+          // Fetch latest manga details and chapters in parallel
+          const [mangaDetails, chapters] = await Promise.all([
+            source.getMangaDetails(manga.url),
+            source.getChapterList(manga.url),
+          ]);
 
           // Create map for fast lookup
           const existingChaptersMap = new Map(
@@ -102,10 +105,39 @@ export function useSyncLibrary() {
 
           const syncTimestamp = Date.now();
 
-          // Update all chapters (both new and existing)
+          // Update manga metadata and chapters
           realm.write(() => {
             const realmManga = realm.objectForPrimaryKey(MangaSchema, manga.id);
             if (!realmManga) return;
+
+            // Update manga metadata from fetched details (always update even if unchanged)
+            if (mangaDetails.title) {
+              realmManga.title = mangaDetails.title;
+            }
+            if (mangaDetails.cover) {
+              realmManga.cover = mangaDetails.cover;
+            }
+            if (mangaDetails.author !== undefined) {
+              realmManga.author = mangaDetails.author;
+            }
+            if (mangaDetails.artist !== undefined) {
+              realmManga.artist = mangaDetails.artist;
+            }
+            if (mangaDetails.status !== undefined) {
+              realmManga.status = mangaDetails.status;
+            }
+            if (mangaDetails.description !== undefined) {
+              realmManga.description = mangaDetails.description;
+            }
+            if (mangaDetails.genres && mangaDetails.genres.length > 0) {
+              // Clear and repopulate genres list
+              while (realmManga.genres.length > 0) {
+                realmManga.genres.pop();
+              }
+              mangaDetails.genres.forEach((genre) => {
+                realmManga.genres.push(genre);
+              });
+            }
 
             // Update existing chapters
             chapters.forEach((ch) => {
@@ -138,9 +170,8 @@ export function useSyncLibrary() {
               } as ChapterSchema);
             });
 
-            if (newChapters.length > 0 || updatedChaptersCount > 0) {
-              realmManga.lastUpdated = Date.now();
-            }
+            // Always update lastUpdated since we're updating manga data
+            realmManga.lastUpdated = Date.now();
           });
 
           if (newChapters.length > 0) {
