@@ -1,40 +1,24 @@
 import { useCallback } from "react";
-import { useRealm } from "@realm/react";
-import { MangaSchema, ReadingProgressSchema } from "@/core/database";
+import { useObject } from "@realm/react";
+import { MangaSchema } from "@/core/database";
+import { useRepositories } from "@/core/database/repositories";
 
 /**
  * Save reading progress - updates embedded object
  */
 export function useSaveProgress() {
-  const realm = useRealm();
+  const { chapter: chapterRepo } = useRepositories();
 
   return useCallback(
-    (
+    async (
       mangaId: string,
       chapterId: string,
       chapterNumber: number,
       page: number
     ) => {
-      realm.write(() => {
-        const manga = realm.objectForPrimaryKey(MangaSchema, mangaId);
-        if (!manga) return;
-
-        // Update progress
-        manga.progress = {
-          lastChapterId: chapterId,
-          lastChapterNumber: chapterNumber,
-          lastPage: page,
-          timestamp: Date.now(),
-        } as ReadingProgressSchema;
-
-        // Also update chapter's lastPageRead
-        const chapter = manga.chapters.find((c) => c.id === chapterId);
-        if (chapter) {
-          chapter.lastPageRead = page;
-        }
-      });
+      await chapterRepo.saveProgress(mangaId, chapterId, chapterNumber, page);
     },
-    [realm]
+    [chapterRepo]
   );
 }
 
@@ -42,40 +26,31 @@ export function useSaveProgress() {
  * Mark chapter as read
  */
 export function useMarkChapterRead() {
-  const realm = useRealm();
+  const { chapter: chapterRepo } = useRepositories();
 
   return useCallback(
-    (mangaId: string, chapterId: string, totalPages?: number) => {
+    async (mangaId: string, chapterId: string, totalPages?: number) => {
       console.log("[useMarkChapterRead] Called with:", { mangaId, chapterId });
-      realm.write(() => {
-        const manga = realm.objectForPrimaryKey(MangaSchema, mangaId);
-        console.log("[useMarkChapterRead] Manga found:", !!manga);
-        if (!manga) {
-          console.log("[useMarkChapterRead] Manga not in library!");
-          return;
-        }
-
-        console.log("[useMarkChapterRead] Looking for chapter:", chapterId);
-        console.log(
-          "[useMarkChapterRead] Available chapter IDs (first 5):",
-          manga.chapters.slice(0, 5).map((c) => c.id)
-        );
-
-        const chapter = manga.chapters.find((c) => c.id === chapterId);
-        if (chapter) {
-          chapter.isRead = true;
-          if (totalPages) {
-            chapter.totalPages = totalPages;
-          }
-          console.log("[Progress] Marked chapter as read:", chapterId);
-        } else {
-          console.log(
-            "[useMarkChapterRead] Chapter NOT found in manga.chapters!"
-          );
-        }
-      });
+      
+      // We need to pass isRead=true. 
+      // The repo method `markAsRead` takes `chapterId` and `isRead`.
+      // It doesn't take `mangaId` (it finds chapter by ID assuming uniqueness or knowledge).
+      // Wait, `RealmChapterRepository.markAsRead` uses `getChapter(chapterId)`.
+      // `getChapter` uses `realm.objects(MangaSchema).filtered("chapters.id == $0", chapterId)[0]`.
+      // So it doesn't need mangaId.
+      
+      // However, `useMarkChapterRead` in original code took `mangaId` and `totalPages`.
+      // I should update `markAsRead` in repo to handle `totalPages` or use `updateProgress`.
+      // Actually `markAsRead` in repo only sets `isRead`.
+      // `useMarkChapterRead` also sets `totalPages`.
+      
+      await chapterRepo.markAsRead(chapterId, true);
+      if (totalPages) {
+        await chapterRepo.updateProgress(chapterId, 0, totalPages);
+      }
+      console.log("[Progress] Marked chapter as read:", chapterId);
     },
-    [realm]
+    [chapterRepo]
   );
 }
 
@@ -83,28 +58,14 @@ export function useMarkChapterRead() {
  * Mark all previous chapters as read
  */
 export function useMarkPreviousAsRead() {
-  const realm = useRealm();
+  const { chapter: chapterRepo } = useRepositories();
 
   return useCallback(
-    (mangaId: string, chapterNumber: number) => {
-      realm.write(() => {
-        const manga = realm.objectForPrimaryKey(MangaSchema, mangaId);
-        if (!manga) return;
-
-        let marked = 0;
-        manga.chapters.forEach((chapter) => {
-          if (chapter.number < chapterNumber && !chapter.isRead) {
-            chapter.isRead = true;
-            marked++;
-          }
-        });
-
-        if (marked > 0) {
-          console.log("[Progress] Marked", marked, "previous chapters as read");
-        }
-      });
+    async (mangaId: string, chapterNumber: number) => {
+      await chapterRepo.markPreviousAsRead(mangaId, chapterNumber);
+      console.log("[Progress] Marked previous chapters as read");
     },
-    [realm]
+    [chapterRepo]
   );
 }
 
@@ -112,33 +73,14 @@ export function useMarkPreviousAsRead() {
  * Mark all previous chapters as unread
  */
 export function useMarkPreviousAsUnread() {
-  const realm = useRealm();
+  const { chapter: chapterRepo } = useRepositories();
 
   return useCallback(
-    (mangaId: string, chapterNumber: number) => {
-      realm.write(() => {
-        const manga = realm.objectForPrimaryKey(MangaSchema, mangaId);
-        if (!manga) return;
-
-        let marked = 0;
-        manga.chapters.forEach((chapter) => {
-          if (chapter.number < chapterNumber && chapter.isRead) {
-            chapter.isRead = false;
-            chapter.lastPageRead = 0;
-            marked++;
-          }
-        });
-
-        if (marked > 0) {
-          console.log(
-            "[Progress] Marked",
-            marked,
-            "previous chapters as unread"
-          );
-        }
-      });
+    async (mangaId: string, chapterNumber: number) => {
+      await chapterRepo.markPreviousAsUnread(mangaId, chapterNumber);
+      console.log("[Progress] Marked previous chapters as unread");
     },
-    [realm]
+    [chapterRepo]
   );
 }
 
@@ -146,21 +88,14 @@ export function useMarkPreviousAsUnread() {
  * Mark chapter as unread
  */
 export function useMarkChapterUnread() {
-  const realm = useRealm();
+  const { chapter: chapterRepo } = useRepositories();
 
   return useCallback(
-    (mangaId: string, chapterId: string) => {
-      realm.write(() => {
-        const manga = realm.objectForPrimaryKey(MangaSchema, mangaId);
-        const chapter = manga?.chapters.find((c) => c.id === chapterId);
-        if (chapter) {
-          chapter.isRead = false;
-          chapter.lastPageRead = 0;
-          console.log("[Progress] Marked chapter as unread:", chapterId);
-        }
-      });
+    async (mangaId: string, chapterId: string) => {
+      await chapterRepo.markAsRead(chapterId, false);
+      console.log("[Progress] Marked chapter as unread:", chapterId);
     },
-    [realm]
+    [chapterRepo]
   );
 }
 
@@ -168,6 +103,6 @@ export function useMarkChapterUnread() {
  * Get reading progress for a manga
  */
 export function useGetProgress(mangaId: string) {
-  const manga = useRealm().objectForPrimaryKey(MangaSchema, mangaId);
+  const manga = useObject(MangaSchema, mangaId);
   return manga?.progress;
 }
