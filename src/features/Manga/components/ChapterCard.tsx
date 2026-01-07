@@ -11,28 +11,35 @@ import { Swipeable, RectButton } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { triggerHaptic } from "@/utils/haptics";
 import type { Chapter } from "@/sources";
+import { DownloadStatus } from "@/shared/contexts/DownloadContext";
 import { useRef } from "react";
 
 type ChapterCardProps = {
   chapter: Chapter;
   isRead?: boolean;
   lastPage?: number;
+  downloadStatus?: DownloadStatus;
   onPress?: () => void;
   onMarkAsRead?: () => void;
   onMarkAsUnread?: () => void;
   onMarkPreviousAsRead?: () => void;
   onMarkPreviousAsUnread?: () => void;
+  onDownload?: () => void;
+  onCancelDownload?: () => void;
 };
 
 export function ChapterCard({
   chapter,
   isRead = false,
   lastPage,
+  downloadStatus = DownloadStatus.NONE,
   onPress,
   onMarkAsRead,
   onMarkAsUnread,
   onMarkPreviousAsRead,
   onMarkPreviousAsUnread,
+  onDownload,
+  onCancelDownload,
 }: ChapterCardProps) {
   const swipeableRef = useRef<Swipeable>(null);
   const opacityAnim = useRef(new RNAnimated.Value(1)).current;
@@ -50,6 +57,47 @@ export function ChapterCard({
       onMarkAsUnread?.();
     } else {
       onMarkAsRead?.();
+    }
+  };
+
+  const handleDownloadPress = () => {
+    if (downloadStatus === DownloadStatus.NONE) {
+      onDownload?.();
+    } else if (
+      downloadStatus === DownloadStatus.DOWNLOADING ||
+      downloadStatus === DownloadStatus.QUEUED
+    ) {
+      onCancelDownload?.();
+    }
+  };
+
+  // Render download icon based on status
+  const renderDownloadIcon = () => {
+    switch (downloadStatus) {
+      case DownloadStatus.DOWNLOADED:
+        return (
+          <View className="bg-primary rounded-full p-1">
+            <Ionicons name="checkmark" size={14} color="#000" />
+          </View>
+        );
+      case DownloadStatus.DOWNLOADING:
+        return (
+          <View className="border-2 border-primary rounded-full w-6 h-6 border-t-transparent animate-spin" />
+        );
+      case DownloadStatus.QUEUED:
+        return (
+          <View className="border border-primary rounded-full p-1">
+            <Ionicons name="time-outline" size={14} color={primary} />
+          </View>
+        );
+      case DownloadStatus.ERROR:
+        return (
+          <Ionicons name="alert-circle-outline" size={24} color="#ef4444" />
+        );
+      default:
+        return (
+          <Ionicons name="download-outline" size={24} color="#71717a" />
+        );
     }
   };
 
@@ -159,7 +207,7 @@ export function ChapterCard({
             useNativeDriver: true,
           }).start();
         }}
-        className="flex-row items-center px-4 py-3 bg-background"
+        className="flex-row items-center px-4 py-3 bg-background border-b border-border/20"
       >
         <RNAnimated.View
           className="flex-row items-center flex-1"
@@ -172,7 +220,7 @@ export function ChapterCard({
               : opacityAnim,
           }}
         >
-          <View className="flex-1">
+          <View className="flex-1 pr-4">
             <Text className="text-foreground text-sm font-medium">
               Chapter {chapter.number}
             </Text>
@@ -190,13 +238,25 @@ export function ChapterCard({
               )}
             </View>
           </View>
-          {isRead && (
-            <View className="bg-primary/20 px-2 py-0.5 rounded">
-              <Text style={{ color: primary, fontSize: 10, fontWeight: "600" }}>
-                READ
-              </Text>
-            </View>
-          )}
+          
+          <View className="flex-row items-center gap-3">
+            {isRead && (
+              <View className="bg-surface px-2 py-0.5 rounded border border-border">
+                <Text style={{ color: primary, fontSize: 10, fontWeight: "600" }}>
+                  READ
+                </Text>
+              </View>
+            )}
+            
+            {/* Download Button */}
+            <Pressable
+              onPress={handleDownloadPress}
+              className="p-2 -mr-2"
+              hitSlop={8}
+            >
+              {renderDownloadIcon()}
+            </Pressable>
+          </View>
         </RNAnimated.View>
       </Pressable>
     </Swipeable>

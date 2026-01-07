@@ -9,6 +9,7 @@ import { useRouter } from "expo-router";
 import { ChapterCard } from "./ChapterCard";
 import { useChapterActions } from "../hooks";
 import { useLibraryMangaById } from "@/features/Library/hooks";
+import { useDownloadManager, DownloadStatus } from "@/shared/contexts/DownloadContext";
 import type { DisplayChapter } from "../hooks/useMangaData";
 
 export type ChapterListSectionProps = {
@@ -36,6 +37,8 @@ export function ChapterListSection({
 }: ChapterListSectionProps) {
   const router = useRouter();
   const libraryManga = useLibraryMangaById(mangaId);
+  const { queueDownload, cancelDownload } = useDownloadManager();
+  
   const {
     readChapterIds,
     markAsRead,
@@ -44,13 +47,15 @@ export function ChapterListSection({
     markPreviousAsUnread,
   } = useChapterActions(mangaId);
 
-  // Map of chapterId to lastPageRead
-  const chapterProgressMap = useMemo(() => {
-    const map = new Map<string, number>();
+  // Map of chapterId to lastPageRead and downloadStatus
+  // We compute this once when libraryManga changes
+  const chapterDataMap = useMemo(() => {
+    const map = new Map<string, { lastPage: number; downloadStatus: DownloadStatus }>();
     libraryManga?.chapters?.forEach((ch) => {
-      if (ch.lastPageRead > 0) {
-        map.set(ch.id, ch.lastPageRead);
-      }
+      map.set(ch.id, {
+        lastPage: ch.lastPageRead,
+        downloadStatus: ch.downloadStatus || DownloadStatus.NONE,
+      });
     });
     return map;
   }, [libraryManga?.chapters]);
@@ -126,30 +131,36 @@ export function ChapterListSection({
 
       {/* Chapters - Progressively rendered */}
       <View className="pb-4">
-        {visibleChapters.map((chapter) => (
-          <MemoizedChapterCard
-            key={chapter.id}
-            chapter={chapter}
-            isRead={readChapterIds.has(chapter.id)}
-            lastPage={chapterProgressMap.get(chapter.id)}
-            onPress={() =>
-              handleChapterPress(
-                chapter.id,
-                chapter.url,
-                chapter.number,
-                chapter.title
-              )
-            }
-            onMarkAsRead={() => markAsRead(chapter.id)}
-            onMarkAsUnread={() => markAsUnread(chapter.id)}
-            onMarkPreviousAsRead={() =>
-              markPreviousAsRead(chapter.number, chapters)
-            }
-            onMarkPreviousAsUnread={() =>
-              markPreviousAsUnread(chapter.number, chapters)
-            }
-          />
-        ))}
+        {visibleChapters.map((chapter) => {
+          const localData = chapterDataMap.get(chapter.id);
+          return (
+            <MemoizedChapterCard
+              key={chapter.id}
+              chapter={chapter}
+              isRead={readChapterIds.has(chapter.id)}
+              lastPage={localData?.lastPage}
+              downloadStatus={localData?.downloadStatus}
+              onPress={() =>
+                handleChapterPress(
+                  chapter.id,
+                  chapter.url,
+                  chapter.number,
+                  chapter.title
+                )
+              }
+              onMarkAsRead={() => markAsRead(chapter.id)}
+              onMarkAsUnread={() => markAsUnread(chapter.id)}
+              onMarkPreviousAsRead={() =>
+                markPreviousAsRead(chapter.number, chapters)
+              }
+              onMarkPreviousAsUnread={() =>
+                markPreviousAsUnread(chapter.number, chapters)
+              }
+              onDownload={() => queueDownload(chapter, mangaId, sourceId)}
+              onCancelDownload={() => cancelDownload(chapter.id)}
+            />
+          );
+        })}
 
         {/* Loading indicator for remaining chapters */}
         {visibleCount < chapters.length && (
