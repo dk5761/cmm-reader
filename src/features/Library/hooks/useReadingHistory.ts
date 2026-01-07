@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
-import { useRealm, useQuery } from "@realm/react";
+import { useQuery } from "@realm/react";
 import { ReadingHistorySchema } from "@/core/database";
+import { useRepositories } from "@/core/database/repositories";
 import { isNsfwSource } from "@/sources";
 
 type HistoryEntry = {
@@ -22,30 +23,13 @@ type HistoryEntry = {
  * Updates existing entry for same manga+chapter instead of creating duplicate
  */
 export function useAddHistoryEntry() {
-  const realm = useRealm();
+  const { history: historyRepo } = useRepositories();
 
   return useCallback(
-    (entry: HistoryEntry) => {
-      realm.write(() => {
-        // Remove existing entry for same chapter (update instead of duplicate)
-        const existing = realm
-          .objects(ReadingHistorySchema)
-          .filtered(
-            "mangaId == $0 AND chapterId == $1",
-            entry.mangaId,
-            entry.chapterId
-          );
-        realm.delete(existing);
-
-        // Create new entry with current timestamp
-        realm.create(ReadingHistorySchema, {
-          id: `${Date.now()}_${entry.chapterId}`,
-          ...entry,
-          timestamp: Date.now(),
-        });
-      });
+    async (entry: HistoryEntry) => {
+      await historyRepo.addToHistory(entry);
     },
-    [realm]
+    [historyRepo]
   );
 }
 
@@ -190,18 +174,13 @@ export function useMangaHistoryDetails(sourceId: string, mangaId: string) {
  * Remove all history entries for a specific manga from a specific source
  */
 export function useRemoveMangaHistory() {
-  const realm = useRealm();
+  const { history: historyRepo } = useRepositories();
 
   return useCallback(
-    (sourceId: string, mangaId: string) => {
-      realm.write(() => {
-        const entries = realm
-          .objects(ReadingHistorySchema)
-          .filtered("sourceId == $0 AND mangaId == $1", sourceId, mangaId);
-        realm.delete(entries);
-      });
+    async (sourceId: string, mangaId: string) => {
+      await historyRepo.removeMangaHistory(sourceId, mangaId);
     },
-    [realm]
+    [historyRepo]
   );
 }
 
@@ -209,18 +188,13 @@ export function useRemoveMangaHistory() {
  * Remove a specific history entry
  */
 export function useRemoveHistoryEntry() {
-  const realm = useRealm();
+  const { history: historyRepo } = useRepositories();
 
   return useCallback(
-    (id: string) => {
-      realm.write(() => {
-        const entry = realm.objectForPrimaryKey(ReadingHistorySchema, id);
-        if (entry) {
-          realm.delete(entry);
-        }
-      });
+    async (id: string) => {
+      await historyRepo.removeFromHistory(id);
     },
-    [realm]
+    [historyRepo]
   );
 }
 
@@ -228,11 +202,9 @@ export function useRemoveHistoryEntry() {
  * Clear all reading history
  */
 export function useClearHistory() {
-  const realm = useRealm();
+  const { history: historyRepo } = useRepositories();
 
-  return useCallback(() => {
-    realm.write(() => {
-      realm.delete(realm.objects(ReadingHistorySchema));
-    });
-  }, [realm]);
+  return useCallback(async () => {
+    await historyRepo.clearHistory();
+  }, [historyRepo]);
 }
