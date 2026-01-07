@@ -33,6 +33,8 @@ export interface CloudManga {
   cover?: string;
   url: string;
   author?: string;
+  artist?: string;
+  status?: string;
   description?: string;
   genres: string[];
   readingStatus?: string;
@@ -51,6 +53,7 @@ export interface CloudManga {
     number: number;
     isRead: boolean;
     lastPageRead: number;
+    totalPages?: number;
   }[];
 }
 

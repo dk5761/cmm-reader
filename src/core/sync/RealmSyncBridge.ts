@@ -47,12 +47,15 @@ export function toCloudManga(manga: MangaSchema): CloudManga {
       number: ch.number,
       isRead: ch.isRead,
       lastPageRead: ch.lastPageRead,
+      totalPages: ch.totalPages ?? undefined,
     })),
   };
 
   // Only add optional fields if they have values
   if (manga.cover) cloudManga.cover = manga.cover;
   if (manga.author) cloudManga.author = manga.author;
+  if (manga.artist) cloudManga.artist = manga.artist;
+  if (manga.status) cloudManga.status = manga.status;
   if (manga.description) cloudManga.description = manga.description;
   if (manga.readingStatus) cloudManga.readingStatus = manga.readingStatus;
   if (manga.progress) {
@@ -286,6 +289,10 @@ export function importFromCloud(
         existing.readingStatus = cloudManga.readingStatus;
         existing.lastUpdated = cloudManga.lastUpdated;
         
+        // Sync metadata (if present in cloud)
+        if (cloudManga.artist) existing.artist = cloudManga.artist;
+        if (cloudManga.status) existing.status = cloudManga.status;
+        
         // Sync categories
         if (cloudManga.categories) {
           // Realm.List requires specific handling, but assigning array often works in React Native Realm
@@ -322,6 +329,10 @@ export function importFromCloud(
               localCh.lastPageRead,
               cloudCh.lastPageRead,
             );
+            // Sync total pages if cloud has it and local doesn't (or update it)
+            if (cloudCh.totalPages) {
+              localCh.totalPages = cloudCh.totalPages;
+            }
           }
         });
       } else {
@@ -334,6 +345,8 @@ export function importFromCloud(
           cover: cloudManga.cover,
           url: cloudManga.url,
           author: cloudManga.author,
+          artist: cloudManga.artist,
+          status: cloudManga.status,
           description: cloudManga.description,
           genres: cloudManga.genres,
           readingStatus: cloudManga.readingStatus || "reading",
@@ -347,6 +360,7 @@ export function importFromCloud(
             url: "",
             isRead: ch.isRead,
             lastPageRead: ch.lastPageRead,
+            totalPages: ch.totalPages,
           })),
           ...(cloudManga.progress && {
             progress: {
