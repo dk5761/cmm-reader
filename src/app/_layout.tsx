@@ -9,6 +9,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { QueryProvider } from "@/core/providers";
 import { SessionProvider } from "@/shared/contexts/SessionContext";
 import { WebViewFetcherProvider } from "@/shared/contexts/WebViewFetcherContext";
+import { DownloadProvider } from "@/shared/contexts/DownloadContext";
 import { DatabaseProvider } from "@/core/database";
 import { UpdateScreen } from "@/shared/components/UpdateScreen";
 import { requestNotificationPermissions } from "@/shared/services/notifications";
@@ -42,44 +43,46 @@ export default function RootLayout() {
             <AuthProvider>
               <AuthGuard>
                 <SessionProvider>
-                  <WebViewFetcherProvider>
-                    <Stack
-                      screenOptions={{
-                        headerShown: true,
-                        headerStyle: {
-                          backgroundColor: isDark ? "#0a0a0f" : "#ffffff",
-                        },
-                        headerTintColor: isDark ? "#fff" : "#000",
-                        headerTitleStyle: { fontWeight: "600" },
-                        headerShadowVisible: false,
-                        headerBackTitle: "",
-                      }}
-                    >
-                      {/* Hide header for tabs - tabs have their own headers */}
-                      <Stack.Screen
-                        name="(tabs)"
-                        options={{ headerShown: false, title: "" }}
-                      />
-                      {/* Hide header for reader - full screen experience */}
-                      <Stack.Screen
-                        name="reader/[chapterId]"
-                        options={{ headerShown: false }}
-                      />
-                      {/* Sign-in screen */}
-                      <Stack.Screen
-                        name="sign-in"
-                        options={{ headerShown: false, title: "Sign In" }}
-                      />
-                      {/* Sync screen - post login/logout */}
-                      <Stack.Screen
-                        name="sync"
-                        options={{ headerShown: false, gestureEnabled: false }}
-                      />
-                    </Stack>
+                  <DownloadProvider>
+                    <WebViewFetcherProvider>
+                      <Stack
+                        screenOptions={{
+                          headerShown: true,
+                          headerStyle: {
+                            backgroundColor: isDark ? "#0a0a0f" : "#ffffff",
+                          },
+                          headerTintColor: isDark ? "#fff" : "#000",
+                          headerTitleStyle: { fontWeight: "600" },
+                          headerShadowVisible: false,
+                          headerBackTitle: "",
+                        }}
+                      >
+                        {/* Hide header for tabs - tabs have their own headers */}
+                        <Stack.Screen
+                          name="(tabs)"
+                          options={{ headerShown: false, title: "" }}
+                        />
+                        {/* Hide header for reader - full screen experience */}
+                        <Stack.Screen
+                          name="reader/[chapterId]"
+                          options={{ headerShown: false }}
+                        />
+                        {/* Sign-in screen */}
+                        <Stack.Screen
+                          name="sign-in"
+                          options={{ headerShown: false, title: "Sign In" }}
+                        />
+                        {/* Sync screen - post login/logout */}
+                        <Stack.Screen
+                          name="sync"
+                          options={{ headerShown: false, gestureEnabled: false }}
+                        />
+                      </Stack>
 
-                    {/* Force Update Screen - blocks app until update is applied */}
-                    <UpdateScreen />
-                  </WebViewFetcherProvider>
+                      {/* Force Update Screen - blocks app until update is applied */}
+                      <UpdateScreen />
+                    </WebViewFetcherProvider>
+                  </DownloadProvider>
                 </SessionProvider>
               </AuthGuard>
             </AuthProvider>
