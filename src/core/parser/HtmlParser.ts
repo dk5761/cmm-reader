@@ -13,10 +13,10 @@ const silentErrorHandler = {
 };
 
 export class HtmlParser {
-  private doc: Document;
+  private doc: Document | Element;
 
   constructor(html: string) {
-    // Sanitize HTML to fix common malformed attributes that choke strict parsers
+    // ... same sanitize logic ...
     const sanitized = html
       // Fix attributes ending with semicolon e.g. <div class="foo";>
       .replace(/(\s+[a-zA-Z-]+="[^"]*");(?=\s|>)/g, '$1"')
@@ -34,7 +34,7 @@ export class HtmlParser {
       this.doc = IDomParser.parse(sanitized, {
         onlyBody: hasBody,
         errorHandler: silentErrorHandler,
-      });
+      }) as any;
     } catch (e) {
       console.error(
         "[HtmlParser] Parse failed. Sanitized HTML snippet:",
@@ -44,18 +44,30 @@ export class HtmlParser {
     }
   }
 
+  private get root(): any {
+    return this.doc;
+  }
+
   /**
    * Select a single element using CSS selector
    */
   querySelector(selector: string): Element | null {
-    return this.doc.documentElement.querySelector(selector);
+    if ((this.doc as any).querySelector) {
+        return (this.doc as any).querySelector(selector);
+    }
+    return (this.doc as any).documentElement?.querySelector(selector) || null;
   }
 
   /**
    * Select multiple elements using CSS selector
    */
   querySelectorAll(selector: string): Element[] {
-    const nodeList = this.doc.documentElement.querySelectorAll(selector);
+    let nodeList: any = [];
+    if ((this.doc as any).querySelectorAll) {
+        nodeList = (this.doc as any).querySelectorAll(selector);
+    } else if ((this.doc as any).documentElement) {
+        nodeList = (this.doc as any).documentElement.querySelectorAll(selector);
+    }
     return Array.from(nodeList);
   }
 

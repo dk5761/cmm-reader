@@ -68,9 +68,9 @@ export class ConfigurableSource extends Source {
         const coverEl = el.querySelector(coverSelector);
 
         // Try to get link from item itself if selector is just 'a' or empty
-        const finalLinkEl = urlSelector === "a" || !urlSelector ? el : linkEl;
+        const finalLinkEl = (urlSelector === "a" || !urlSelector) ? el : linkEl;
         
-        const mangaUrl = (finalLinkEl?.getAttribute("href") ?? linkEl?.getAttribute("href")) || "";
+        const mangaUrl = (finalLinkEl?.getAttribute("href") || linkEl?.getAttribute("href")) || "";
         const title = titleEl?.textContent?.trim() || linkEl?.textContent?.trim() || "";
         const cover = coverEl?.getAttribute(coverAttribute || "src") || "";
 
