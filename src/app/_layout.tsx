@@ -13,6 +13,7 @@ import { DatabaseProvider } from "@/core/database";
 import { UpdateScreen } from "@/shared/components/UpdateScreen";
 import { requestNotificationPermissions } from "@/shared/services/notifications";
 import { AuthProvider, AuthGuard, configureGoogleSignIn } from "@/core/auth";
+import { pruneCache } from "@/core/services/ImageCacheService";
 
 // Keep splash screen visible while app loads
 SplashScreen.preventAutoHideAsync();
@@ -21,10 +22,14 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Request notification permissions, configure auth, and hide splash on startup
+  // Request notification permissions, configure auth, hide splash, and clean cache
   useEffect(() => {
     configureGoogleSignIn();
     requestNotificationPermissions();
+    
+    // Prune image cache (500MB limit)
+    pruneCache(500).catch(err => console.error("Failed to prune cache:", err));
+
     // Hide splash screen after a brief delay to ensure providers are ready
     SplashScreen.hideAsync();
   }, []);
