@@ -3,7 +3,7 @@
  */
 export const READER_CONFIG = {
   /** Delay after seeking before resuming scroll tracking (ms) */
-  SEEK_DEBOUNCE_MS: 100,
+  SEEK_DEBOUNCE_MS: 500,
 
   /** Preload configuration */
   PRELOAD: {
