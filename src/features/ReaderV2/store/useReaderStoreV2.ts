@@ -6,21 +6,18 @@
  */
 
 import { create } from "zustand";
-import type { FlashListRef } from "@shopify/flash-list";
-import type { RefObject } from "react";
-import type { Chapter, Page } from "@/sources";
+import type { Chapter } from "@/sources";
 import type {
   ReaderStoreState,
   ReaderStoreActions,
   InitializeParams,
   ReaderChapter,
   ViewerChapters,
-  AdapterItem,
   ReaderPage,
 } from "../types/reader.types";
-import { toReaderPage } from "../types/reader.types";
 import { logger } from "@/utils/logger";
 import { READER_CONFIG } from "../config";
+import { shiftWindowNext, shiftWindowPrev } from "../utils/readerWindowUtils";
 
 const initialState: ReaderStoreState = {
   viewerChapters: null,
@@ -30,10 +27,10 @@ const initialState: ReaderStoreState = {
   totalPages: 0,
   isOverlayVisible: false,
   isSeeking: false,
+  scrollSignal: null,
   isLoading: false,
   isInitialized: false,
   error: null,
-  flashListRef: null,
   mangaId: "",
   sourceId: "",
 };
@@ -242,23 +239,9 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     },
 
     seekToPage: (page: number) => {
-      const { flashListRef, viewerChapters, totalPages } = get();
+      const { totalPages } = get();
 
       set({ isSeeking: true });
-
-      // Calculate offset dynamically based on actual list structure
-      let offset = 0;
-      if (viewerChapters?.prevChapter) {
-        if (viewerChapters.prevChapter.state === "loaded") {
-          // Previous chapter pages + transition item between prev and curr
-          offset = viewerChapters.prevChapter.pages.length + 1;
-        } else {
-          // Just the transition item (loading or wait state)
-          offset = 1;
-        }
-      }
-
-      const listIndex = page + offset;
 
       // Bounds check before scrolling
       if (page < 0 || page >= totalPages) {
@@ -270,14 +253,15 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         return;
       }
 
-      try {
-        flashListRef?.current?.scrollToIndex({
-          index: listIndex,
+      // Dispatch Scroll Signal
+      // The UI component (ReaderScreen/FlashList) will listen to this and handle the actual scrolling
+      set({
+        scrollSignal: {
+          pageIndex: page,
           animated: false, // Instant jump like Mihon
-        });
-      } catch (error) {
-        logger.reader.warn("scrollToIndex failed", { error });
-      }
+          timestamp: Date.now(),
+        },
+      });
 
       // Reset seeking flag after a short delay
       setTimeout(() => {
@@ -477,67 +461,34 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
 
     // ========================================================================
     // Chapter Transitions (for infinite scroll)
-    // These functions ONLY handle the adapter cleanup (shifting ViewerChapters)
-    // Metadata updates (currentChapterIndex, totalPages, currentPage) are handled
-    // by updateActiveChapter() which is called earlier
     // ========================================================================
 
     transitionToNextChapter: () => {
       const { viewerChapters, allChapters, currentChapterIndex } = get();
 
+      if (!viewerChapters) {
+        logger.reader.warn("transitionToNextChapter: No viewer chapters");
+        return;
+      }
+
       logger.reader.log("transitionToNextChapter (adapter cleanup)", {
         currentChapterIndex,
-        currChapterId: viewerChapters?.currChapter?.chapter.id,
-        nextChapterId: viewerChapters?.nextChapter?.chapter.id,
-        nextChapterState: viewerChapters?.nextChapter?.state,
       });
 
-      if (!viewerChapters?.nextChapter) {
-        logger.reader.warn("transitionToNextChapter: No next chapter");
-        return;
-      }
-      if (viewerChapters.nextChapter.state !== "loaded") {
-        logger.reader.warn(
-          "transitionToNextChapter: Next chapter not loaded",
-          { state: viewerChapters.nextChapter.state },
-        );
+      const result = shiftWindowNext(viewerChapters, allChapters, currentChapterIndex);
+
+      if (!result) {
+        logger.reader.warn("transitionToNextChapter: shift failed (next not loaded?)");
         return;
       }
 
-      // The next chapter becomes the current chapter in the adapter
-      const newCurrChapter = viewerChapters.nextChapter;
-      const newChapterIndex = currentChapterIndex; // Already updated by updateActiveChapter
+      logger.reader.log("Adapter cleanup (next) - shifting ViewerChapters");
 
-      // The current chapter becomes the previous chapter (drop old prev)
-      const newPrevChapter: ReaderChapter = {
-        ...viewerChapters.currChapter,
-        // Keep it loaded so user can scroll back
-      };
-
-      // Set up the NEW next chapter (if available)
-      const newNextChapter: ReaderChapter | null =
-        newChapterIndex > 0
-          ? {
-              chapter: allChapters[newChapterIndex - 1],
-              state: "wait",
-              pages: [],
-            }
-          : null;
-
-      logger.reader.log("Adapter cleanup (next) - shifting ViewerChapters", {
-        droppingPrev: viewerChapters.prevChapter?.chapter.id,
-        oldCurrBecomesNewPrev: viewerChapters.currChapter.chapter.id,
-        oldNextBecomesNewCurr: newCurrChapter.chapter.id,
-        newNextChapter: newNextChapter?.chapter.id,
-      });
-
-      // ONLY update viewerChapters - metadata already updated by updateActiveChapter
       set({
-        viewerChapters: {
-          prevChapter: newPrevChapter,
-          currChapter: newCurrChapter,
-          nextChapter: newNextChapter,
-        },
+        viewerChapters: result.newViewer,
+        // Note: we don't set currentChapterIndex here because updateActiveChapter 
+        // should have already been called by the UI when scrolling.
+        // However, shiftWindowNext logic assumes we are moving to what was 'next'.
       });
 
       logger.reader.log("Adapter cleanup (next) complete");
@@ -546,59 +497,26 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     transitionToPrevChapter: () => {
       const { viewerChapters, allChapters, currentChapterIndex } = get();
 
+      if (!viewerChapters) {
+        logger.reader.warn("transitionToPrevChapter: No viewer chapters");
+        return;
+      }
+
       logger.reader.log("transitionToPrevChapter (adapter cleanup)", {
         currentChapterIndex,
-        currChapterId: viewerChapters?.currChapter?.chapter.id,
-        prevChapterId: viewerChapters?.prevChapter?.chapter.id,
-        prevChapterState: viewerChapters?.prevChapter?.state,
       });
 
-      if (!viewerChapters?.prevChapter) {
-        logger.reader.warn("transitionToPrevChapter: No prev chapter");
-        return;
-      }
-      if (viewerChapters.prevChapter.state !== "loaded") {
-        logger.reader.warn(
-          "transitionToPrevChapter: Prev chapter not loaded",
-          { state: viewerChapters.prevChapter.state },
-        );
+      const result = shiftWindowPrev(viewerChapters, allChapters, currentChapterIndex);
+
+      if (!result) {
+        logger.reader.warn("transitionToPrevChapter: shift failed (prev not loaded?)");
         return;
       }
 
-      // The prev chapter becomes the current chapter in the adapter
-      const newCurrChapter = viewerChapters.prevChapter;
-      const newChapterIndex = currentChapterIndex; // Already updated by updateActiveChapter
+      logger.reader.log("Adapter cleanup (prev) - shifting ViewerChapters");
 
-      // The current chapter becomes the next chapter (drop old next)
-      const newNextChapter: ReaderChapter = {
-        ...viewerChapters.currChapter,
-        // Keep it loaded so user can scroll forward
-      };
-
-      // Set up the NEW prev chapter (if available)
-      const newPrevChapter: ReaderChapter | null =
-        newChapterIndex < allChapters.length - 1
-          ? {
-              chapter: allChapters[newChapterIndex + 1],
-              state: "wait",
-              pages: [],
-            }
-          : null;
-
-      logger.reader.log("Adapter cleanup (prev) - shifting ViewerChapters", {
-        droppingNext: viewerChapters.nextChapter?.chapter.id,
-        oldCurrBecomesNewNext: viewerChapters.currChapter.chapter.id,
-        oldPrevBecomesNewCurr: newCurrChapter.chapter.id,
-        newPrevChapter: newPrevChapter?.chapter.id,
-      });
-
-      // ONLY update viewerChapters - metadata already updated by updateActiveChapter
       set({
-        viewerChapters: {
-          prevChapter: newPrevChapter,
-          currChapter: newCurrChapter,
-          nextChapter: newNextChapter,
-        },
+        viewerChapters: result.newViewer,
       });
 
       logger.reader.log("Adapter cleanup (prev) complete");
@@ -617,13 +535,5 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       set((s) => ({ isOverlayVisible: !s.isOverlayVisible })),
 
     setIsSeeking: (value: boolean) => set({ isSeeking: value }),
-
-    // ========================================================================
-    // Refs
-    // ========================================================================
-
-    setFlashListRef: (ref: RefObject<FlashListRef<AdapterItem>>) => {
-      set({ flashListRef: ref });
-    },
   }),
 );

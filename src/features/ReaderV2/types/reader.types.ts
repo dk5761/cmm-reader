@@ -104,14 +104,12 @@ export interface ReaderStoreState {
   // UI state
   isOverlayVisible: boolean;
   isSeeking: boolean;
+  scrollSignal: { pageIndex: number; animated: boolean; timestamp: number } | null;
 
   // Loading states
   isLoading: boolean;
   isInitialized: boolean;
   error: string | null;
-
-  // Refs
-  flashListRef: RefObject<FlashListRef<AdapterItem>> | null;
 
   // Metadata
   mangaId: string;
@@ -143,9 +141,6 @@ export interface ReaderStoreActions {
   // UI
   toggleOverlay: () => void;
   setIsSeeking: (value: boolean) => void;
-
-  // Refs
-  setFlashListRef: (ref: RefObject<FlashListRef<AdapterItem>>) => void;
 }
 
 export interface InitializeParams {

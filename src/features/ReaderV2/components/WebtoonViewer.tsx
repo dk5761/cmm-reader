@@ -18,6 +18,7 @@ import {
   type AdapterItem,
   type ViewerChapters,
 } from "../types/reader.types";
+import { useReaderScrollController } from "../hooks/useReaderScrollController";
 
 const VIEWABILITY_CONFIG = {
   // Low threshold because webtoon pages can be very tall (taller than viewport)
@@ -40,9 +41,11 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
   const flashListRef = useRef<FlashListRef<AdapterItem>>(null);
   const { height: screenHeight } = useWindowDimensions();
 
+  // Attach the scroll controller hook
+  useReaderScrollController(flashListRef);
+
   const viewerChapters = useReaderStoreV2((s) => s.viewerChapters);
   const setCurrentPage = useReaderStoreV2((s) => s.setCurrentPage);
-  const setFlashListRef = useReaderStoreV2((s) => s.setFlashListRef);
   const loadNextChapter = useReaderStoreV2((s) => s.loadNextChapter);
   const loadPrevChapter = useReaderStoreV2((s) => s.loadPrevChapter);
   const retryNextChapter = useReaderStoreV2((s) => s.retryNextChapter);
@@ -54,15 +57,6 @@ export const WebtoonViewer = memo(function WebtoonViewer() {
   const transitionToPrevChapter = useReaderStoreV2(
     (s) => s.transitionToPrevChapter
   );
-
-  // Register ref with store
-  useEffect(() => {
-    if (flashListRef.current) {
-      setFlashListRef(
-        flashListRef as React.RefObject<FlashListRef<AdapterItem>>
-      );
-    }
-  }, [setFlashListRef]);
 
   // Build adapter items from viewer chapters
   const items: AdapterItem[] = useMemo(() => {
