@@ -13,7 +13,7 @@ import {
 } from "./types";
 import { logger } from "@/utils/logger";
 import { CF_CONFIG } from "./config";
-import CookieSync from "cookie-sync"; // Keep for cleanup only
+import { cookieJar } from "./CookieJar";
 
 /**
  * Registered manual challenge handler (set by WebViewFetcherContext)
@@ -233,14 +233,11 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
 
         try {
           // STEP 4: Clear invalid token
-          if (Platform.OS === "ios") {
-            try {
-              // We use direct module call here just for cleanup to avoid cyclic dependency
-              await CookieSync.clearCfClearance(url);
-              logger.cf.log(`Cleared invalid token for ${domain}`);
-            } catch (e) {
-              logger.cf.log("Failed to clear token:", { error: e });
-            }
+          try {
+            await cookieJar.invalidateDomain(url);
+            logger.cf.log(`Cleared invalid token for ${domain}`);
+          } catch (e) {
+            logger.cf.log("Failed to clear token:", { error: e });
           }
 
           // STEP 5: Auto-solve
