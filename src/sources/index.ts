@@ -1,29 +1,23 @@
 import { MangaKakalotSource } from "./mangakakalot";
-import { KissMangaSource } from "./kissmanga";
 import { AsuraScansSource } from "./asurascans";
 import { Manhwa18NetSource } from "./manhwa18";
 import { ReadComicOnlineSource } from "./readcomiconline";
-// import { KunMangaSource } from "./kunmanga";
 import { MangaKatanaSource } from "./mangakatana";
 import type { Source } from "./base";
 
 // Source instances
 const mangakakalot = new MangaKakalotSource();
-// const kissmanga = new KissMangaSource();
 const asurascans = new AsuraScansSource();
 const manhwa18net = new Manhwa18NetSource();
 const readcomiconline = new ReadComicOnlineSource();
-// const kunmanga = new KunMangaSource();
 const mangakatana = new MangaKatanaSource();
 
 // Source registry - add new sources here
 export const SOURCES: Record<string, Source> = {
   mangakakalot,
-  // kissmanga,
   asurascans,
   manhwa18net,
   readcomiconline,
-  // kunmanga,
   mangakatana,
 } as const;
 
