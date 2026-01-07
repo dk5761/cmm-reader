@@ -56,18 +56,20 @@ function toCloudManga(manga: MangaSchema): CloudManga {
   if (manga.description) cloudManga.description = manga.description;
   if (manga.readingStatus) cloudManga.readingStatus = manga.readingStatus;
   if (manga.progress) {
-    cloudManga.progress = {
+    const progress = {
       lastChapterId: manga.progress.lastChapterId ?? undefined,
       lastChapterNumber: manga.progress.lastChapterNumber ?? undefined,
       lastPage: manga.progress.lastPage,
       timestamp: manga.progress.timestamp,
     };
-    // Remove undefined keys from progress
-    Object.keys(cloudManga.progress).forEach((key) => {
-      if ((cloudManga.progress as any)[key] === undefined) {
-        delete (cloudManga.progress as any)[key];
+    
+    // Create a clean object without undefined values
+    cloudManga.progress = Object.entries(progress).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key as keyof typeof progress] = value as any;
       }
-    });
+      return acc;
+    }, {} as typeof progress);
   }
 
   return cloudManga;
@@ -286,11 +288,20 @@ export function importFromCloud(
         
         // Sync categories
         if (cloudManga.categories) {
+          // Realm.List requires specific handling, but assigning array often works in React Native Realm
+          // We cast to any to suppress TS error about assigning string[] to Realm.List<string>
           existing.categories = cloudManga.categories as any;
         }
 
         if (cloudManga.progress) {
-          existing.progress = cloudManga.progress as any;
+          // Update embedded object
+          if (!existing.progress) {
+            existing.progress = {} as ReadingProgressSchema;
+          }
+          existing.progress.lastChapterId = cloudManga.progress.lastChapterId;
+          existing.progress.lastChapterNumber = cloudManga.progress.lastChapterNumber;
+          existing.progress.lastPage = cloudManga.progress.lastPage;
+          existing.progress.timestamp = cloudManga.progress.timestamp;
         }
 
         // Merge chapter read states
