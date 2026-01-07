@@ -386,6 +386,13 @@ class SyncServiceClass {
   }
 
   /**
+   * Get pending sync events (for debugging)
+   */
+  getQueue(): SyncEvent[] {
+    return [...this.queue];
+  }
+
+  /**
    * Subscribe to state changes
    */
   subscribe(listener: (state: SyncState) => void): () => void {

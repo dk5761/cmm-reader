@@ -514,6 +514,12 @@ export default function SettingsScreen() {
             subtitle="View Cloudflare challenge logs"
             onPress={() => router.push("/debug/cf")}
           />
+          <SettingItem
+            icon="sync-outline"
+            title="Debug Sync Queue"
+            subtitle="View pending sync events"
+            onPress={() => router.push("/debug/sync")}
+          />
         </View>
       </ScrollView>
     </View>
