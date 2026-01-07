@@ -13,6 +13,11 @@ export class ChapterSchema extends Realm.Object<ChapterSchema> {
   isRead!: boolean;
   lastPageRead!: number;
   totalPages?: number;
+  
+  // Download tracking
+  downloadStatus!: number; // 0=None, 1=Queued, 2=Downloading, 3=Downloaded, 4=Error
+  downloadTotal!: number; // Total pages expected
+  downloadedCount!: number; // Pages successfully saved
 
   static schema: ObjectSchema = {
     name: "Chapter",
@@ -26,6 +31,10 @@ export class ChapterSchema extends Realm.Object<ChapterSchema> {
       isRead: { type: "bool", default: false },
       lastPageRead: { type: "int", default: 0 },
       totalPages: "int?",
+      
+      downloadStatus: { type: "int", default: 0 },
+      downloadTotal: { type: "int", default: 0 },
+      downloadedCount: { type: "int", default: 0 },
     },
   };
 }
