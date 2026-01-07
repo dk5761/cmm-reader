@@ -13,7 +13,7 @@ import { toast } from "sonner-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useCSSVariable } from "uniwind";
-import { SearchBar, MangaCard } from "@/shared/components";
+import { SearchBar, MangaCard, LibraryGridSkeleton } from "@/shared/components";
 import {
   useSearchManga,
   usePopularManga,
@@ -320,10 +320,9 @@ export function SourceBrowseScreen() {
             <Text className="text-black font-semibold">Retry</Text>
           </Pressable>
         </View>
-      ) : isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={foreground} />
-          <Text className="text-muted mt-4">Loading...</Text>
+      ) : isLoading && !mangaList.length ? (
+        <View className="flex-1 px-4">
+          <LibraryGridSkeleton />
         </View>
       ) : (
         <FlatList
