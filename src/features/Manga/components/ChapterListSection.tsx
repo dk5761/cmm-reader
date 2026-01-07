@@ -72,6 +72,15 @@ export function ChapterListSection({
       chapterNumber: number,
       chapterTitle?: string
     ) => {
+      // [DEBUG] Log navigation params
+      console.log("[DEBUG ChapterListSection] Navigating to reader:", {
+        chapterId,
+        sourceId,
+        url: chapterUrl,
+        mangaId,
+        hasAllParams: !!(chapterId && sourceId && chapterUrl),
+      });
+
       router.push({
         pathname: "/reader/[chapterId]",
         params: {

@@ -231,6 +231,16 @@ export function useUpdateLibraryChapters() {
               hasChanges = true;
             }
 
+            // Fix missing URL (backfill for chapters that were saved without URL)
+            if (!existingCh.url && newCh.url) {
+              console.log("[Library] Backfilling chapter URL:", {
+                chapterId: existingCh.id,
+                url: newCh.url,
+              });
+              existingCh.url = newCh.url;
+              hasChanges = true;
+            }
+
             if (hasChanges) {
               updatedCount++;
             }

@@ -137,6 +137,16 @@ export function LibraryScreen() {
   const handleMangaPress = (id: string) => {
     const manga = libraryManga.find((m) => m.id === id);
     if (manga) {
+      // [DEBUG] Check what's in Realm chapters
+      const firstChapter = manga.chapters[0];
+      console.log("[DEBUG LibraryScreen] Realm chapter sample:", {
+        id: firstChapter?.id,
+        number: firstChapter?.number,
+        url: firstChapter?.url,
+        hasUrl: !!firstChapter?.url,
+        chapterKeys: firstChapter ? Object.keys(firstChapter) : [],
+      });
+
       // Serialize data for instant render on destination screen
       // Include chapters to avoid race condition with Realm query timing
       const preloadedData = {
@@ -156,6 +166,12 @@ export function LibraryScreen() {
           date: ch.date,
         })),
       };
+
+      // [DEBUG] Check what's in preloadedData chapters
+      console.log("[DEBUG LibraryScreen] Preloaded chapter sample:", {
+        firstChapter: preloadedData.chapters[0],
+        hasUrl: !!preloadedData.chapters[0]?.url,
+      });
 
       router.push({
         pathname: "/manga/[id]",

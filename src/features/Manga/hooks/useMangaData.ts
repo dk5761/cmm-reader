@@ -69,6 +69,13 @@ export function useMangaData(params: MangaDataParams) {
     ? JSON.parse(preloaded)
     : null;
 
+  // [DEBUG] Log preloaded data on mount
+  console.log("[DEBUG useMangaData] Init:", {
+    libraryId,
+    hasPreloaded: !!preloadedData,
+    preloadedChapterCount: preloadedData?.chapters?.length ?? 0,
+  });
+
   // Get source config
   const source = getSource(sourceId);
 
