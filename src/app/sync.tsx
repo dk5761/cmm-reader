@@ -40,7 +40,7 @@ export default function SyncScreen() {
           // Startup sync: app restart with empty library
           setStatus("Syncing your library...");
           const result = await downloadAndMerge();
-          setProgress(result);
+          setProgress({ manga: result.mangaCount, history: result.historyCount });
           setStatus("Sync complete!");
 
           // Brief pause to show completion
@@ -52,7 +52,7 @@ export default function SyncScreen() {
         // Login: download from cloud and merge
         setStatus("Downloading your library...");
         const result = await downloadAndMerge();
-        setProgress(result);
+        setProgress({ manga: result.mangaCount, history: result.historyCount });
         setStatus("Sync complete!");
 
         // Brief pause to show completion

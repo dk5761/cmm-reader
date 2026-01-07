@@ -2,8 +2,6 @@
  * Types for cloud sync system
  */
 
-import type { FirebaseFirestoreTypes } from "@react-native-firebase/firestore";
-
 // Sync event types
 export type SyncEventType =
   | "manga_added"
@@ -20,7 +18,7 @@ export interface SyncEvent {
   type: SyncEventType;
   entityId: string; // mangaId or historyId
   timestamp: number;
-  data?: Record<string, unknown>;
+  data?: CloudManga | CloudHistoryEntry | Record<string, unknown>;
 }
 
 // Firestore manga document (what we store in cloud)

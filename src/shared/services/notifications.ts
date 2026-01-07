@@ -49,11 +49,14 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 export async function startSyncProgress(total: number): Promise<void> {
   if (Platform.OS === "ios") {
     try {
-      currentActivityId = await LiveActivity.startActivity({
+      const activityId = await LiveActivity.startActivity({
         title: "Syncing Library",
-        body: `Preparing to sync ${total} manga...`,
+        subtitle: `Preparing to sync ${total} manga...`,
         progressBar: { progress: 0 },
       });
+      if (activityId) {
+        currentActivityId = activityId;
+      }
     } catch (error) {
       console.warn("[Notifications] Failed to start Live Activity:", error);
     }
@@ -75,7 +78,7 @@ export async function updateSyncProgress(
     try {
       await LiveActivity.updateActivity(currentActivityId, {
         title: `Syncing ${current}/${total}`,
-        body: `${mangaTitle} (${sourceName})`,
+        subtitle: `${mangaTitle} (${sourceName})`,
         progressBar: { progress: current / total },
       });
     } catch (error) {
@@ -126,7 +129,7 @@ export async function completeSyncProgress(
 
       await LiveActivity.stopActivity(currentActivityId, {
         title,
-        body,
+        subtitle: body,
       });
     } catch (error) {
       console.warn("[Notifications] Failed to stop Live Activity:", error);

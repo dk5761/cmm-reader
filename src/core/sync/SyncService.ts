@@ -89,8 +89,8 @@ async function ensureJsAuth(): Promise<boolean> {
   if (googleIdToken) {
     try {
       const credential = GoogleAuthProvider.credential(googleIdToken);
-      await signInWithCredential(jsAuth, credential);
-      logger.sync.log(`JS Auth synced with stored token - user: ${jsAuth.currentUser?.uid}`);
+      const userCredential = await signInWithCredential(jsAuth, credential);
+      logger.sync.log(`JS Auth synced with stored token - user: ${userCredential.user?.uid ?? "unknown"}`);
       return true;
     } catch (e) {
       logger.sync.log("Stored token expired, attempting silent refresh...");
@@ -111,8 +111,8 @@ async function ensureJsAuth(): Promise<boolean> {
 
         // Sign in to JS SDK
         const credential = GoogleAuthProvider.credential(freshToken);
-        await signInWithCredential(jsAuth, credential);
-        logger.sync.log(`JS Auth synced with refreshed token - user: ${jsAuth.currentUser?.uid}`);
+        const userCredential = await signInWithCredential(jsAuth, credential);
+        logger.sync.log(`JS Auth synced with refreshed token - user: ${userCredential.user?.uid ?? "unknown"}`);
         return true;
       }
     }

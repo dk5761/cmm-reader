@@ -101,11 +101,11 @@ export function startRealmSyncBridge(realm: Realm): () => void {
 
   // Track manga changes
   const mangaListener = (
-    collection: Realm.Results<MangaSchema>,
+    collection: Realm.OrderedCollection<MangaSchema>,
     changes: Realm.CollectionChangeSet,
   ) => {
     // Skip initial callback (no changes object properties)
-    if (!changes.insertions && !changes.modifications && !changes.deletions) {
+    if (!changes.insertions && !changes.newModifications && !changes.deletions) {
       return;
     }
 
@@ -127,7 +127,7 @@ export function startRealmSyncBridge(realm: Realm): () => void {
     });
 
     // Handle modifications
-    changes.modifications?.forEach((index) => {
+    changes.newModifications?.forEach((index: number) => {
       const manga = collection[index];
       if (manga) {
         SyncService.enqueue({
@@ -141,11 +141,11 @@ export function startRealmSyncBridge(realm: Realm): () => void {
 
   // Track history changes
   const historyListener = (
-    collection: Realm.Results<ReadingHistorySchema>,
+    collection: Realm.OrderedCollection<ReadingHistorySchema>,
     changes: Realm.CollectionChangeSet,
   ) => {
     // Skip initial callback
-    if (!changes.insertions && !changes.modifications && !changes.deletions) {
+    if (!changes.insertions && !changes.newModifications && !changes.deletions) {
       return;
     }
 
@@ -237,6 +237,7 @@ export function importFromCloud(
         });
       } else {
         // Create new manga
+        // Note: We cast embedded objects since Realm handles the conversion
         realm.create(MangaSchema, {
           id: cloudManga.id,
           sourceId: cloudManga.sourceId,
@@ -258,8 +259,15 @@ export function importFromCloud(
             isRead: ch.isRead,
             lastPageRead: ch.lastPageRead,
           })),
-          progress: cloudManga.progress,
-        });
+          ...(cloudManga.progress && {
+            progress: {
+              lastChapterId: cloudManga.progress.lastChapterId,
+              lastChapterNumber: cloudManga.progress.lastChapterNumber,
+              lastPage: cloudManga.progress.lastPage,
+              timestamp: cloudManga.progress.timestamp,
+            },
+          }),
+        } as any);
       }
       mangaCount++;
     }
