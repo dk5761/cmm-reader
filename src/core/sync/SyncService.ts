@@ -16,6 +16,7 @@ import {
   orderBy,
   limit,
   updateDoc,
+  deleteDoc, // Added import
   Firestore,
 } from "firebase/firestore";
 import {
@@ -242,17 +243,27 @@ class SyncServiceClass {
       ].includes(e.type)
     );
 
+    let batch = writeBatch(db);
+    let opCount = 0;
+
     // Process manga events
     for (const event of mangaEvents) {
       const mangaRef = doc(collection(userDocRef, "manga"), event.entityId);
 
       if (event.type === "manga_removed") {
-        await updateDoc(mangaRef, {
+        batch.update(mangaRef, {
           inLibrary: false,
           lastUpdated: event.timestamp,
         });
       } else if (event.data) {
-        await setDoc(mangaRef, event.data as CloudManga, { merge: true });
+        batch.set(mangaRef, event.data as CloudManga, { merge: true });
+      }
+      
+      opCount++;
+      if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
+        await batch.commit();
+        batch = writeBatch(db);
+        opCount = 0;
       }
     }
 
@@ -261,17 +272,16 @@ class SyncServiceClass {
       const catRef = doc(collection(userDocRef, "categories"), event.entityId);
       
       if (event.type === "category_deleted") {
-        // We delete the doc for categories since they are user-defined
-        // For manga we kept it with inLibrary=false to preserve history
-        // But for categories, deletion is usually permanent
-        // However, standard deleteDoc is not imported. We can use batch or just set a deleted flag?
-        // Let's assume hard delete for categories.
-        // Wait, I need to import deleteDoc.
-        // For now, I'll just use setDoc with empty/null or just skip implementation until import fixed?
-        // Actually, let's just write empty for now or skip.
-        // Correction: I should add deleteDoc to imports.
+        batch.delete(catRef);
       } else if (event.data) {
-        await setDoc(catRef, event.data as CloudCategory);
+        batch.set(catRef, event.data as CloudCategory);
+      }
+
+      opCount++;
+      if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
+        await batch.commit();
+        batch = writeBatch(db);
+        opCount = 0;
       }
     }
 
@@ -282,8 +292,19 @@ class SyncServiceClass {
           collection(userDocRef, "history"),
           event.entityId
         );
-        await setDoc(historyRef, event.data as CloudHistoryEntry);
+        batch.set(historyRef, event.data as CloudHistoryEntry);
+        
+        opCount++;
+        if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
+          await batch.commit();
+          batch = writeBatch(db);
+          opCount = 0;
+        }
       }
+    }
+
+    if (opCount > 0) {
+      await batch.commit();
     }
   }
 
