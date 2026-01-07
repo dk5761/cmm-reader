@@ -1,7 +1,20 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { getSource } from "@/sources";
-import type { Manga, SearchResult } from "@/sources";
+import type { Manga, SearchResult, Source } from "@/sources";
 import { isCfError } from "@/core/http/utils/cfErrorHandler";
+
+// Interface for sources that support filters (like ReadComicOnline)
+interface FilterableSource extends Source {
+  getWithFilters(
+    page: number,
+    filters: { publisher?: string; sort?: string }
+  ): Promise<SearchResult>;
+}
+
+// Type guard
+function isFilterableSource(source: Source): source is FilterableSource {
+  return "getWithFilters" in source;
+}
 
 /**
  * Search manga by query
@@ -148,9 +161,9 @@ export function useFilteredManga(
       if (!source) throw new Error(`Source ${sourceId} not found`);
 
       // Check if source has getWithFilters method (ReadComicOnline only)
-      if ("getWithFilters" in source) {
+      if (isFilterableSource(source)) {
         try {
-          const result = await (source as any).getWithFilters(
+          const result = await source.getWithFilters(
             pageParam,
             filters
           );
