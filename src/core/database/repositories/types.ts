@@ -26,6 +26,7 @@ export interface IHistoryRepository {
   getHistory(): ReadingHistorySchema[];
   addToHistory(entry: Omit<ReadingHistorySchema, "id">): Promise<void>;
   removeFromHistory(historyId: string): Promise<void>;
+  removeMangaHistory(sourceId: string, mangaId: string): Promise<void>;
   clearHistory(): Promise<void>;
   getLastRead(mangaId: string): ReadingHistorySchema | null;
 }

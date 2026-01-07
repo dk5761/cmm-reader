@@ -112,6 +112,7 @@ export const ReaderPage = memo(function ReaderPage({ page }: ReaderPageProps) {
         }}
         placeholder={blurhash}
         contentFit="contain"
+        cachePolicy="disk"
         transition={200}
         onLoad={handleLoad}
         onError={handleError}

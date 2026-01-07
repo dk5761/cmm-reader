@@ -36,6 +36,16 @@ export class RealmHistoryRepository implements IHistoryRepository {
     });
   }
 
+  async removeMangaHistory(sourceId: string, mangaId: string): Promise<void> {
+    const entries = this.realm
+      .objects(ReadingHistorySchema)
+      .filtered("sourceId == $0 AND mangaId == $1", sourceId, mangaId);
+      
+    this.realm.write(() => {
+      this.realm.delete(entries);
+    });
+  }
+
   async clearHistory(): Promise<void> {
     const all = this.realm.objects(ReadingHistorySchema);
     this.realm.write(() => {

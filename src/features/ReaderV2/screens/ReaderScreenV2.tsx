@@ -35,6 +35,7 @@ import { useSaveProgressV2 } from "../hooks/useSaveProgressV2";
 import { useKeepAwakeV2 } from "../hooks/useKeepAwakeV2";
 import { useChapterList } from "@/features/Manga/api/manga.queries";
 import { useGetOrCreateManga } from "@/features/Library/hooks";
+import { Image } from "expo-image";
 import type { Chapter, MangaDetails } from "@/sources";
 
 export function ReaderScreenV2() {
@@ -279,6 +280,8 @@ export function ReaderScreenV2() {
     return () => {
       clearPrefetchCache();
       reset();
+      // Clear image memory cache to prevent OOM
+      Image.clearMemoryCache();
     };
   }, [clearPrefetchCache, reset]);
 
