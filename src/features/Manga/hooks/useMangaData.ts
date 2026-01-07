@@ -239,7 +239,7 @@ export function useMangaData(params: MangaDataParams) {
       }
     : null;
 
-  const displayChapters: DisplayChapter[] =
+  const displayChapters: DisplayChapter[] = (
     chapters?.map((ch) => ({
       id: ch.id,
       mangaId: ch.mangaId,
@@ -256,7 +256,8 @@ export function useMangaData(params: MangaDataParams) {
       url: ch.url,
       date: ch.date,
     })) ||
-    [];
+    []
+  ).sort((a, b) => b.number - a.number);
 
   // [DEBUG] Log display chapters source
   useEffect(() => {
