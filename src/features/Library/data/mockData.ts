@@ -22,6 +22,7 @@ export interface LibraryManga {
     | "dropped";
   totalChapters?: number;
   currentChapter?: number;
+  lastPage?: number;
   lastRead?: string;
   unreadCount?: number;
 }

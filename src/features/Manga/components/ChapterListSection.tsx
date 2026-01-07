@@ -3,11 +3,12 @@
  * Uses deferred rendering and batching for performance with large chapter lists
  */
 
-import { useState, useEffect, useCallback, memo } from "react";
+import { useState, useEffect, useCallback, memo, useMemo } from "react";
 import { View, Text, InteractionManager } from "react-native";
 import { useRouter } from "expo-router";
 import { ChapterCard } from "./ChapterCard";
 import { useChapterActions } from "../hooks";
+import { useLibraryMangaById } from "@/features/Library/hooks";
 import type { DisplayChapter } from "../hooks/useMangaData";
 
 export type ChapterListSectionProps = {
@@ -34,6 +35,7 @@ export function ChapterListSection({
   mangaUrl,
 }: ChapterListSectionProps) {
   const router = useRouter();
+  const libraryManga = useLibraryMangaById(mangaId);
   const {
     readChapterIds,
     markAsRead,
@@ -41,6 +43,17 @@ export function ChapterListSection({
     markPreviousAsRead,
     markPreviousAsUnread,
   } = useChapterActions(mangaId);
+
+  // Map of chapterId to lastPageRead
+  const chapterProgressMap = useMemo(() => {
+    const map = new Map<string, number>();
+    libraryManga?.chapters?.forEach((ch) => {
+      if (ch.lastPageRead > 0) {
+        map.set(ch.id, ch.lastPageRead);
+      }
+    });
+    return map;
+  }, [libraryManga?.chapters]);
 
   // Progressive rendering: start with 0 chapters, then load in batches
   const [visibleCount, setVisibleCount] = useState(0);
@@ -118,6 +131,7 @@ export function ChapterListSection({
             key={chapter.id}
             chapter={chapter}
             isRead={readChapterIds.has(chapter.id)}
+            lastPage={chapterProgressMap.get(chapter.id)}
             onPress={() =>
               handleChapterPress(
                 chapter.id,

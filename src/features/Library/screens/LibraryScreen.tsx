@@ -114,6 +114,7 @@ export function LibraryScreen() {
       const readChapters = manga.chapters.filter((ch) => ch.isRead).length;
       const totalChapters = manga.chapters.length;
       const lastReadChapter = manga.progress?.lastChapterNumber;
+      const lastPage = manga.progress?.lastPage;
 
       return {
         id: manga.id,
@@ -129,6 +130,7 @@ export function LibraryScreen() {
           | "dropped",
         totalChapters,
         currentChapter: lastReadChapter,
+        lastPage,
         unreadCount: totalChapters - readChapters,
       };
     });

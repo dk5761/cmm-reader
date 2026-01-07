@@ -10,6 +10,7 @@ import { useCallback, useRef, useEffect } from "react";
 import {
   useAddHistoryEntry,
   useMarkChapterRead,
+  useSaveProgress,
 } from "@/features/Library/hooks";
 import { useReaderStoreV2 } from "../store/useReaderStoreV2";
 import type { Chapter } from "@/sources";
@@ -32,6 +33,7 @@ const READ_THRESHOLD = 0.95; // Mark as read at 95%
 export function useSaveProgressV2(data: ProgressData | null) {
   const addHistoryEntry = useAddHistoryEntry();
   const markChapterRead = useMarkChapterRead();
+  const saveMangaProgress = useSaveProgress();
   const lastSavedRef = useRef<number>(0);
   const lastChapterIdRef = useRef<string>("");
   const markedAsReadRef = useRef<string>(""); // Track which chapter was marked
@@ -71,6 +73,7 @@ export function useSaveProgressV2(data: ProgressData | null) {
         forced: shouldForce,
       });
 
+      // 1. Update History Collection (for History tab)
       addHistoryEntry({
         mangaId: data.mangaId,
         mangaTitle: data.mangaTitle,
@@ -84,8 +87,21 @@ export function useSaveProgressV2(data: ProgressData | null) {
         totalPages,
         sourceId: data.sourceId,
       });
+
+      // 2. Update Manga Object (for Library/Resume)
+      // Note: mangaId here should be the libraryId (source_id)
+      const libraryId = data.mangaId.startsWith(data.sourceId + "_")
+        ? data.mangaId
+        : `${data.sourceId}_${data.mangaId}`;
+
+      saveMangaProgress(
+        libraryId,
+        currentChapter.id,
+        currentChapter.number,
+        currentPage // Store 0-indexed for initialization
+      );
     },
-    [data, currentChapter, currentPage, totalPages, addHistoryEntry],
+    [data, currentChapter, currentPage, totalPages, addHistoryEntry, saveMangaProgress],
   );
 
   // Auto-save on page change (debounced)

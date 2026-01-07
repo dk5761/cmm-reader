@@ -16,6 +16,7 @@ import { useRef } from "react";
 type ChapterCardProps = {
   chapter: Chapter;
   isRead?: boolean;
+  lastPage?: number;
   onPress?: () => void;
   onMarkAsRead?: () => void;
   onMarkAsUnread?: () => void;
@@ -26,6 +27,7 @@ type ChapterCardProps = {
 export function ChapterCard({
   chapter,
   isRead = false,
+  lastPage,
   onPress,
   onMarkAsRead,
   onMarkAsUnread,
@@ -174,9 +176,19 @@ export function ChapterCard({
             <Text className="text-foreground text-sm font-medium">
               Chapter {chapter.number}
             </Text>
-            <Text className="text-muted text-xs mt-0.5">
-              {chapter.date || "Unknown date"}
-            </Text>
+            <View className="flex-row items-center mt-0.5">
+              <Text className="text-muted text-xs">
+                {chapter.date || "Unknown date"}
+              </Text>
+              {lastPage !== undefined && lastPage > 0 && !isRead && (
+                <>
+                  <Text className="text-muted text-xs mx-1">•</Text>
+                  <Text className="text-primary/80 text-xs font-medium">
+                    Page {lastPage + 1}
+                  </Text>
+                </>
+              )}
+            </View>
           </View>
           {isRead && (
             <View className="bg-primary/20 px-2 py-0.5 rounded">

@@ -55,7 +55,9 @@ export function LibraryGrid({
                 }
                 progress={progress}
                 subtitle={
-                  item.currentChapter ? `Ch. ${item.currentChapter}` : undefined
+                  item.currentChapter 
+                    ? `Ch. ${item.currentChapter}${item.lastPage ? ` (P. ${item.lastPage + 1})` : ""}` 
+                    : undefined
                 }
               />
             </View>
