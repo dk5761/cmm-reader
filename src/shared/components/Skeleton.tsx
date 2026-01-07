@@ -55,15 +55,17 @@ export function Skeleton({
     outputRange: [bg, hl],
   });
 
+  const animatedStyle = {
+    width,
+    height,
+    borderRadius,
+    backgroundColor,
+  };
+
   return (
     <Animated.View
       style={[
-        {
-          width,
-          height,
-          borderRadius,
-          backgroundColor,
-        },
+        animatedStyle as any,
         style,
       ]}
       className={className}
