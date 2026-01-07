@@ -86,7 +86,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
     try {
       await downloadChapter(targetChapter.chapter, targetChapter.mangaId, targetChapter.sourceId);
     } catch (error) {
-      logger.error("Download failed", { error, chapterId: targetChapter.chapter.id });
+      logger.manga.error("Download failed", { error, chapterId: targetChapter.chapter.id });
       // Mark as error
       realm.write(() => {
         targetChapter!.chapter.downloadStatus = DownloadStatus.ERROR;
@@ -164,7 +164,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
         realm.write(() => {
             chapterRealmObj.downloadStatus = DownloadStatus.DOWNLOADED;
         });
-        logger.log("Download complete", { chapterId });
+        logger.manga.log("Download complete", { chapterId });
     }
   };
 
