@@ -31,7 +31,7 @@ export function setSyncingFromCloud(value: boolean): void {
  * Convert Realm manga to cloud format
  * Note: Firestore doesn't accept undefined, so we omit those fields
  */
-function toCloudManga(manga: MangaSchema): CloudManga {
+export function toCloudManga(manga: MangaSchema): CloudManga {
   const cloudManga: CloudManga = {
     id: manga.id,
     sourceId: manga.sourceId,
@@ -66,10 +66,10 @@ function toCloudManga(manga: MangaSchema): CloudManga {
     // Create a clean object without undefined values
     cloudManga.progress = Object.entries(progress).reduce((acc, [key, value]) => {
       if (value !== undefined) {
-        acc[key as keyof typeof progress] = value as any;
+        (acc as any)[key] = value;
       }
       return acc;
-    }, {} as typeof progress);
+    }, {} as any);
   }
 
   return cloudManga;
@@ -98,7 +98,7 @@ function toCloudHistory(h: ReadingHistorySchema): CloudHistoryEntry {
 /**
  * Convert Realm category to cloud format
  */
-function toCloudCategory(c: CategorySchema): CloudCategory {
+export function toCloudCategory(c: CategorySchema): CloudCategory {
   return {
     id: c.id,
     name: c.name,
@@ -296,12 +296,18 @@ export function importFromCloud(
         if (cloudManga.progress) {
           // Update embedded object
           if (!existing.progress) {
-            existing.progress = {} as ReadingProgressSchema;
+            existing.progress = {
+              lastChapterId: cloudManga.progress.lastChapterId,
+              lastChapterNumber: cloudManga.progress.lastChapterNumber,
+              lastPage: cloudManga.progress.lastPage,
+              timestamp: cloudManga.progress.timestamp,
+            } as any;
+          } else {
+            existing.progress.lastChapterId = cloudManga.progress.lastChapterId;
+            existing.progress.lastChapterNumber = cloudManga.progress.lastChapterNumber;
+            existing.progress.lastPage = cloudManga.progress.lastPage;
+            existing.progress.timestamp = cloudManga.progress.timestamp;
           }
-          existing.progress.lastChapterId = cloudManga.progress.lastChapterId;
-          existing.progress.lastChapterNumber = cloudManga.progress.lastChapterNumber;
-          existing.progress.lastPage = cloudManga.progress.lastPage;
-          existing.progress.timestamp = cloudManga.progress.timestamp;
         }
 
         // Merge chapter read states

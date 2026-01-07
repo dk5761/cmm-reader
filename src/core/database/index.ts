@@ -4,6 +4,7 @@ export {
   ChapterSchema,
   ReadingProgressSchema,
   ReadingHistorySchema,
+  CategorySchema,
   realmSchemas,
   type ReadingStatus,
 } from "./schema";
