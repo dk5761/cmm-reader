@@ -156,15 +156,15 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         totalPages: chapterData.pages.length,
         hasPrev: !!prevChapter,
         hasNext: !!nextChapter,
-        resumePage: currentPage,
+        resumePage: get().currentPage,
       });
 
       // Resume logic: if we have a saved page from initialization, scroll to it
-      if (currentPage > 0) {
-        logger.reader.log("Resuming at page", { currentPage });
+      if (get().currentPage > 0) {
+        logger.reader.log("Resuming at page", { currentPage: get().currentPage });
         // We use a slight delay to ensure FlashList is ready to receive the scroll
         setTimeout(() => {
-          get().seekToPage(currentPage);
+          get().seekToPage(get().currentPage);
         }, 100);
       }
     },

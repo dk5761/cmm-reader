@@ -34,7 +34,7 @@ import { usePreloaderV2 } from "../hooks/usePreloaderV2";
 import { useSaveProgressV2 } from "../hooks/useSaveProgressV2";
 import { useKeepAwakeV2 } from "../hooks/useKeepAwakeV2";
 import { useChapterList } from "@/features/Manga/api/manga.queries";
-import { useGetOrCreateManga } from "@/features/Library/hooks";
+import { useGetOrCreateManga, useLibraryMangaById } from "@/features/Library/hooks";
 import { Image } from "expo-image";
 import type { Chapter, MangaDetails } from "@/sources";
 
@@ -53,6 +53,10 @@ export function ReaderScreenV2() {
   const mangaCover = params.mangaCover as string | undefined;
   const chapterNumberParam = params.chapterNumber as string | undefined;
   const chapterTitleParam = params.chapterTitle as string | undefined;
+
+  // Fetch local library data to get lastPageRead
+  const libraryId = (sourceId && mangaId) ? `${sourceId}_${mangaId}` : "";
+  const libraryManga = useLibraryMangaById(libraryId);
 
   // Fetch chapters list (same as old reader)
   const { data: chapters, isLoading: chaptersLoading } = useChapterList(
@@ -257,15 +261,19 @@ export function ReaderScreenV2() {
   // Initialize store when chapters list is ready
   useEffect(() => {
     if (chapters && chapters.length > 0 && mangaId && sourceId && chapterId) {
+      // Find saved progress for this specific chapter if it exists in local DB
+      const localChapter = libraryManga?.chapters?.find(c => c.id === chapterId);
+      const savedPage = localChapter?.lastPageRead ?? 0;
+
       initialize({
         mangaId,
         sourceId,
         chapterId,
         chapters,
-        initialPage: 0,
+        initialPage: savedPage,
       });
     }
-  }, [chapters?.length, mangaId, sourceId, chapterId, initialize]);
+  }, [chapters?.length, mangaId, sourceId, chapterId, initialize, libraryManga]);
 
   // Update store when chapter data loads (Stage 1 complete)
   // Only set after store is initialized (storeChapterIndex >= 0)

@@ -27,7 +27,7 @@ export function useAddHistoryEntry() {
 
   return useCallback(
     async (entry: HistoryEntry) => {
-      await historyRepo.addToHistory(entry);
+      await historyRepo.addToHistory(entry as any);
     },
     [historyRepo]
   );
