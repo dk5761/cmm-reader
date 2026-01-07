@@ -8,7 +8,8 @@ import type {
   SearchResult,
   SourceConfig,
 } from "../base/types";
-import { CookieManagerInstance } from "@/core/http/CookieManager";
+import { cookieJar } from "@/core/http/CookieJar";
+import { USER_AGENT } from "@/core/http/userAgent";
 
 /**
  * MangaKakalot Source Implementation
@@ -293,8 +294,7 @@ export class MangaKakalotSource extends Source {
     const doc = this.parseHtml(html);
 
     // Get cookies for image requests
-    const domain = new URL(this.baseUrl).hostname;
-    const cookies = await CookieManagerInstance.getCookies(domain);
+    const cookies = await cookieJar.getCookieString(this.baseUrl);
     console.log(
       "[MangaKakalot] getPageList - Cookies:",
       cookies ? "present" : "none"
@@ -342,17 +342,12 @@ export class MangaKakalotSource extends Source {
 
         console.log(`[MangaKakalot] getPageList - Page ${index} raw URL:`, src);
 
-        const userAgent =
-          Platform.OS === "ios"
-            ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-            : "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
-
         return {
           index,
           imageUrl: this.absoluteUrl(src),
           headers: {
             Referer: `${this.baseUrl}/`,
-            "User-Agent": userAgent,
+            "User-Agent": USER_AGENT,
             ...(cookies && { Cookie: cookies }),
           },
         };

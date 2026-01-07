@@ -21,12 +21,13 @@ import { WebView, WebViewMessageEvent } from "react-native-webview";
 import { HttpClient } from "@/core/http";
 import { WebViewFetcherService } from "@/core/http/WebViewFetcherService";
 import { registerManualChallengeHandler } from "@/core/http/CloudflareInterceptor";
-import { CookieManagerInstance } from "@/core/http/CookieManager";
+import { cookieJar } from "@/core/http/CookieJar";
 import { useSession } from "./SessionContext";
 import CookieSync from "cookie-sync";
 import { cfLogger } from "@/utils/cfDebugLogger";
 import { logger } from "@/utils/logger";
 import { CF_CONFIG } from "@/core/http/config";
+import { USER_AGENT } from "@/core/http/userAgent";
 
 type RequestType = "navigate" | "post";
 
@@ -516,35 +517,11 @@ export function WebViewFetcherProvider({
       cookies?: string;
     }> => {
       try {
-        const domain = new URL(url).hostname;
-
-        // Use native module on iOS for reliable cookie extraction
-        if (Platform.OS === "ios") {
-          const hasCfClearance = await CookieSync.hasCfClearance(url);
-          if (hasCfClearance) {
-            const cookieString = await CookieSync.getCookieString(url);
-            await CookieSync.syncCookiesToNative(url);
-            // Cache for persistence across app restarts
-            await CookieManagerInstance.cacheCookieString(domain, cookieString);
-            return { success: true, cookies: cookieString || undefined };
-          }
-          return { success: false };
-        }
-
-        // Android: use existing method
-        const cookiesArray = await CookieManagerInstance.extractFromWebView(
-          url
-        );
-        const hasCfClearance = cookiesArray.some(
-          (c) => c.name === "cf_clearance"
-        );
-
-        if (hasCfClearance) {
-          await CookieManagerInstance.setCookies(domain, cookiesArray);
-          const cookieString = await CookieManagerInstance.getCookies(domain);
-          return { success: true, cookies: cookieString || undefined };
-        }
-        return { success: false };
+        await cookieJar.syncFromWebView(url);
+        const cookieString = await cookieJar.getCookieString(url);
+        const success = cookieString.includes("cf_clearance");
+        
+        return { success, cookies: success ? cookieString : undefined };
       } catch {
         return { success: false };
       }
@@ -700,7 +677,6 @@ export function WebViewFetcherProvider({
     clearManualChallengeTimers();
     setIsVerifying(true);
 
-    const domain = new URL(manualChallengeUrl).hostname;
     const MAX_ATTEMPTS = 3;
     const RETRY_DELAY_MS = 500;
 
@@ -717,29 +693,11 @@ export function WebViewFetcherProvider({
           `[WebViewFetcher] Cookie extraction attempt ${attempt}/${MAX_ATTEMPTS}`
         );
 
-        // Use native module on iOS for reliable cookie extraction from WKWebView
-        if (Platform.OS === "ios") {
-          hasCfClearance = await CookieSync.hasCfClearance(manualChallengeUrl);
-          if (hasCfClearance) {
-            cookieString = await CookieSync.getCookieString(manualChallengeUrl);
-            // Sync to native storage and cache for persistence
-            await CookieSync.syncCookiesToNative(manualChallengeUrl);
-            await CookieManagerInstance.cacheCookieString(domain, cookieString);
-            break;
-          }
-        } else {
-          // Android: use existing method (works fine)
-          const cookiesArray = await CookieManagerInstance.extractFromWebView(
-            manualChallengeUrl
-          );
-          hasCfClearance = cookiesArray.some((c) => c.name === "cf_clearance");
-          if (hasCfClearance) {
-            await CookieManagerInstance.setCookies(domain, cookiesArray);
-            cookieString =
-              (await CookieManagerInstance.getCookies(domain)) || undefined;
-            break;
-          }
-        }
+        await cookieJar.syncFromWebView(manualChallengeUrl);
+        cookieString = await cookieJar.getCookieString(manualChallengeUrl);
+        hasCfClearance = cookieString.includes("cf_clearance");
+
+        if (hasCfClearance) break;
 
         if (attempt === MAX_ATTEMPTS && !hasCfClearance) {
           console.log(
@@ -903,11 +861,7 @@ export function WebViewFetcherProvider({
               allowsInlineMediaPlayback
               mixedContentMode="compatibility"
               allowsBackForwardNavigationGestures
-              userAgent={
-                Platform.OS === "ios"
-                  ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-                  : "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-              }
+              userAgent={USER_AGENT}
               startInLoadingState
               renderLoading={() => (
                 <View style={styles.loadingContainer}>

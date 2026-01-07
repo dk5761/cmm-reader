@@ -54,6 +54,23 @@ class CookieJar {
   }
 
   /**
+   * Clear cookies for a specific domain (to force fresh challenge)
+   */
+  async invalidateDomain(url: string): Promise<void> {
+    try {
+      if (Platform.OS === "ios") {
+        await CookieSync.clearCfClearance(url);
+      } else {
+        // On Android, we clear all cookies for this URL
+        await CookieManager.clearByName(url, "cf_clearance");
+      }
+      logger.http.log("CookieJar: Domain invalidated", { url });
+    } catch (error) {
+      logger.http.error("CookieJar: Invalidation failed", { error, url });
+    }
+  }
+
+  /**
    * Clear all cookies
    */
   async clearAll(): Promise<void> {

@@ -7,7 +7,7 @@ import type {
   SearchResult,
   SourceConfig,
 } from "../base/types";
-import { CookieManagerInstance } from "@/core/http/CookieManager";
+import { cookieJar } from "@/core/http/CookieJar";
 
 /**
  * AsuraScans Source Implementation
@@ -493,8 +493,7 @@ export class AsuraScansSource extends Source {
       const sortedPages = pagesData.sort((a, b) => a.order - b.order);
 
       // Get cookies for image requests
-      const domain = new URL(this.baseUrl).hostname;
-      const cookies = await CookieManagerInstance.getCookies(domain);
+      const cookies = await cookieJar.getCookieString(this.baseUrl);
 
       return sortedPages.map((page, index) => ({
         index,

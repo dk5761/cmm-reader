@@ -3,13 +3,11 @@ import React, {
   useContext,
   useCallback,
   ReactNode,
-  useEffect,
 } from "react";
-import { CookieManagerInstance } from "@/core/http/CookieManager";
+import { cookieJar } from "@/core/http/CookieJar";
 
 /**
  * Simplified SessionContext for Mihon-style architecture.
- * No warmup needed - CookieManager loads from AsyncStorage automatically.
  */
 
 type SessionContextType = {
@@ -23,27 +21,16 @@ type SessionProviderProps = {
 };
 
 /**
- * Provider that initializes cookie management.
- * No warmup needed - cookies loaded from AsyncStorage on demand.
+ * Provider that manages session invalidation.
  */
 export function SessionProvider({ children }: SessionProviderProps) {
-  // Load cookies from storage on mount
-  useEffect(() => {
-    CookieManagerInstance.load();
-  }, []);
-
   /**
    * Invalidate session (clear cookies for a domain)
    * Called when CF challenge is detected or on manual logout
    */
   const invalidateSession = useCallback((baseUrl: string) => {
-    try {
-      const domain = new URL(baseUrl).hostname;
-      console.log("[SessionProvider] Invalidating session for:", domain);
-      CookieManagerInstance.clearDomain(domain);
-    } catch (e) {
-      console.error("[SessionProvider] Failed to invalidate session:", e);
-    }
+    console.log("[SessionProvider] Invalidating session for:", baseUrl);
+    cookieJar.invalidateDomain(baseUrl);
   }, []);
 
   return (
