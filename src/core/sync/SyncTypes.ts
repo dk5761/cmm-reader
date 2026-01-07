@@ -10,15 +10,18 @@ export type SyncEventType =
   | "chapter_read"
   | "chapter_unread"
   | "progress_updated"
-  | "history_added";
+  | "history_added"
+  | "category_added"
+  | "category_updated"
+  | "category_deleted";
 
 // Queued sync event
 export interface SyncEvent {
   id: string;
   type: SyncEventType;
-  entityId: string; // mangaId or historyId
+  entityId: string; // mangaId, historyId, or categoryId
   timestamp: number;
-  data?: CloudManga | CloudHistoryEntry | Record<string, unknown>;
+  data?: CloudManga | CloudHistoryEntry | CloudCategory | Record<string, unknown>;
 }
 
 // Firestore manga document (what we store in cloud)
@@ -33,6 +36,7 @@ export interface CloudManga {
   description?: string;
   genres: string[];
   readingStatus?: string;
+  categories?: string[]; // IDs of categories this manga belongs to
   addedAt: number;
   lastUpdated: number;
   progress?: {
@@ -48,6 +52,16 @@ export interface CloudManga {
     isRead: boolean;
     lastPageRead: number;
   }[];
+}
+
+// Firestore category document
+export interface CloudCategory {
+  id: string;
+  name: string;
+  order: number;
+  // We sync mangaIds here too, but relationship is many-to-many.
+  // Storing here helps if we just want to fetch category list.
+  mangaIds: string[];
 }
 
 // Firestore history document

@@ -3,9 +3,9 @@
  */
 
 import Realm from "realm";
-import { MangaSchema, ReadingHistorySchema } from "@/core/database";
+import { MangaSchema, ReadingHistorySchema, CategorySchema } from "@/core/database";
 import { SyncService } from "./SyncService";
-import { CloudManga, CloudHistoryEntry } from "./SyncTypes";
+import { CloudManga, CloudHistoryEntry, CloudCategory } from "./SyncTypes";
 
 /**
  * Flag to prevent infinite sync loop.
@@ -41,6 +41,7 @@ function toCloudManga(manga: MangaSchema): CloudManga {
     addedAt: manga.addedAt,
     lastUpdated: manga.lastUpdated ?? Date.now(),
     genres: [...manga.genres],
+    categories: [...(manga.categories || [])], // Sync categories
     chapters: manga.chapters.map((ch) => ({
       id: ch.id,
       number: ch.number,
@@ -93,11 +94,24 @@ function toCloudHistory(h: ReadingHistorySchema): CloudHistoryEntry {
 }
 
 /**
+ * Convert Realm category to cloud format
+ */
+function toCloudCategory(c: CategorySchema): CloudCategory {
+  return {
+    id: c.id,
+    name: c.name,
+    order: c.order,
+    mangaIds: [...c.mangaIds],
+  };
+}
+
+/**
  * Start listening to Realm changes and queue sync events
  */
 export function startRealmSyncBridge(realm: Realm): () => void {
   const mangaCollection = realm.objects(MangaSchema);
   const historyCollection = realm.objects(ReadingHistorySchema);
+  const categoryCollection = realm.objects(CategorySchema);
 
   // Track manga changes
   const mangaListener = (
@@ -149,7 +163,6 @@ export function startRealmSyncBridge(realm: Realm): () => void {
       return;
     }
 
-    // Skip if we're importing from cloud (prevents infinite loop)
     if (isSyncingFromCloud) {
       return;
     }
@@ -166,9 +179,54 @@ export function startRealmSyncBridge(realm: Realm): () => void {
     });
   };
 
+  // Track category changes
+  const categoryListener = (
+    collection: Realm.OrderedCollection<CategorySchema>,
+    changes: Realm.CollectionChangeSet,
+  ) => {
+    if (!changes.insertions && !changes.newModifications && !changes.deletions) {
+      return;
+    }
+
+    if (isSyncingFromCloud) {
+      return;
+    }
+
+    changes.insertions?.forEach((index) => {
+      const cat = collection[index];
+      if (cat) {
+        SyncService.enqueue({
+          type: "category_added",
+          entityId: cat.id,
+          data: toCloudCategory(cat),
+        });
+      }
+    });
+
+    changes.newModifications?.forEach((index) => {
+      const cat = collection[index];
+      if (cat) {
+        SyncService.enqueue({
+          type: "category_updated",
+          entityId: cat.id,
+          data: toCloudCategory(cat),
+        });
+      }
+    });
+
+    changes.deletions?.forEach((index) => {
+      // NOTE: We can't get the deleted object's ID directly from Realm after deletion.
+      // SyncService would need to handle deletions differently (e.g. store ID map)
+      // For now, deletions are not fully supported in incremental sync without ID tracking.
+      // Full sync handles deletion by absence.
+      // This is a known limitation.
+    });
+  };
+
   // Add listeners
   mangaCollection.addListener(mangaListener);
   historyCollection.addListener(historyListener);
+  categoryCollection.addListener(categoryListener);
 
   console.log("[RealmSyncBridge] Started listening for changes");
 
@@ -176,6 +234,7 @@ export function startRealmSyncBridge(realm: Realm): () => void {
   return () => {
     mangaCollection.removeListener(mangaListener);
     historyCollection.removeListener(historyListener);
+    categoryCollection.removeListener(categoryListener);
     console.log("[RealmSyncBridge] Stopped listening");
   };
 }
@@ -186,13 +245,16 @@ export function startRealmSyncBridge(realm: Realm): () => void {
 export function exportAllForSync(realm: Realm): {
   manga: CloudManga[];
   history: CloudHistoryEntry[];
+  categories: CloudCategory[];
 } {
   const mangaList = realm.objects(MangaSchema).filtered("inLibrary == true");
   const historyList = realm.objects(ReadingHistorySchema);
+  const categoryList = realm.objects(CategorySchema);
 
   return {
     manga: [...mangaList].map(toCloudManga),
     history: [...historyList].map(toCloudHistory),
+    categories: [...categoryList].map(toCloudCategory),
   };
 }
 
@@ -201,10 +263,15 @@ export function exportAllForSync(realm: Realm): {
  */
 export function importFromCloud(
   realm: Realm,
-  cloudData: { manga: CloudManga[]; history: CloudHistoryEntry[] },
-): { mangaCount: number; historyCount: number } {
+  cloudData: { 
+    manga: CloudManga[]; 
+    history: CloudHistoryEntry[]; 
+    categories?: CloudCategory[]; // Optional for backward compatibility
+  },
+): { mangaCount: number; historyCount: number; categoryCount: number } {
   let mangaCount = 0;
   let historyCount = 0;
+  let categoryCount = 0;
 
   realm.write(() => {
     // Import manga
@@ -216,6 +283,11 @@ export function importFromCloud(
         existing.inLibrary = cloudManga.inLibrary;
         existing.readingStatus = cloudManga.readingStatus;
         existing.lastUpdated = cloudManga.lastUpdated;
+        
+        // Sync categories
+        if (cloudManga.categories) {
+          existing.categories = cloudManga.categories as any;
+        }
 
         if (cloudManga.progress) {
           existing.progress = cloudManga.progress as any;
@@ -237,7 +309,6 @@ export function importFromCloud(
         });
       } else {
         // Create new manga
-        // Note: We cast embedded objects since Realm handles the conversion
         realm.create(MangaSchema, {
           id: cloudManga.id,
           sourceId: cloudManga.sourceId,
@@ -251,6 +322,7 @@ export function importFromCloud(
           readingStatus: cloudManga.readingStatus || "reading",
           addedAt: cloudManga.addedAt,
           lastUpdated: cloudManga.lastUpdated,
+          categories: cloudManga.categories || [],
           chapters: cloudManga.chapters.map((ch) => ({
             id: ch.id,
             number: ch.number,
@@ -283,6 +355,26 @@ export function importFromCloud(
         historyCount++;
       }
     }
+
+    // Import categories
+    if (cloudData.categories) {
+      for (const cloudCat of cloudData.categories) {
+        const existing = realm.objectForPrimaryKey(CategorySchema, cloudCat.id);
+        if (existing) {
+          existing.name = cloudCat.name;
+          existing.order = cloudCat.order;
+          existing.mangaIds = cloudCat.mangaIds as any;
+        } else {
+          realm.create(CategorySchema, {
+            id: cloudCat.id,
+            name: cloudCat.name,
+            order: cloudCat.order,
+            mangaIds: cloudCat.mangaIds,
+          });
+        }
+        categoryCount++;
+      }
+    }
   });
 
   console.log(
@@ -290,7 +382,9 @@ export function importFromCloud(
     mangaCount,
     "manga,",
     historyCount,
-    "history",
+    "history,",
+    categoryCount,
+    "categories"
   );
-  return { mangaCount, historyCount };
+  return { mangaCount, historyCount, categoryCount };
 }
