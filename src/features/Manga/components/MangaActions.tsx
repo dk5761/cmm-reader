@@ -69,6 +69,12 @@ export function MangaActions({
   const handleRead = () => {
     if (!targetChapter || !manga) return;
 
+    // Determine start page:
+    // If we are resuming the last read chapter, use the saved page.
+    // Otherwise start from 0.
+    const isResuming = libraryManga?.progress?.lastChapterId === targetChapter.id;
+    const initialPage = isResuming ? (libraryManga?.progress?.lastPage ?? 0) : 0;
+
     router.push({
       pathname: "/reader/[chapterId]",
       params: {
@@ -81,6 +87,7 @@ export function MangaActions({
         mangaCover: manga.cover,
         chapterNumber: targetChapter.number.toString(),
         chapterTitle: targetChapter.title ?? "",
+        initialPage: initialPage.toString(),
       },
     });
   };

@@ -88,7 +88,8 @@ export function ChapterListSection({
       chapterId: string,
       chapterUrl: string,
       chapterNumber: number,
-      chapterTitle?: string
+      chapterTitle?: string,
+      initialPage: number = 0
     ) => {
       // [DEBUG] Log navigation params
       console.log("[DEBUG ChapterListSection] Navigating to reader:", {
@@ -96,6 +97,7 @@ export function ChapterListSection({
         sourceId,
         url: chapterUrl,
         mangaId,
+        initialPage,
         hasAllParams: !!(chapterId && sourceId && chapterUrl),
       });
 
@@ -111,6 +113,7 @@ export function ChapterListSection({
           mangaCover: mangaCover || "",
           chapterNumber: chapterNumber.toString(),
           chapterTitle: chapterTitle || "",
+          initialPage: initialPage.toString(),
         },
       });
     },
@@ -145,7 +148,8 @@ export function ChapterListSection({
                   chapter.id,
                   chapter.url,
                   chapter.number,
-                  chapter.title
+                  chapter.title,
+                  localData?.lastPage ?? 0
                 )
               }
               onMarkAsRead={() => markAsRead(chapter.id)}

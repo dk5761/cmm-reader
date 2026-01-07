@@ -53,6 +53,8 @@ export function ReaderScreenV2() {
   const mangaCover = params.mangaCover as string | undefined;
   const chapterNumberParam = params.chapterNumber as string | undefined;
   const chapterTitleParam = params.chapterTitle as string | undefined;
+  // Get initial page from params (passed from Resume button)
+  const initialPageParam = params.initialPage as string | undefined;
 
   // Fetch local library data to get lastPageRead
   const libraryId = (sourceId && mangaId) ? `${sourceId}_${mangaId}` : "";
@@ -261,19 +263,27 @@ export function ReaderScreenV2() {
   // Initialize store when chapters list is ready
   useEffect(() => {
     if (chapters && chapters.length > 0 && mangaId && sourceId && chapterId) {
-      // Find saved progress for this specific chapter if it exists in local DB
-      const localChapter = libraryManga?.chapters?.find(c => c.id === chapterId);
-      const savedPage = localChapter?.lastPageRead ?? 0;
+      // Priority 1: Use page passed via params (Resume button)
+      // Priority 2: Use local DB progress (if available immediately)
+      // Priority 3: Default to 0
+      let startPage = 0;
+      
+      if (initialPageParam) {
+        startPage = parseInt(initialPageParam, 10);
+      } else {
+        const localChapter = libraryManga?.chapters?.find(c => c.id === chapterId);
+        startPage = localChapter?.lastPageRead ?? 0;
+      }
 
       initialize({
         mangaId,
         sourceId,
         chapterId,
         chapters,
-        initialPage: savedPage,
+        initialPage: startPage,
       });
     }
-  }, [chapters?.length, mangaId, sourceId, chapterId, initialize, libraryManga]);
+  }, [chapters?.length, mangaId, sourceId, chapterId, initialize, libraryManga, initialPageParam]);
 
   // Update store when chapter data loads (Stage 1 complete)
   // Only set after store is initialized (storeChapterIndex >= 0)
