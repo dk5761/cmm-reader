@@ -5,17 +5,15 @@ import type {
   AxiosResponse,
 } from "axios";
 import { Platform } from "react-native";
-import { WebViewFetcherService } from "./WebViewFetcherService";
-import { CookieManagerInstance } from "./CookieManager";
+import { CloudflareSolver } from "./CloudflareSolver";
 import {
   CloudflareBypassException,
   ManualChallengeHandler,
   CF_CHALLENGE_PATTERNS,
 } from "./types";
-import CookieSync from "cookie-sync";
-import { cfLogger } from "@/utils/cfDebugLogger";
 import { logger } from "@/utils/logger";
 import { CF_CONFIG } from "./config";
+import CookieSync from "cookie-sync"; // Keep for cleanup only
 
 /**
  * Registered manual challenge handler (set by WebViewFetcherContext)
@@ -67,102 +65,9 @@ async function solveCfChallengeAuto(
   attempt: number = 1
 ): Promise<{ html: string; cookies: string }> {
   const url = config.url!;
-  const domain = new URL(url).hostname;
-  const startTime = Date.now();
-
-  logger.cf.log(`Auto-solving challenge for ${domain}`, {
-    attempt,
-    maxRetries: CF_CONFIG.MAX_RETRIES,
-  });
-
-  await cfLogger.log("CF Interceptor", "Auto-solve started", {
-    url: url.substring(0, 80),
-    domain,
-    attempt,
-    maxRetries: CF_CONFIG.MAX_RETRIES,
-  });
-
-  // Solve using WebView with increasing timeout
-  const timeout = 15000 + attempt * 5000;
-  const html = await WebViewFetcherService.fetchHtml(url, timeout);
-
-  let hasCfClearance = false;
-  let cookieString = "";
-  const cookieExtractStart = Date.now();
-
-  // Use native module on iOS for reliable cookie extraction from WKWebView
-  if (Platform.OS === "ios") {
-    // Get cookie string first to avoid race condition between hasCfClearance and getCookieString
-    cookieString = await CookieSync.getCookieString(url);
-    hasCfClearance = cookieString.includes("cf_clearance=");
-
-    if (hasCfClearance) {
-      const syncStart = Date.now();
-      await CookieSync.syncCookiesToNative(url);
-      await cfLogger.logCookieSync("toNative", domain, {
-        success: true,
-        durationMs: Date.now() - syncStart,
-        cookieLength: cookieString.length,
-      });
-
-      const cacheStart = Date.now();
-      await CookieManagerInstance.cacheCookieString(domain, cookieString);
-      await cfLogger.logCookieSync("toCache", domain, {
-        success: true,
-        durationMs: Date.now() - cacheStart,
-        cookieLength: cookieString.length,
-      });
-    }
-
-    await cfLogger.logCookieExtraction("iOS-Native", url, {
-      success: hasCfClearance,
-      cookieString: hasCfClearance ? cookieString : undefined,
-      durationMs: Date.now() - cookieExtractStart,
-    });
-  } else {
-    // Android: use JS-based extraction (works fine)
-    const cookiesArray = await CookieManagerInstance.extractFromWebView(url);
-    hasCfClearance = cookiesArray.some((c) => c.name === "cf_clearance");
-    if (hasCfClearance) {
-      await CookieManagerInstance.setCookies(domain, cookiesArray);
-      cookieString = (await CookieManagerInstance.getCookies(domain)) || "";
-    }
-
-    await cfLogger.logCookieExtraction("Android-WebView", url, {
-      success: hasCfClearance,
-      cookies: cookiesArray,
-      cookieString: hasCfClearance ? cookieString : undefined,
-      durationMs: Date.now() - cookieExtractStart,
-    });
-  }
-
-  if (!hasCfClearance) {
-    const error = "Failed to obtain CF clearance cookie";
-    await cfLogger.log(
-      "CF Interceptor",
-      "Auto-solve failed - no cf_clearance",
-      {
-        url: url.substring(0, 80),
-        domain,
-        durationMs: Date.now() - startTime,
-      }
-    );
-    throw new Error(error);
-  }
-
-  logger.cf.log(`Successfully solved challenge for ${domain}`);
-
-  await cfLogger.log("CF Interceptor", "Auto-solve SUCCESS", {
-    url: url.substring(0, 80),
-    domain,
-    cookieLength: cookieString.length,
-    totalDurationMs: Date.now() - startTime,
-  });
-
-  return {
-    html,
-    cookies: cookieString,
-  };
+  
+  // Use the new simplified solver
+  return CloudflareSolver.solve(url, attempt);
 }
 
 /**
@@ -330,6 +235,7 @@ export function setupCloudflareInterceptor(axiosInstance: AxiosInstance): void {
           // STEP 4: Clear invalid token
           if (Platform.OS === "ios") {
             try {
+              // We use direct module call here just for cleanup to avoid cyclic dependency
               await CookieSync.clearCfClearance(url);
               logger.cf.log(`Cleared invalid token for ${domain}`);
             } catch (e) {
