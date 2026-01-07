@@ -71,7 +71,7 @@ export function LibraryScreen() {
           cmp = (b.addedAt ?? 0) - (a.addedAt ?? 0);
           break;
         case "lastRead":
-          cmp = (b.progress?.lastReadAt ?? 0) - (a.progress?.lastReadAt ?? 0);
+          cmp = (b.progress?.timestamp ?? 0) - (a.progress?.timestamp ?? 0);
           break;
         case "unread": {
           const unreadA =

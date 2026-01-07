@@ -117,6 +117,7 @@ export function useAddToLibrary() {
           })),
           readingStatus: "reading",
           addedAt: Date.now(),
+          lastUpdated: Date.now(),
         });
 
         console.log("[Library] Added new manga:", manga.title);
@@ -320,6 +321,7 @@ export function useGetOrCreateManga() {
           })),
           readingStatus: "reading",
           addedAt: Date.now(),
+          lastUpdated: Date.now(),
         });
 
         console.log("[Track] Created tracking entry:", manga.title);

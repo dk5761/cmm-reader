@@ -34,6 +34,23 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
             "existing manga"
           );
         }
+
+        // Backfill null lastUpdated values (runs on every migration)
+        const mangaWithNullLastUpdated = newRealm
+          .objects("Manga")
+          .filtered("lastUpdated == null OR lastUpdated == 0");
+
+        mangaWithNullLastUpdated.forEach((manga: any) => {
+          manga.lastUpdated = manga.addedAt || Date.now();
+        });
+
+        if (mangaWithNullLastUpdated.length > 0) {
+          console.log(
+            "[Migration] Backfilled lastUpdated for",
+            mangaWithNullLastUpdated.length,
+            "manga"
+          );
+        }
       }}
     >
       {children}
