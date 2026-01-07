@@ -95,14 +95,6 @@ export default function DebugSyncScreen() {
     <View className="flex-1 bg-background">
       <View className="px-4 border-b border-border">
         <View className="flex-row justify-between items-center">
-          <View>
-            <Text className="text-foreground text-xl font-bold">
-              Sync Debug
-            </Text>
-            <Text className="text-muted text-xs mt-1">
-              {events.length} pending event{events.length !== 1 ? "s" : ""}
-            </Text>
-          </View>
           {events.length > 0 && (
             <Pressable
               onPress={handleFlush}
