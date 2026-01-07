@@ -8,25 +8,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { Swipeable, RectButton } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
+import { triggerHaptic } from "@/utils/haptics";
 import type { Chapter } from "@/sources";
 import { useRef } from "react";
-
-// Optional haptics - gracefully degrade if not available
-let Haptics: any = null;
-try {
-  Haptics = require("expo-haptics");
-} catch {
-  // expo-haptics not installed
-}
-
-const triggerHaptic = (type: "light") => {
-  if (!Haptics || Platform.OS === "web") return;
-  try {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  } catch {
-    // Haptics not available
-  }
-};
 
 type ChapterCardProps = {
   chapter: Chapter;
@@ -158,7 +143,7 @@ export function ChapterCard({
       <Pressable
         onPress={onPress}
         onPressIn={() => {
-          triggerHaptic("light");
+          triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
           RNAnimated.timing(opacityAnim, {
             toValue: 0.7,
             duration: 100,

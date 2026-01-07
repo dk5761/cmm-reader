@@ -6,34 +6,13 @@
  */
 
 import { memo, useCallback, useState, useEffect } from "react";
-import { View, Text, Pressable, Platform } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { triggerHaptic, triggerSelection } from "@/utils/haptics";
 import { useReaderStoreV2 } from "../store/useReaderStoreV2";
 import type { ViewerChapters } from "../types/reader.types";
-
-// Optional haptics - gracefully degrade if not available
-let Haptics: any = null;
-try {
-  Haptics = require("expo-haptics");
-} catch {
-  // expo-haptics not installed
-}
-
-const triggerHaptic = (type: "selection" | "light" | "medium") => {
-  if (!Haptics || Platform.OS === "web") return;
-  try {
-    if (type === "selection") {
-      Haptics.selectionAsync();
-    } else if (type === "light") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  } catch {
-    // Haptics not available
-  }
-};
 
 interface ChapterNavigatorProps {
   viewerChapters: ViewerChapters;
@@ -69,7 +48,7 @@ export function ChapterNavigator({
   // Handle slider drag start
   const handleSliderStart = useCallback(() => {
     setIsSeeking(true);
-    triggerHaptic("selection");
+    triggerSelection();
   }, [setIsSeeking]);
 
   // Handle slider value change (update local display only)
@@ -82,7 +61,7 @@ export function ChapterNavigator({
   const handleSliderComplete = useCallback(
     (value: number) => {
       const targetPage = Math.round(value);
-      triggerHaptic("light");
+      triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
       seekToPage(targetPage);
     },
     [seekToPage]
@@ -91,14 +70,14 @@ export function ChapterNavigator({
   // Chapter navigation with haptics
   const handlePrevChapter = useCallback(() => {
     if (hasPrevChapter) {
-      triggerHaptic("medium");
+      triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
       onPrevChapter?.();
     }
   }, [hasPrevChapter, onPrevChapter]);
 
   const handleNextChapter = useCallback(() => {
     if (hasNextChapter) {
-      triggerHaptic("medium");
+      triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
       onNextChapter?.();
     }
   }, [hasNextChapter, onNextChapter]);
