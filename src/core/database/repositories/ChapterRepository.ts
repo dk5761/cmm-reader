@@ -24,6 +24,25 @@ export class RealmChapterRepository implements IChapterRepository {
     const manga = this.realm.objectForPrimaryKey(MangaSchema, mangaId);
     if (!manga) return;
 
+    // Check if update is needed to avoid infinite loops
+    // Compare counts first
+    if (manga.chapters.length === chapters.length) {
+      // Deep compare critical fields
+      const hasChanges = chapters.some((newCh, index) => {
+        const oldCh = manga.chapters[index];
+        return (
+          oldCh.id !== newCh.id ||
+          oldCh.date !== newCh.date ||
+          oldCh.title !== newCh.title || 
+          oldCh.url !== newCh.url
+        );
+      });
+      
+      if (!hasChanges) {
+        return;
+      }
+    }
+
     this.realm.write(() => {
       // Map existing chapters to preserve read status
       const existingMap = new Map<string, ChapterSchema>();
