@@ -61,13 +61,10 @@ React context that:
 
 ```typescript
 // After user presses Done
-if (Platform.OS === "ios") {
-  cookieString = await CookieSync.getCookieString(manualChallengeUrl);
-  hasCfClearance = await CookieSync.hasCfClearance(manualChallengeUrl);
-} else {
-  // Android: use @react-native-cookies/cookies
-  const cookiesArray = await CookieManagerInstance.extractFromWebView(url);
-}
+// CookieJar handles platform abstraction (iOS native vs Android)
+await cookieJar.syncFromWebView(manualChallengeUrl);
+const cookieString = await cookieJar.getCookieString(manualChallengeUrl);
+const hasCfClearance = await cookieJar.hasCfClearance(manualChallengeUrl);
 ```
 
 ### 3. CookieSync Module
