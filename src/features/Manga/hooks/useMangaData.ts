@@ -26,6 +26,13 @@ export type PreloadedManga = {
   genres: string[];
   chapterCount: number;
   readingStatus?: string;
+  chapters?: Array<{
+    id: string;
+    number: number;
+    title?: string;
+    url: string;
+    date?: string;
+  }>;
 };
 
 export type MangaDataParams = {
@@ -248,6 +255,14 @@ export function useMangaData(params: MangaDataParams) {
       url: ch.url,
       date: ch.date,
     })) ||
+    preloadedData?.chapters?.map((ch) => ({
+      id: ch.id,
+      mangaId: libraryId,
+      title: ch.title || "",
+      number: ch.number,
+      url: ch.url,
+      date: ch.date,
+    })) ||
     libraryManga?.chapters?.map((ch) => ({
       id: ch.id,
       mangaId: libraryId,
@@ -263,6 +278,8 @@ export function useMangaData(params: MangaDataParams) {
   useEffect(() => {
     const source = chapters
       ? "FRESH API"
+      : preloadedData?.chapters
+      ? "PRELOADED"
       : libraryManga?.chapters
       ? "LOCAL REALM"
       : "NONE";

@@ -137,7 +137,8 @@ export function LibraryScreen() {
   const handleMangaPress = (id: string) => {
     const manga = libraryManga.find((m) => m.id === id);
     if (manga) {
-      // Serialize minimal data for instant render on destination screen
+      // Serialize data for instant render on destination screen
+      // Include chapters to avoid race condition with Realm query timing
       const preloadedData = {
         title: manga.title,
         cover: manga.cover,
@@ -147,6 +148,13 @@ export function LibraryScreen() {
         genres: [...manga.genres],
         chapterCount: manga.chapters.length,
         readingStatus: manga.readingStatus,
+        chapters: [...manga.chapters].map((ch) => ({
+          id: ch.id,
+          number: ch.number,
+          title: ch.title,
+          url: ch.url,
+          date: ch.date,
+        })),
       };
 
       router.push({
