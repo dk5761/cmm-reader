@@ -10,6 +10,10 @@ import { getSource } from "@/sources";
 import type { Chapter, Page } from "@/sources";
 import type { ReaderChapter, ReaderPage } from "../types/reader.types";
 import { toReaderPage } from "../types/reader.types";
+import { DownloadStatus } from "@/shared/contexts/DownloadContext";
+import * as FileSystem from "expo-file-system/legacy";
+
+const DOWNLOADS_DIR = `${FileSystem.documentDirectory}downloads/`;
 
 /**
  * Query key factory for chapter pages
@@ -22,7 +26,7 @@ export const chapterPagesQueryKey = (sourceId: string, chapterUrl: string) =>
  */
 export function useChapterLoaderV2(
   sourceId: string,
-  chapter: Chapter | null,
+  chapter: (Chapter & { downloadStatus?: number; mangaId: string }) | null,
   enabled = true
 ) {
   const source = getSource(sourceId);
@@ -34,11 +38,44 @@ export function useChapterLoaderV2(
       if (!chapter) throw new Error("No chapter provided");
 
       console.log(
-        `[useChapterLoaderV2] Loading pages for chapter ${chapter.id}`
+        `[useChapterLoaderV2] Loading pages for chapter ${chapter.id} (Status: ${chapter.downloadStatus})`
       );
 
-      // Stage 1: Fetch page list (metadata only)
-      const pages: Page[] = await source.getPageList(chapter.url);
+      let pages: Page[] = [];
+
+      // Check if downloaded
+      if (chapter.downloadStatus === DownloadStatus.DOWNLOADED) {
+        console.log(`[useChapterLoaderV2] Loading from local storage`);
+        const chapterDir = `${DOWNLOADS_DIR}${sourceId}/${chapter.mangaId}/${chapter.id}/`;
+        
+        try {
+          // Read directory to get files (in case page count differs or to verify)
+          const files = await FileSystem.readDirectoryAsync(chapterDir);
+          // Sort files (000.jpg, 001.jpg)
+          const imageFiles = files
+            .filter(f => f.endsWith(".jpg") || f.endsWith(".png") || f.endsWith(".webp"))
+            .sort();
+            
+          if (imageFiles.length > 0) {
+            pages = imageFiles.map((file, index) => ({
+              index,
+              imageUrl: `file://${chapterDir}${file}`,
+              headers: {}, // No headers needed for local files
+            }));
+          } else {
+             // Fallback to network if folder empty (shouldn't happen if status is DOWNLOADED)
+             console.warn("[useChapterLoaderV2] Downloaded folder empty, falling back to network");
+             pages = await source.getPageList(chapter.url);
+          }
+        } catch (e) {
+          console.error("[useChapterLoaderV2] Failed to load local files:", e);
+          // Fallback
+          pages = await source.getPageList(chapter.url);
+        }
+      } else {
+        // Stage 1: Fetch page list (metadata only)
+        pages = await source.getPageList(chapter.url);
+      }
 
       // Convert to ReaderPage (with loading state)
       const readerPages: ReaderPage[] = pages.map(toReaderPage);
@@ -60,14 +97,34 @@ export function useChapterLoaderV2(
 export function usePrefetchChapter() {
   const queryClient = useQueryClient();
 
-  const fetchChapter = async (sourceId: string, chapter: Chapter) => {
+  const fetchChapter = async (sourceId: string, chapter: Chapter & { downloadStatus?: number; mangaId: string }) => {
     const source = getSource(sourceId);
     if (!source) return null;
 
     return await queryClient.fetchQuery({
       queryKey: chapterPagesQueryKey(sourceId, chapter.url),
       queryFn: async (): Promise<ReaderChapter> => {
-        const pages = await source.getPageList(chapter.url);
+        let pages: Page[] = [];
+
+        if (chapter.downloadStatus === DownloadStatus.DOWNLOADED) {
+             const chapterDir = `${DOWNLOADS_DIR}${sourceId}/${chapter.mangaId}/${chapter.id}/`;
+             try {
+                const files = await FileSystem.readDirectoryAsync(chapterDir);
+                const imageFiles = files
+                    .filter(f => f.endsWith(".jpg") || f.endsWith(".png") || f.endsWith(".webp"))
+                    .sort();
+                pages = imageFiles.map((file, index) => ({
+                    index,
+                    imageUrl: `file://${chapterDir}${file}`,
+                    headers: {},
+                }));
+             } catch {
+                 pages = await source.getPageList(chapter.url);
+             }
+        } else {
+            pages = await source.getPageList(chapter.url);
+        }
+
         const readerPages: ReaderPage[] = pages.map(toReaderPage);
         return {
           chapter,
