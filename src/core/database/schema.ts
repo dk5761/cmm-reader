@@ -73,6 +73,7 @@ export class MangaSchema extends Realm.Object<MangaSchema> {
   readingStatus?: string; // reading, completed, on_hold, dropped, plan_to_read
   addedAt!: number;
   lastUpdated?: number;
+  categories!: Realm.List<string>;
 
   static primaryKey = "id";
   static schema: ObjectSchema = {
@@ -94,6 +95,7 @@ export class MangaSchema extends Realm.Object<MangaSchema> {
       chapters: "Chapter[]",
       progress: "ReadingProgress?",
       readingStatus: "string?",
+      categories: "string[]",
       addedAt: "int",
       lastUpdated: "int?",
     },
@@ -141,12 +143,35 @@ export class ReadingHistorySchema extends Realm.Object<ReadingHistorySchema> {
   };
 }
 
+/**
+ * Category - User defined collections for organizing library
+ */
+export class CategorySchema extends Realm.Object<CategorySchema> {
+  id!: string;
+  name!: string;
+  order!: number;
+  mangaIds!: Realm.List<string>; // List of Manga IDs in this category
+
+  static primaryKey = "id";
+  static schema: ObjectSchema = {
+    name: "Category",
+    primaryKey: "id",
+    properties: {
+      id: "string",
+      name: "string",
+      order: "int",
+      mangaIds: "string[]",
+    },
+  };
+}
+
 // Export all schemas for RealmProvider
 export const realmSchemas = [
   MangaSchema,
   ChapterSchema,
   ReadingProgressSchema,
   ReadingHistorySchema,
+  CategorySchema,
 ];
 
 // Types for use in the app
