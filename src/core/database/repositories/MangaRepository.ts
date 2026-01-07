@@ -39,14 +39,16 @@ export class RealmMangaRepository implements IMangaRepository {
         }
       } else {
         // Create new
+        const { lastUpdated, rating, ...rest } = manga;
         this.realm.create(MangaSchema, {
-          ...manga,
+          ...rest,
           inLibrary,
           addedAt: Date.now(),
+          lastUpdated: Date.now(),
           genres: manga.genres || [],
           chapters: [],
           categories: [],
-        });
+        } as any);
       }
     });
   }
