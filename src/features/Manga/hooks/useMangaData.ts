@@ -16,6 +16,7 @@ import { getSource } from "@/sources";
 import type { MangaDetails, Chapter } from "@/sources";
 import { isCfError } from "@/core/http/utils/cfErrorHandler";
 import { resetCfRetryState } from "@/core/http/utils/resetCfRetryState";
+import { logger } from "@/utils/logger";
 
 export type PreloadedManga = {
   title: string;
@@ -70,7 +71,7 @@ export function useMangaData(params: MangaDataParams) {
     : null;
 
   // [DEBUG] Log preloaded data on mount
-  console.log("[DEBUG useMangaData] Init:", {
+  logger.manga.log("Init", {
     libraryId,
     hasPreloaded: !!preloadedData,
     preloadedChapterCount: preloadedData?.chapters?.length ?? 0,
@@ -135,7 +136,7 @@ export function useMangaData(params: MangaDataParams) {
   useEffect(() => {
     if (chapters) {
       const localChapterCount = libraryManga?.chapters?.length ?? 0;
-      console.log("[DEBUG useMangaData] Fresh chapters received:", {
+      logger.manga.log("Fresh chapters received", {
         mangaTitle: manga?.title || libraryManga?.title || "Unknown",
         freshChapterCount: chapters.length,
         localChapterCount,
@@ -159,7 +160,7 @@ export function useMangaData(params: MangaDataParams) {
 
   useEffect(() => {
     // [DEBUG] Log sync decision
-    console.log("[DEBUG useMangaData] Sync decision:", {
+    logger.manga.log("Sync decision", {
       hasChapters: !!chapters,
       hasLocalData,
       inLibrary: libraryManga?.inLibrary,
@@ -168,7 +169,7 @@ export function useMangaData(params: MangaDataParams) {
 
     // Only sync chapters if manga is actually in library
     if (chapters && hasLocalData && libraryManga?.inLibrary) {
-      console.log("[useMangaData] Auto-syncing chapters to Realm:", {
+      logger.manga.log("Auto-syncing chapters to Realm", {
         libraryId,
         freshCount: chapters.length,
         localCount: libraryManga.chapters?.length ?? 0,
@@ -189,14 +190,14 @@ export function useMangaData(params: MangaDataParams) {
       !isMangaLoading &&
       !isChaptersLoading
     ) {
-      console.log("[useMangaData] CF error detected, showing toast");
+      logger.manga.log("CF error detected, showing toast");
 
       toast.error("Failed to load manga details", {
         description: "Cloudflare verification needed",
         action: {
           label: "Retry",
           onClick: () => {
-            console.log("[useMangaData] Retry clicked");
+            logger.manga.log("Retry clicked");
             toast.dismiss();
 
             // Reset CF retry state
@@ -290,7 +291,7 @@ export function useMangaData(params: MangaDataParams) {
       : libraryManga?.chapters
       ? "LOCAL REALM"
       : "NONE";
-    console.log("[DEBUG useMangaData] Display chapters source:", {
+    logger.manga.log("Display chapters source", {
       source,
       count: displayChapters.length,
       isInLibrary: hasLocalData,

@@ -19,6 +19,8 @@ import type {
   ReaderPage,
 } from "../types/reader.types";
 import { toReaderPage } from "../types/reader.types";
+import { logger } from "@/utils/logger";
+import { READER_CONFIG } from "../config";
 
 const initialState: ReaderStoreState = {
   viewerChapters: null,
@@ -85,7 +87,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
           error: null,
         });
 
-        console.log("[ReaderStoreV2] Initialized metadata:", {
+        logger.reader.log("Initialized metadata", {
           chapterId,
           currentIndex,
           chaptersCount: chapters.length,
@@ -94,7 +96,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         const message =
           error instanceof Error ? error.message : "Failed to initialize";
         set({ error: message, isLoading: false });
-        console.error("[ReaderStoreV2] Initialize error:", error);
+        logger.reader.error("Initialize error", { error });
       }
     },
 
@@ -108,8 +110,8 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       // Guard: If not initialized and no chapters, this was called too early
       // The data will be set correctly when initialize() runs and triggers a re-render
       if (!isInitialized && allChapters.length === 0) {
-        console.warn(
-          "[ReaderStoreV2] setCurrentChapterData called before initialize - using fallback",
+        logger.reader.warn(
+          "setCurrentChapterData called before initialize - using fallback",
         );
       }
 
@@ -152,7 +154,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         isLoading: false,
       });
 
-      console.log("[ReaderStoreV2] Chapter data set:", {
+      logger.reader.log("Chapter data set", {
         chapterId: chapterData.chapter.id,
         totalPages: chapterData.pages.length,
         hasPrev: !!prevChapter,
@@ -169,7 +171,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       // Find the chapter in allChapters
       const newChapterIndex = allChapters.findIndex((c) => c.id === chapterId);
       if (newChapterIndex === -1) {
-        console.warn("[ReaderStoreV2] updateActiveChapter: Chapter not found", { chapterId });
+        logger.reader.warn("updateActiveChapter: Chapter not found", { chapterId });
         return;
       }
 
@@ -188,7 +190,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         totalPages = viewerChapters.currChapter.pages.length;
       }
 
-      console.log("[ReaderStoreV2] 🎯 updateActiveChapter:", {
+      logger.reader.log("updateActiveChapter", {
         fromChapterIndex: currentChapterIndex,
         toChapterIndex: newChapterIndex,
         chapterId,
@@ -211,7 +213,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       const { isSeeking, currentPage, totalPages, viewerChapters, currentChapterIndex } = get();
 
       // Always log page changes for debugging
-      console.log("[ReaderStoreV2] 📖 setCurrentPage called:", {
+      logger.reader.log("setCurrentPage called", {
         requestedPage: page,
         currentPage,
         totalPages,
@@ -225,14 +227,14 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       // Prevent jitter: don't update if actively seeking
       if (!isSeeking) {
         if (page !== currentPage) {
-          console.log("[ReaderStoreV2] ✅ Page updated:", {
+          logger.reader.log("Page updated", {
             from: currentPage,
             to: page,
           });
         }
         set({ currentPage: page });
       } else {
-        console.log("[ReaderStoreV2] ⏭️ setCurrentPage SKIPPED (isSeeking):", {
+        logger.reader.log("setCurrentPage SKIPPED (isSeeking)", {
           requestedPage: page,
           currentPage,
         });
@@ -260,7 +262,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
 
       // Bounds check before scrolling
       if (page < 0 || page >= totalPages) {
-        console.warn("[ReaderStoreV2] seekToPage: page out of bounds", {
+        logger.reader.warn("seekToPage: page out of bounds", {
           page,
           totalPages,
         });
@@ -274,13 +276,13 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
           animated: false, // Instant jump like Mihon
         });
       } catch (error) {
-        console.warn("[ReaderStoreV2] scrollToIndex failed:", error);
+        logger.reader.warn("scrollToIndex failed", { error });
       }
 
       // Reset seeking flag after a short delay
       setTimeout(() => {
         set({ isSeeking: false, currentPage: page });
-      }, 100);
+      }, READER_CONFIG.SEEK_DEBOUNCE_MS);
     },
 
     // ========================================================================
@@ -291,14 +293,14 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       const { viewerChapters, currentPage } = get();
 
       if (!viewerChapters?.nextChapter) {
-        console.warn("[ReaderStoreV2] loadNextChapter: No next chapter");
+        logger.reader.warn("loadNextChapter: No next chapter");
         return;
       }
       if (
         viewerChapters.nextChapter.state === "loading" ||
         viewerChapters.nextChapter.state === "loaded"
       ) {
-        console.log("[ReaderStoreV2] loadNextChapter: Already loading/loaded", {
+        logger.reader.log("loadNextChapter: Already loading/loaded", {
           state: viewerChapters.nextChapter.state,
           chapterId: viewerChapters.nextChapter.chapter.id,
           currentPage,
@@ -306,7 +308,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         return;
       }
 
-      console.log("[ReaderStoreV2] 📥 Loading next chapter...", {
+      logger.reader.log("Loading next chapter...", {
         chapterId: viewerChapters.nextChapter.chapter.id,
         chapterNumber: viewerChapters.nextChapter.chapter.number,
         currentState: viewerChapters.nextChapter.state,
@@ -329,7 +331,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
 
     setNextChapterLoaded: (pages: ReaderPage[]) => {
       const state = get();
-      console.log("[ReaderStoreV2] 📥 setNextChapterLoaded() called:", {
+      logger.reader.log("setNextChapterLoaded() called", {
         pagesCount: pages.length,
         currentPage: state.currentPage,
         totalPages: state.totalPages,
@@ -353,7 +355,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
           : null,
       }));
 
-      console.log("[ReaderStoreV2] ✅ Next chapter marked as loaded");
+      logger.reader.log("Next chapter marked as loaded");
     },
 
     loadPrevChapter: async () => {
@@ -365,7 +367,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       )
         return;
 
-      console.log("[ReaderStoreV2] Loading previous chapter...");
+      logger.reader.log("Loading previous chapter...");
       // Update state to loading
       set((state) => ({
         viewerChapters: state.viewerChapters
@@ -396,7 +398,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     },
 
     setNextChapterError: (error: string) => {
-      console.error("[ReaderStoreV2] Next chapter load failed:", error);
+      logger.reader.error("Next chapter load failed", { error });
       set((state) => ({
         viewerChapters: state.viewerChapters
           ? {
@@ -414,7 +416,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     },
 
     setPrevChapterError: (error: string) => {
-      console.error("[ReaderStoreV2] Previous chapter load failed:", error);
+      logger.reader.error("Previous chapter load failed", { error });
       set((state) => ({
         viewerChapters: state.viewerChapters
           ? {
@@ -436,7 +438,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       if (!viewerChapters?.nextChapter) return;
       if (viewerChapters.nextChapter.state !== "error") return;
 
-      console.log("[ReaderStoreV2] Retrying next chapter...");
+      logger.reader.log("Retrying next chapter...");
       // Reset to wait state so it can be loaded again
       set((state) => ({
         viewerChapters: state.viewerChapters
@@ -457,7 +459,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       if (!viewerChapters?.prevChapter) return;
       if (viewerChapters.prevChapter.state !== "error") return;
 
-      console.log("[ReaderStoreV2] Retrying previous chapter...");
+      logger.reader.log("Retrying previous chapter...");
       // Reset to wait state so it can be loaded again
       set((state) => ({
         viewerChapters: state.viewerChapters
@@ -483,7 +485,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     transitionToNextChapter: () => {
       const { viewerChapters, allChapters, currentChapterIndex } = get();
 
-      console.log("[ReaderStoreV2] 🚀 transitionToNextChapter (adapter cleanup):", {
+      logger.reader.log("transitionToNextChapter (adapter cleanup)", {
         currentChapterIndex,
         currChapterId: viewerChapters?.currChapter?.chapter.id,
         nextChapterId: viewerChapters?.nextChapter?.chapter.id,
@@ -491,12 +493,12 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       });
 
       if (!viewerChapters?.nextChapter) {
-        console.warn("[ReaderStoreV2] transitionToNextChapter: No next chapter");
+        logger.reader.warn("transitionToNextChapter: No next chapter");
         return;
       }
       if (viewerChapters.nextChapter.state !== "loaded") {
-        console.warn(
-          "[ReaderStoreV2] transitionToNextChapter: Next chapter not loaded",
+        logger.reader.warn(
+          "transitionToNextChapter: Next chapter not loaded",
           { state: viewerChapters.nextChapter.state },
         );
         return;
@@ -522,7 +524,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
             }
           : null;
 
-      console.log("[ReaderStoreV2] 🔄 Adapter cleanup (next) - shifting ViewerChapters:", {
+      logger.reader.log("Adapter cleanup (next) - shifting ViewerChapters", {
         droppingPrev: viewerChapters.prevChapter?.chapter.id,
         oldCurrBecomesNewPrev: viewerChapters.currChapter.chapter.id,
         oldNextBecomesNewCurr: newCurrChapter.chapter.id,
@@ -538,13 +540,13 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         },
       });
 
-      console.log("[ReaderStoreV2] ✅ Adapter cleanup (next) complete");
+      logger.reader.log("Adapter cleanup (next) complete");
     },
 
     transitionToPrevChapter: () => {
       const { viewerChapters, allChapters, currentChapterIndex } = get();
 
-      console.log("[ReaderStoreV2] 🚀 transitionToPrevChapter (adapter cleanup):", {
+      logger.reader.log("transitionToPrevChapter (adapter cleanup)", {
         currentChapterIndex,
         currChapterId: viewerChapters?.currChapter?.chapter.id,
         prevChapterId: viewerChapters?.prevChapter?.chapter.id,
@@ -552,12 +554,12 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       });
 
       if (!viewerChapters?.prevChapter) {
-        console.warn("[ReaderStoreV2] transitionToPrevChapter: No prev chapter");
+        logger.reader.warn("transitionToPrevChapter: No prev chapter");
         return;
       }
       if (viewerChapters.prevChapter.state !== "loaded") {
-        console.warn(
-          "[ReaderStoreV2] transitionToPrevChapter: Prev chapter not loaded",
+        logger.reader.warn(
+          "transitionToPrevChapter: Prev chapter not loaded",
           { state: viewerChapters.prevChapter.state },
         );
         return;
@@ -583,7 +585,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
             }
           : null;
 
-      console.log("[ReaderStoreV2] 🔄 Adapter cleanup (prev) - shifting ViewerChapters:", {
+      logger.reader.log("Adapter cleanup (prev) - shifting ViewerChapters", {
         droppingNext: viewerChapters.nextChapter?.chapter.id,
         oldCurrBecomesNewNext: viewerChapters.currChapter.chapter.id,
         oldPrevBecomesNewCurr: newCurrChapter.chapter.id,
@@ -599,7 +601,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
         },
       });
 
-      console.log("[ReaderStoreV2] ✅ Adapter cleanup (prev) complete");
+      logger.reader.log("Adapter cleanup (prev) complete");
     },
 
     getCurrentChapter: () => {

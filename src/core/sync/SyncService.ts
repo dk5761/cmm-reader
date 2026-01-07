@@ -35,9 +35,8 @@ import {
   SYNC_QUEUE_KEY,
   SYNC_STATE_KEY,
 } from "./SyncTypes";
-
-const DEBOUNCE_MS = 30000; // 30 seconds
-const BATCH_SIZE = 100;
+import { SYNC_CONFIG } from "./config";
+import { logger } from "@/utils/logger";
 
 // Firebase config - extracted from google-services.json
 const firebaseConfig = {
@@ -91,15 +90,10 @@ async function ensureJsAuth(): Promise<boolean> {
     try {
       const credential = GoogleAuthProvider.credential(googleIdToken);
       await signInWithCredential(jsAuth, credential);
-      console.log(
-        "[SyncService] JS Auth synced with stored token - user:",
-        jsAuth.currentUser?.uid
-      );
+      logger.sync.log(`JS Auth synced with stored token - user: ${jsAuth.currentUser?.uid}`);
       return true;
     } catch (e) {
-      console.log(
-        "[SyncService] Stored token expired, attempting silent refresh..."
-      );
+      logger.sync.log("Stored token expired, attempting silent refresh...");
       // Token expired, try silent refresh below
     }
   }
@@ -118,20 +112,15 @@ async function ensureJsAuth(): Promise<boolean> {
         // Sign in to JS SDK
         const credential = GoogleAuthProvider.credential(freshToken);
         await signInWithCredential(jsAuth, credential);
-        console.log(
-          "[SyncService] JS Auth synced with refreshed token - user:",
-          jsAuth.currentUser?.uid
-        );
+        logger.sync.log(`JS Auth synced with refreshed token - user: ${jsAuth.currentUser?.uid}`);
         return true;
       }
     }
   } catch (e) {
-    console.error("[SyncService] Silent refresh failed:", e);
+    logger.sync.error("Silent refresh failed:", { error: e });
   }
 
-  console.log(
-    "[SyncService] Failed to authenticate JS SDK - user may need to re-login"
-  );
+  logger.sync.log("Failed to authenticate JS SDK - user may need to re-login");
   return false;
 }
 
@@ -149,14 +138,10 @@ class SyncServiceClass {
       const stored = await AsyncStorage.getItem(SYNC_QUEUE_KEY);
       if (stored) {
         this.queue = JSON.parse(stored);
-        console.log(
-          "[SyncService] Loaded",
-          this.queue.length,
-          "pending events"
-        );
+        logger.sync.log(`Loaded ${this.queue.length} pending events`);
       }
     } catch (e) {
-      console.error("[SyncService] Failed to load queue:", e);
+      logger.sync.error("Failed to load queue:", { error: e });
     }
   }
 
@@ -188,7 +173,7 @@ class SyncServiceClass {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
-    this.debounceTimer = setTimeout(() => this.flush(), DEBOUNCE_MS);
+    this.debounceTimer = setTimeout(() => this.flush(), SYNC_CONFIG.DEBOUNCE_MS);
   }
 
   /**
@@ -204,7 +189,7 @@ class SyncServiceClass {
 
     const user = auth().currentUser;
     if (!user) {
-      console.log("[SyncService] No user, skipping sync");
+      logger.sync.log("No user, skipping sync");
       return;
     }
 
@@ -219,9 +204,9 @@ class SyncServiceClass {
       this.queue = [];
       await this.persistQueue();
       await this.updateSyncState({ lastSyncTimestamp: Date.now() });
-      console.log("[SyncService] Sync complete");
+      logger.sync.log("Sync complete");
     } catch (e) {
-      console.error("[SyncService] Sync failed:", e);
+      logger.sync.error("Sync failed:", { error: e });
       await this.updateSyncState({ error: (e as Error).message });
     } finally {
       this.isSyncing = false;
@@ -301,13 +286,7 @@ class SyncServiceClass {
     const manga = mangaSnap.docs.map((d) => d.data() as CloudManga);
     const history = historySnap.docs.map((d) => d.data() as CloudHistoryEntry);
 
-    console.log(
-      "[SyncService] Downloaded",
-      manga.length,
-      "manga,",
-      history.length,
-      "history"
-    );
+    logger.sync.log(`Downloaded ${manga.length} manga, ${history.length} history`);
     return { manga, history };
   }
 
@@ -333,7 +312,7 @@ class SyncServiceClass {
       const mangaRef = doc(collection(userDocRef, "manga"), m.id);
       batch.set(mangaRef, m, { merge: true });
       opCount++;
-      if (opCount >= BATCH_SIZE) {
+      if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
         await batch.commit();
         batch = writeBatch(db);
         opCount = 0;
@@ -344,7 +323,7 @@ class SyncServiceClass {
       const historyRef = doc(collection(userDocRef, "history"), h.id);
       batch.set(historyRef, h);
       opCount++;
-      if (opCount >= BATCH_SIZE) {
+      if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
         await batch.commit();
         batch = writeBatch(db);
         opCount = 0;
@@ -356,13 +335,7 @@ class SyncServiceClass {
     }
 
     await this.updateSyncState({ lastSyncTimestamp: Date.now() });
-    console.log(
-      "[SyncService] Full upload complete:",
-      manga.length,
-      "manga,",
-      history.length,
-      "history"
-    );
+    logger.sync.log(`Full upload complete: ${manga.length} manga, ${history.length} history`);
   }
 
   /**
@@ -418,7 +391,7 @@ class SyncServiceClass {
         JSON.stringify({ ...state, ...partial })
       );
     } catch (e) {
-      console.error("[SyncService] Failed to update state:", e);
+      logger.sync.error("Failed to update state:", { error: e });
     }
   }
 }

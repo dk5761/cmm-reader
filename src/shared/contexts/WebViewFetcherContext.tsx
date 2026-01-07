@@ -25,6 +25,8 @@ import { CookieManagerInstance } from "@/core/http/CookieManager";
 import { useSession } from "./SessionContext";
 import CookieSync from "cookie-sync";
 import { cfLogger } from "@/utils/cfDebugLogger";
+import { logger } from "@/utils/logger";
+import { CF_CONFIG } from "@/core/http/config";
 
 type RequestType = "navigate" | "post";
 
@@ -100,16 +102,16 @@ const createPostScript = (
   return `
 (async function() {
   try {
-    console.log('[WebViewFetcher JS] Starting POST to:', "${url}");
+console.log('[WebViewFetcher JS] Starting POST to:', "${url}");
     const response = await fetch("${url}", {
       method: "POST",
       headers: ${JSON.stringify(headersObj)},
       body: "${bodyStr}",
       credentials: "include"
     });
-    console.log('[WebViewFetcher JS] POST response status:', response.status);
+console.log('[WebViewFetcher JS] POST response status:', response.status);
     const html = await response.text();
-    console.log('[WebViewFetcher JS] POST response length:', html.length);
+console.log('[WebViewFetcher JS] POST response length:', html.length);
     window.ReactNativeWebView.postMessage(JSON.stringify({
       type: 'postResponse',
       html: html,
@@ -117,7 +119,7 @@ const createPostScript = (
       url: "${url}"
     }));
   } catch(e) {
-    console.log('[WebViewFetcher JS] POST error:', e.message);
+console.log('[WebViewFetcher JS] POST error:', e.message);
     window.ReactNativeWebView.postMessage(JSON.stringify({
       type: 'postError',
       error: e.message,
@@ -167,7 +169,7 @@ export function WebViewFetcherProvider({
   const currentRequestRef = useRef<FetchRequest | null>(null);
   const currentOriginRef = useRef<string>("https://localhost");
   const retryCountRef = useRef(0);
-  const maxRetries = 3;
+  const maxRetries = CF_CONFIG.MAX_WEBVIEW_RETRIES;
 
   // Manual CF challenge modal state
   const [manualChallengeUrl, setManualChallengeUrl] = useState<string | null>(
@@ -196,12 +198,7 @@ export function WebViewFetcherProvider({
 
     currentRequestRef.current = request;
     retryCountRef.current = 0;
-    console.log(
-      "[WebViewFetcher] Processing",
-      request.type.toUpperCase(),
-      "request:",
-      request.url.substring(0, 60)
-    );
+    logger.cf.log(`Processing ${request.type.toUpperCase()} request: ${request.url.substring(0, 60)}`);
 
     if (webViewRef.current) {
       if (request.type === "navigate") {
@@ -214,7 +211,7 @@ export function WebViewFetcherProvider({
           "_t=" +
           Date.now();
         const safeUrl = JSON.stringify(cacheBustedUrl);
-        console.log("[WebViewFetcher] Full URL to navigate:", cacheBustedUrl);
+        logger.cf.log(`Full URL to navigate: ${cacheBustedUrl}`);
         webViewRef.current.injectJavaScript(
           `window.location.replace(${safeUrl}); true;`
         );
@@ -224,7 +221,7 @@ export function WebViewFetcherProvider({
         // Check if we're on the correct origin for the POST request
         if (currentOriginRef.current === targetOrigin) {
           // Already on correct domain, execute POST immediately
-          console.log("[WebViewFetcher] Already on domain, executing POST");
+          logger.cf.log("Already on domain, executing POST");
           request.domainReady = true;
           const script = createPostScript(
             request.url,
@@ -234,10 +231,7 @@ export function WebViewFetcherProvider({
           webViewRef.current.injectJavaScript(script);
         } else {
           // Need to navigate to domain first
-          console.log(
-            "[WebViewFetcher] Navigating to domain first:",
-            targetOrigin
-          );
+          logger.cf.log(`Navigating to domain first: ${targetOrigin}`);
           request.domainReady = false;
           webViewRef.current.injectJavaScript(`
             window.location.href = "${targetOrigin}/";
@@ -255,18 +249,16 @@ export function WebViewFetcherProvider({
         const data = JSON.parse(event.nativeEvent.data);
         const request = currentRequestRef.current;
 
-        console.log("[WebViewFetcher] Message:", data.type);
+        logger.cf.log("Message:", { type: data.type });
 
         if (!request) {
-          console.log(
-            "[WebViewFetcher] Received message but no active request"
-          );
+          logger.cf.log("Received message but no active request");
           return;
         }
 
         // Handle navigation response (GET)
         if (data.type === "html") {
-          console.log("[WebViewFetcher] Received HTML:", {
+          logger.cf.log("Received HTML:", {
             responseUrl: data.url,
             requestUrl: request.url,
             title: data.title,
