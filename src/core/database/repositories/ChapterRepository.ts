@@ -1,6 +1,6 @@
 import Realm from "realm";
 import type { IChapterRepository } from "./types";
-import { MangaSchema, ChapterSchema } from "../schema";
+import { MangaSchema, ChapterSchema, ReadingProgressSchema } from "../schema";
 import type { Chapter } from "@/sources";
 
 export class RealmChapterRepository implements IChapterRepository {
@@ -75,6 +75,57 @@ export class RealmChapterRepository implements IChapterRepository {
 
     this.realm.write(() => {
       chapter.isRead = isRead;
+      if (!isRead) {
+        chapter.lastPageRead = 0;
+      }
+    });
+  }
+
+  async markPreviousAsRead(mangaId: string, chapterNumber: number): Promise<void> {
+    const manga = this.realm.objectForPrimaryKey(MangaSchema, mangaId);
+    if (!manga) return;
+
+    this.realm.write(() => {
+      manga.chapters.forEach((chapter) => {
+        if (chapter.number < chapterNumber && !chapter.isRead) {
+          chapter.isRead = true;
+        }
+      });
+    });
+  }
+
+  async markPreviousAsUnread(mangaId: string, chapterNumber: number): Promise<void> {
+    const manga = this.realm.objectForPrimaryKey(MangaSchema, mangaId);
+    if (!manga) return;
+
+    this.realm.write(() => {
+      manga.chapters.forEach((chapter) => {
+        if (chapter.number < chapterNumber && chapter.isRead) {
+          chapter.isRead = false;
+          chapter.lastPageRead = 0;
+        }
+      });
+    });
+  }
+
+  async saveProgress(mangaId: string, chapterId: string, chapterNumber: number, page: number): Promise<void> {
+    const manga = this.realm.objectForPrimaryKey(MangaSchema, mangaId);
+    if (!manga) return;
+
+    this.realm.write(() => {
+        // Update progress
+        manga.progress = {
+          lastChapterId: chapterId,
+          lastChapterNumber: chapterNumber,
+          lastPage: page,
+          timestamp: Date.now(),
+        } as ReadingProgressSchema;
+
+        // Also update chapter's lastPageRead
+        const chapter = manga.chapters.find((c) => c.id === chapterId);
+        if (chapter) {
+          chapter.lastPageRead = page;
+        }
     });
   }
 
