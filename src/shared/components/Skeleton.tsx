@@ -35,12 +35,12 @@ export function Skeleton({
       Animated.sequence([
         Animated.timing(animatedValue, {
           toValue: 1,
-          duration: 800,
-          useNativeDriver: false, // Color interpolation requires false
+          duration: 1000,
+          useNativeDriver: false,
         }),
         Animated.timing(animatedValue, {
           toValue: 0,
-          duration: 800,
+          duration: 1000,
           useNativeDriver: false,
         }),
       ])

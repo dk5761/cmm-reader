@@ -3,7 +3,7 @@ import { View, Text, ScrollView, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCSSVariable } from "uniwind";
-import { SearchBar } from "@/shared/components/SearchBar";
+import { SearchBar, LibraryGridSkeleton } from "@/shared/components";
 import { useGlobalSearch } from "../hooks/useGlobalSearch";
 import { GlobalSearchResultSection } from "../components/GlobalSearchResultSection";
 import { useDebounce } from "@/shared/hooks/useDebounce";
@@ -47,12 +47,10 @@ export function GlobalSearchScreen() {
       </View>
 
       {/* Search Info */}
-      {debouncedQuery.trim() && (
+      {debouncedQuery.trim() && !isLoading && (
         <View className="px-4 pb-2">
           <Text className="text-muted text-sm">
-            {isLoading
-              ? "Searching..."
-              : `Found ${totalResults} result${
+            {`Found ${totalResults} result${
                   totalResults !== 1 ? "s" : ""
                 } across all sources`}
           </Text>
@@ -73,6 +71,8 @@ export function GlobalSearchScreen() {
               Enter a title to get started
             </Text>
           </View>
+        ) : isLoading && results.length === 0 ? (
+          <LibraryGridSkeleton />
         ) : (
           <>
             {/* Render each source's results */}
