@@ -466,6 +466,19 @@ export default function SettingsScreen() {
           <SyncSection />
         </View>
 
+        {/* Downloads Section */}
+        <View className="mt-4">
+          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+            Downloads
+          </Text>
+          <SettingItem
+            icon="download-outline"
+            title="Download Queue"
+            subtitle="Manage active downloads"
+            onPress={() => router.push("/downloads")}
+          />
+        </View>
+
         {/* Content Preferences Section */}
         <View className="mt-4">
           <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
