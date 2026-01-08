@@ -43,13 +43,6 @@ export function useReaderScrollController(
 
     const listIndex = pageIndex + offset;
 
-    logger.reader.log("Processing Scroll Signal", {
-      pageIndex,
-      calculatedListIndex: listIndex,
-      offset,
-      animated,
-    });
-
     try {
       flashListRef.current.scrollToIndex({
         index: listIndex,

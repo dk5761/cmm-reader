@@ -64,15 +64,6 @@ export function useSaveProgressV2(data: ProgressData | null) {
       lastSavedRef.current = now;
       lastChapterIdRef.current = currentChapter.id;
 
-      console.log("[useSaveProgressV2] Saving:", {
-        manga: data.mangaTitle,
-        chapter: currentChapter.number,
-        chapterId: currentChapter.id,
-        page: currentPage + 1,
-        totalPages,
-        forced: shouldForce,
-      });
-
       // 1. Update History Collection (for History tab)
       addHistoryEntry({
         mangaId: data.mangaId,
@@ -90,9 +81,12 @@ export function useSaveProgressV2(data: ProgressData | null) {
 
       // 2. Update Manga Object (for Library/Resume)
       // Note: mangaId here should be the libraryId (source_id)
-      const libraryId = data.mangaId.startsWith(data.sourceId + "_")
-        ? data.mangaId
-        : `${data.sourceId}_${data.mangaId}`;
+      const libraryId =
+        data.mangaId && data.sourceId
+          ? data.mangaId.startsWith(`${data.sourceId}_`)
+            ? data.mangaId
+            : `${data.sourceId}_${data.mangaId}`
+          : data.mangaId;
 
       saveMangaProgress(
         libraryId,
@@ -116,19 +110,16 @@ export function useSaveProgressV2(data: ProgressData | null) {
     if (!data || !currentChapter) return;
 
     // Smart libraryId construction: handle both raw mangaId and already-prefixed formats
-    const libraryId = data.mangaId.startsWith(data.sourceId + "_")
-      ? data.mangaId // Already in libraryId format
-      : `${data.sourceId}_${data.mangaId}`; // Construct it
+    const libraryId =
+      data.mangaId && data.sourceId
+        ? data.mangaId.startsWith(`${data.sourceId}_`)
+          ? data.mangaId
+          : `${data.sourceId}_${data.mangaId}`
+        : data.mangaId;
 
     markedAsReadRef.current = currentChapter.id;
 
-    console.log("[useSaveProgressV2] Marking as read (95%):", {
-      manga: data.mangaTitle,
-      chapter: currentChapter.number,
-      libraryId,
-      chapterId: currentChapter.id,
-      progress: (((currentPage + 1) / totalPages) * 100).toFixed(1) + "%",
-    });
+    console.log(`[Progress] Marked chapter ${currentChapter.number} read`);
 
     markChapterRead(libraryId, currentChapter.id, totalPages);
   }, [data, currentChapter, currentPage, totalPages, markChapterRead]);
@@ -141,22 +132,11 @@ export function useSaveProgressV2(data: ProgressData | null) {
     const chapterId = currentChapter.id;
     const alreadyMarked = markedAsReadRef.current === chapterId;
 
-    console.log("[useSaveProgressV2] Auto-read check:", {
-      chapter: currentChapter.number,
-      chapterId: currentChapter.id,
-      page: `${currentPage + 1}/${totalPages}`,
-      progress: (progress * 100).toFixed(1) + "%",
-      meetsThreshold: progress >= READ_THRESHOLD,
-      alreadyMarked,
-    });
-
     // Check if we crossed 95% and haven't marked this chapter yet
     if (progress >= READ_THRESHOLD && !alreadyMarked) {
-      console.log("[useSaveProgressV2] ✓ Triggering mark as read!");
       markRead();
     } else if (alreadyMarked && progress < READ_THRESHOLD) {
       // Reset if user goes back below threshold (e.g., seeks backward)
-      console.log("[useSaveProgressV2] Reset mark flag");
       markedAsReadRef.current = "";
     }
   }, [currentPage, totalPages, data, currentChapter, markRead]);

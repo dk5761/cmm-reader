@@ -104,6 +104,7 @@ export interface ReaderStoreState {
   // UI state
   isOverlayVisible: boolean;
   isSeeking: boolean;
+  seekTarget: number | null; // Target page for verifying seek success
   scrollSignal: { pageIndex: number; animated: boolean; timestamp: number } | null;
 
   // Loading states
@@ -199,9 +200,6 @@ export function createTransitionItem(
   };
 }
 
-/**
- * Build adapter items from ViewerChapters
- */
 export function buildAdapterItems(
   viewerChapters: ViewerChapters,
   isLoadingPrev: boolean,
@@ -212,23 +210,6 @@ export function buildAdapterItems(
   // Previous Chapter
   const { prevChapter, currChapter, nextChapter } = viewerChapters;
 
-  console.log("[buildAdapterItems] 🏗️ Building items from ViewerChapters:", {
-    prevChapterId: prevChapter?.chapter.id,
-    prevChapterState: prevChapter?.state,
-    prevChapterPages: prevChapter?.pages.length ?? 0,
-    currChapterId: currChapter.chapter.id,
-    currChapterState: currChapter.state,
-    currChapterPages: currChapter.pages.length,
-    nextChapterId: nextChapter?.chapter.id,
-    nextChapterState: nextChapter?.state,
-    nextChapterPages: nextChapter?.pages.length ?? 0,
-    isLoadingPrev,
-    isLoadingNext,
-  });
-
-  let prevItemsCount = 0;
-  let currStartIndex = 0;
-
   if (prevChapter) {
     if (prevChapter.state === "loaded" && prevChapter.pages.length > 0) {
       for (const page of prevChapter.pages) {
@@ -236,24 +217,17 @@ export function buildAdapterItems(
       }
       // Add Separator between Prev and Curr
       items.push(createTransitionItem("prev", prevChapter, isLoadingPrev));
-      prevItemsCount = prevChapter.pages.length + 1;
     } else {
       items.push(createTransitionItem("prev", prevChapter, isLoadingPrev));
-      prevItemsCount = 1;
     }
   }
-
-  currStartIndex = items.length;
 
   // Current Chapter Pages
   for (const page of currChapter.pages) {
     items.push(createPageItem(page, currChapter.chapter.id, 0));
   }
 
-  const currEndIndex = items.length - 1;
-
   // Next Chapter
-  let nextStartIndex = items.length;
   if (nextChapter) {
     if (nextChapter.state === "loaded" && nextChapter.pages.length > 0) {
       // Add Separator between Curr and Next
@@ -265,16 +239,6 @@ export function buildAdapterItems(
       items.push(createTransitionItem("next", nextChapter, isLoadingNext));
     }
   }
-
-  console.log("[buildAdapterItems] 📊 Items built:", {
-    totalItems: items.length,
-    prevItemsCount,
-    currStartIndex,
-    currEndIndex,
-    currPagesCount: currChapter.pages.length,
-    nextTransitionIndex: nextChapter ? currEndIndex + 1 : null,
-    nextStartIndex: nextChapter?.state === "loaded" ? nextStartIndex + 1 : null,
-  });
 
   return items;
 }

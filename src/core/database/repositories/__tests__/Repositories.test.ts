@@ -35,7 +35,8 @@ describe("Repositories", () => {
     it("adds manga to library", async () => {
       await mangaRepo.addManga(mockManga, true);
       
-      const stored = mangaRepo.getManga(mockManga.id);
+      const compoundId = `${mockManga.sourceId}_${mockManga.id}`;
+      const stored = mangaRepo.getManga(compoundId);
       expect(stored).not.toBeNull();
       expect(stored?.title).toBe(mockManga.title);
       expect(stored?.inLibrary).toBe(true);
@@ -43,24 +44,27 @@ describe("Repositories", () => {
 
     it("removes manga from library but keeps record", async () => {
       await mangaRepo.addManga(mockManga, true);
-      await mangaRepo.removeFromLibrary(mockManga.id);
+      const compoundId = `${mockManga.sourceId}_${mockManga.id}`;
+      await mangaRepo.removeFromLibrary(compoundId);
       
-      const stored = mangaRepo.getManga(mockManga.id);
+      const stored = mangaRepo.getManga(compoundId);
       expect(stored).not.toBeNull();
       expect(stored?.inLibrary).toBe(false);
     });
   });
 
   describe("ChapterRepository", () => {
-    const mangaId = "test-manga";
+    const mangaId = "asurascans_test-manga"; // Use compound ID
+    const rawMangaId = "test-manga";
+    const sourceId = "asurascans";
     const chapters: Chapter[] = [
-      { id: "ch1", number: 1, url: "u1", mangaId },
+      { id: "ch1", number: 1, url: "u1", mangaId }, // Chapter still has raw mangaId refernece potentially, but repo doesn't care about chapter.mangaId property much, it embeds them.
       { id: "ch2", number: 2, url: "u2", mangaId },
     ];
 
     it("saves chapters and maintains order", async () => {
       // First create the manga
-      await mangaRepo.addManga({ id: mangaId, title: "Test", url: "u", sourceId: "s", cover: "" }, true);
+      await mangaRepo.addManga({ id: rawMangaId, title: "Test", url: "u", sourceId: sourceId, cover: "" }, true);
       
       await chapterRepo.saveChapters(mangaId, chapters);
       
@@ -70,7 +74,7 @@ describe("Repositories", () => {
     });
 
     it("does not trigger write if chapters are identical (diff check)", async () => {
-      await mangaRepo.addManga({ id: mangaId, title: "Test", url: "u", sourceId: "s", cover: "" }, true);
+      await mangaRepo.addManga({ id: rawMangaId, title: "Test", url: "u", sourceId: sourceId, cover: "" }, true);
       await chapterRepo.saveChapters(mangaId, chapters);
       
       const writeSpy = jest.spyOn(realm, 'write');
@@ -82,7 +86,7 @@ describe("Repositories", () => {
     });
 
     it("marks chapter as read", async () => {
-      await mangaRepo.addManga({ id: mangaId, title: "Test", url: "u", sourceId: "s", cover: "" }, true);
+      await mangaRepo.addManga({ id: rawMangaId, title: "Test", url: "u", sourceId: sourceId, cover: "" }, true);
       await chapterRepo.saveChapters(mangaId, chapters);
       
       await chapterRepo.markAsRead("ch1", true);

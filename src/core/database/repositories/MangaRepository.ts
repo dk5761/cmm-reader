@@ -19,7 +19,13 @@ export class RealmMangaRepository implements IMangaRepository {
   }
 
   async addManga(manga: MangaDetails, inLibrary = false): Promise<void> {
-    const existing = this.getManga(manga.id);
+    // Ensure we use the compound ID format: sourceId_mangaId
+    let id = manga.id;
+    if (manga.sourceId && !id.startsWith(`${manga.sourceId}_`)) {
+      id = `${manga.sourceId}_${manga.id}`;
+    }
+
+    const existing = this.getManga(id);
     this.realm.write(() => {
       if (existing) {
         // Update existing
@@ -42,6 +48,7 @@ export class RealmMangaRepository implements IMangaRepository {
         const { lastUpdated, rating, ...rest } = manga;
         this.realm.create(MangaSchema, {
           ...rest,
+          id, // Use compound ID
           inLibrary,
           addedAt: Date.now(),
           lastUpdated: Date.now(),

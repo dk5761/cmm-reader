@@ -11,12 +11,8 @@ export class RealmChapterRepository implements IChapterRepository {
     return manga ? Array.from(manga.chapters) : [];
   }
 
-  getChapter(chapterId: string): ChapterSchema | null {
-    // Chapters are embedded, so we can't query them directly by ID easily
-    // But since they are embedded in Manga, and we usually have context
-    // This is tricky with Realm embedded objects if we don't know the parent
-    // However, we can query the parent that contains this chapter
-    const manga = this.realm.objects(MangaSchema).filtered("chapters.id == $0", chapterId)[0];
+  getChapter(mangaId: string, chapterId: string): ChapterSchema | null {
+    const manga = this.realm.objectForPrimaryKey(MangaSchema, mangaId);
     return manga?.chapters.find(c => c.id === chapterId) ?? null;
   }
 
@@ -69,8 +65,8 @@ export class RealmChapterRepository implements IChapterRepository {
     });
   }
 
-  async markAsRead(chapterId: string, isRead: boolean): Promise<void> {
-    const chapter = this.getChapter(chapterId);
+  async markAsRead(mangaId: string, chapterId: string, isRead: boolean): Promise<void> {
+    const chapter = this.getChapter(mangaId, chapterId);
     if (!chapter) return;
 
     this.realm.write(() => {
@@ -129,8 +125,8 @@ export class RealmChapterRepository implements IChapterRepository {
     });
   }
 
-  async updateProgress(chapterId: string, page: number, totalPages?: number): Promise<void> {
-    const chapter = this.getChapter(chapterId);
+  async updateProgress(mangaId: string, chapterId: string, page: number, totalPages?: number): Promise<void> {
+    const chapter = this.getChapter(mangaId, chapterId);
     if (!chapter) return;
 
     this.realm.write(() => {
@@ -139,8 +135,8 @@ export class RealmChapterRepository implements IChapterRepository {
     });
   }
 
-  getNextChapter(currentChapterId: string): ChapterSchema | null {
-    const manga = this.realm.objects(MangaSchema).filtered("chapters.id == $0", currentChapterId)[0];
+  getNextChapter(mangaId: string, currentChapterId: string): ChapterSchema | null {
+    const manga = this.realm.objectForPrimaryKey(MangaSchema, mangaId);
     if (!manga) return null;
 
     const chapters = Array.from(manga.chapters) as ChapterSchema[];
@@ -151,8 +147,8 @@ export class RealmChapterRepository implements IChapterRepository {
     return null;
   }
 
-  getPrevChapter(currentChapterId: string): ChapterSchema | null {
-    const manga = this.realm.objects(MangaSchema).filtered("chapters.id == $0", currentChapterId)[0];
+  getPrevChapter(mangaId: string, currentChapterId: string): ChapterSchema | null {
+    const manga = this.realm.objectForPrimaryKey(MangaSchema, mangaId);
     if (!manga) return null;
 
     const chapters = Array.from(manga.chapters) as ChapterSchema[];

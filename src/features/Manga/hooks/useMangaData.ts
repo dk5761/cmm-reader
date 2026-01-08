@@ -63,19 +63,12 @@ export type DisplayChapter = {
 
 export function useMangaData(params: MangaDataParams) {
   const { id, sourceId, url, preloaded } = params;
-  const libraryId = `${sourceId}_${id}`;
+  const libraryId = id.startsWith(`${sourceId}_`) ? id : `${sourceId}_${id}`;
 
   // Parse preloaded data (passed from LibraryScreen for instant render)
   const preloadedData: PreloadedManga | null = preloaded
     ? JSON.parse(preloaded)
     : null;
-
-  // [DEBUG] Log preloaded data on mount
-  logger.manga.log("Init", {
-    libraryId,
-    hasPreloaded: !!preloadedData,
-    preloadedChapterCount: preloadedData?.chapters?.length ?? 0,
-  });
 
   // Get source config
   const source = getSource(sourceId);
@@ -104,18 +97,6 @@ export function useMangaData(params: MangaDataParams) {
     }
   }, [hasInstantData, shouldFetch]);
 
-  // // Only warmup if we're ready to fetch
-  // useEffect(() => {
-  //   if (shouldFetch && source?.needsCloudflareBypass && source?.baseUrl) {
-  //     warmupSession(source.baseUrl, true);
-  //   }
-  // }, [
-  //   shouldFetch,
-  //   source?.baseUrl,
-  //   source?.needsCloudflareBypass,
-  //   warmupSession,
-  // ]);
-
   // Fetch from source (only when session is ready AND we should fetch)
   const fetchEnabled = shouldFetch && sessionReady;
   const {
@@ -132,21 +113,6 @@ export function useMangaData(params: MangaDataParams) {
     refetch: refetchChapters,
   } = useChapterList(sourceId, url, fetchEnabled);
 
-  // [DEBUG] Log when fresh chapters data arrives
-  useEffect(() => {
-    if (chapters) {
-      const localChapterCount = libraryManga?.chapters?.length ?? 0;
-      logger.manga.log("Fresh chapters received", {
-        mangaTitle: manga?.title || libraryManga?.title || "Unknown",
-        freshChapterCount: chapters.length,
-        localChapterCount,
-        isInLibrary: hasLocalData,
-        libraryId,
-        diff: chapters.length - localChapterCount,
-      });
-    }
-  }, [chapters, libraryManga, manga, hasLocalData, libraryId]);
-
   // Auto-sync: Persist fresh chapters to Realm when they arrive
   const updateLibraryChapters = useUpdateLibraryChapters();
   const getOrCreateManga = useGetOrCreateManga();
@@ -159,21 +125,8 @@ export function useMangaData(params: MangaDataParams) {
   }, [manga, chapters, sourceId, getOrCreateManga]);
 
   useEffect(() => {
-    // [DEBUG] Log sync decision
-    logger.manga.log("Sync decision", {
-      hasChapters: !!chapters,
-      hasLocalData,
-      inLibrary: libraryManga?.inLibrary,
-      shouldSync: chapters && hasLocalData && libraryManga?.inLibrary,
-    });
-
     // Only sync chapters if manga is actually in library
     if (chapters && hasLocalData && libraryManga?.inLibrary) {
-      logger.manga.log("Auto-syncing chapters to Realm", {
-        libraryId,
-        freshCount: chapters.length,
-        localCount: libraryManga.chapters?.length ?? 0,
-      });
       // Always sync to update chapter dates and other metadata
       updateLibraryChapters(libraryId, chapters);
     }
@@ -197,7 +150,6 @@ export function useMangaData(params: MangaDataParams) {
         action: {
           label: "Retry",
           onClick: () => {
-            logger.manga.log("Retry clicked");
             toast.dismiss();
 
             // Reset CF retry state

@@ -57,7 +57,12 @@ export function ReaderScreenV2() {
   const initialPageParam = params.initialPage as string | undefined;
 
   // Fetch local library data to get lastPageRead
-  const libraryId = (sourceId && mangaId) ? `${sourceId}_${mangaId}` : "";
+  const libraryId =
+    sourceId && mangaId
+      ? mangaId.startsWith(`${sourceId}_`)
+        ? mangaId
+        : `${sourceId}_${mangaId}`
+      : "";
   const libraryManga = useLibraryMangaById(libraryId);
 
   // Fetch chapters list (same as old reader)
@@ -128,6 +133,9 @@ export function ReaderScreenV2() {
   // Store state and actions
 
   const initialize = useReaderStoreV2((s) => s.initialize);
+  const isInitialized = useReaderStoreV2((s) => s.isInitialized);
+  const initializedChapterId = useReaderStoreV2((s) => s.viewerChapters?.currChapter?.chapter.id);
+
   const setCurrentChapterData = useReaderStoreV2(
     (s) => s.setCurrentChapterData
   );
@@ -152,32 +160,15 @@ export function ReaderScreenV2() {
     // Load Next
     const next = viewerChapters.nextChapter;
     if (next && next.state === "loading") {
-      console.log("[ReaderScreenV2] 📥 Fetching next chapter:", {
-        chapterId: next.chapter.id,
-        chapterNumber: next.chapter.number,
-        currentPage,
-      });
-
       fetchChapter(sourceId, next.chapter)
         .then((res) => {
           if (res) {
-            console.log(
-              `[ReaderScreenV2] ✅ Next chapter loaded: ${res.pages.length} pages`,
-              {
-                chapterId: res.chapter.id,
-                chapterNumber: res.chapter.number,
-              }
-            );
             setNextChapterLoaded(res.pages);
           }
         })
         .catch((error) => {
           const message =
             error instanceof Error ? error.message : "Failed to load chapter";
-          console.error("[ReaderScreenV2] ❌ Next chapter load failed:", {
-            error: message,
-            chapterId: next.chapter.id,
-          });
           setNextChapterError(message);
         });
     }
@@ -185,32 +176,15 @@ export function ReaderScreenV2() {
     // Load Prev
     const prev = viewerChapters.prevChapter;
     if (prev && prev.state === "loading") {
-      console.log("[ReaderScreenV2] 📥 Fetching previous chapter:", {
-        chapterId: prev.chapter.id,
-        chapterNumber: prev.chapter.number,
-        currentPage,
-      });
-
       fetchChapter(sourceId, prev.chapter)
         .then((res) => {
           if (res) {
-            console.log(
-              `[ReaderScreenV2] ✅ Previous chapter loaded: ${res.pages.length} pages`,
-              {
-                chapterId: res.chapter.id,
-                chapterNumber: res.chapter.number,
-              }
-            );
             setPrevChapterLoaded(res.pages);
           }
         })
         .catch((error) => {
           const message =
             error instanceof Error ? error.message : "Failed to load chapter";
-          console.error("[ReaderScreenV2] ❌ Previous chapter load failed:", {
-            error: message,
-            chapterId: prev.chapter.id,
-          });
           setPrevChapterError(message);
         });
     }
@@ -262,7 +236,16 @@ export function ReaderScreenV2() {
 
   // Initialize store when chapters list is ready
   useEffect(() => {
-    if (chapters && chapters.length > 0 && mangaId && sourceId && chapterId) {
+    // Only initialize if we have data AND (we are not initialized OR the chapter ID changed)
+    const shouldInitialize = 
+      chapters && 
+      chapters.length > 0 && 
+      mangaId && 
+      sourceId && 
+      chapterId && 
+      (!isInitialized || initializedChapterId !== chapterId);
+
+    if (shouldInitialize) {
       // Priority 1: Use page passed via params (Resume button)
       // Priority 2: Use local DB progress (if available immediately)
       // Priority 3: Default to 0
@@ -276,14 +259,22 @@ export function ReaderScreenV2() {
       }
 
       initialize({
-        mangaId,
-        sourceId,
-        chapterId,
-        chapters,
+        mangaId: mangaId!,
+        sourceId: sourceId!,
+        chapterId: chapterId!,
+        chapters: chapters!,
         initialPage: startPage,
       });
     }
-  }, [chapters?.length, mangaId, sourceId, chapterId, initialize, libraryManga, initialPageParam]);
+  }, [
+    chapters?.length,
+    mangaId, 
+    sourceId, 
+    chapterId, 
+    initialize, 
+    isInitialized,
+    initializedChapterId
+  ]);
 
   // Update store when chapter data loads (Stage 1 complete)
   // Only set after store is initialized (storeChapterIndex >= 0)

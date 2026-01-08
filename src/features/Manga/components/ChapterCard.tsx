@@ -228,7 +228,7 @@ export function ChapterCard({
               <Text className="text-muted text-xs">
                 {chapter.date || "Unknown date"}
               </Text>
-              {lastPage !== undefined && lastPage > 0 && !isRead && (
+              {lastPage !== undefined && lastPage > 0 && (
                 <>
                   <Text className="text-muted text-xs mx-1">•</Text>
                   <Text className="text-primary/80 text-xs font-medium">

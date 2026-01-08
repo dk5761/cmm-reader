@@ -61,13 +61,15 @@ export function useAddToLibrary() {
 
   return useCallback(
     async (manga: Manga, chapters: Chapter[], sourceId: string) => {
-      const id = `${sourceId}_${manga.id}`;
+      const id = manga.id.startsWith(`${sourceId}_`)
+        ? manga.id
+        : `${sourceId}_${manga.id}`;
 
       // Convert basic Manga to MangaDetails structure for repo
       // We assume basic details are enough, repo will handle the rest
       const details: MangaDetails = {
         ...manga,
-        id: manga.id,
+        id: manga.id, // addManga repo will handle making this a compound ID if needed, but let's be safe
         sourceId,
         author: manga.author,
         artist: manga.artist,
@@ -78,8 +80,6 @@ export function useAddToLibrary() {
 
       await mangaRepo.addManga(details, true);
       await chapterRepo.saveChapters(id, chapters);
-
-      console.log("[Library] Added new manga:", manga.title);
 
       // Background cover download
       if (manga.cover) {
@@ -105,7 +105,6 @@ export function useRemoveFromLibrary() {
       deleteCover(id);
       
       await mangaRepo.removeFromLibrary(id);
-      console.log("[Library] Removed from library (hidden):", id);
     },
     [mangaRepo]
   );
@@ -120,7 +119,6 @@ export function useUpdateReadingStatus() {
   return useCallback(
     async (id: string, status: ReadingStatus) => {
       await mangaRepo.updateManga(id, { readingStatus: status });
-      console.log("[Library] Updated status:", id, status);
     },
     [mangaRepo]
   );
@@ -134,13 +132,7 @@ export function useUpdateLibraryChapters() {
 
   return useCallback(
     async (id: string, newChapters: Chapter[]) => {
-      console.log("[DEBUG useUpdateLibraryChapters] CALLED with:", {
-        mangaId: id,
-        newChapterCount: newChapters.length,
-      });
-
       await chapterRepo.saveChapters(id, newChapters);
-      console.log("[Library] Synced chapters for manga", id);
     },
     [chapterRepo]
   );
@@ -155,8 +147,10 @@ export function useGetOrCreateManga() {
 
   return useCallback(
     async (manga: Manga, chapters: Chapter[], sourceId: string) => {
-      const id = `${sourceId}_${manga.id}`;
-      
+      const id = manga.id.startsWith(`${sourceId}_`)
+        ? manga.id
+        : `${sourceId}_${manga.id}`;
+
       // Check if exists first to avoid overwriting inLibrary status
       const existing = mangaRepo.getManga(id);
       
@@ -173,12 +167,10 @@ export function useGetOrCreateManga() {
         };
         // Create with inLibrary = false
         await mangaRepo.addManga(details, false);
-        console.log("[Track] Created tracking entry:", manga.title);
       }
 
       // Always sync chapters
       await chapterRepo.saveChapters(id, chapters);
-      console.log("[Track] Updated chapters for tracked manga:", id);
     },
     [mangaRepo, chapterRepo]
   );

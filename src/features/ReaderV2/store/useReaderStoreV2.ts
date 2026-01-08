@@ -27,6 +27,7 @@ const initialState: ReaderStoreState = {
   totalPages: 0,
   isOverlayVisible: false,
   isSeeking: false,
+  seekTarget: null,
   scrollSignal: null,
   isLoading: false,
   isInitialized: false,
@@ -217,66 +218,79 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     // ========================================================================
 
     setCurrentPage: (page: number) => {
-      const { isSeeking, currentPage, totalPages, viewerChapters, currentChapterIndex } = get();
-
-      // Always log page changes for debugging
-      logger.reader.log("setCurrentPage called", {
-        requestedPage: page,
-        currentPage,
-        totalPages,
-        isSeeking,
-        currChapterId: viewerChapters?.currChapter?.chapter.id,
-        currChapterNumber: viewerChapters?.currChapter?.chapter.number,
-        currentChapterIndex,
-        willUpdate: !isSeeking && page !== currentPage,
-      });
+      const { isSeeking, seekTarget, currentPage } = get();
 
       // Prevent jitter: don't update if actively seeking
-      if (!isSeeking) {
-        if (page !== currentPage) {
-          logger.reader.log("Page updated", {
-            from: currentPage,
-            to: page,
-          });
+      if (isSeeking) return;
+
+      // Stale Event Guard:
+      // If we recently seeked, ignore updates that don't match the target
+      if (seekTarget !== null) {
+        if (page === seekTarget) {
+          logger.reader.log("Seek confirmed", { page });
+          set({ seekTarget: null, currentPage: page });
         }
+        return;
+      }
+
+      // Normal update
+      if (page !== currentPage) {
         set({ currentPage: page });
-      } else {
-        logger.reader.log("setCurrentPage SKIPPED (isSeeking)", {
-          requestedPage: page,
-          currentPage,
-        });
       }
     },
 
     seekToPage: (page: number) => {
       const { totalPages } = get();
 
-      set({ isSeeking: true });
+      set({
+        isSeeking: true,
+        seekTarget: page,
+      });
 
       // Bounds check before scrolling
       if (page < 0 || page >= totalPages) {
-        logger.reader.warn("seekToPage: page out of bounds", {
+        logger.reader.warn("seekToPage rejected: Out of bounds", {
           page,
           totalPages,
         });
-        set({ isSeeking: false });
+        set({ isSeeking: false, seekTarget: null });
         return;
       }
 
       // Dispatch Scroll Signal
-      // The UI component (ReaderScreen/FlashList) will listen to this and handle the actual scrolling
+      const signal = {
+        pageIndex: page,
+        animated: false,
+        timestamp: Date.now(),
+      };
+      
       set({
-        scrollSignal: {
-          pageIndex: page,
-          animated: false, // Instant jump like Mihon
-          timestamp: Date.now(),
-        },
+        scrollSignal: signal,
       });
 
       // Reset seeking flag after a short delay
       setTimeout(() => {
-        set({ isSeeking: false, currentPage: page });
+        const { currentPage } = get();
+        
+        // If we are already at the target page release the guard immediately.
+        if (currentPage === page) {
+           set({ isSeeking: false, seekTarget: null });
+        } else {
+           set({ isSeeking: false, currentPage: page });
+        }
       }, READER_CONFIG.SEEK_DEBOUNCE_MS);
+
+      // Safety: Clear seekTarget after 1s
+      setTimeout(() => {
+        const { seekTarget, currentPage } = get();
+        if (seekTarget !== null) {
+          logger.reader.warn("Seek confirmation timeout", {
+            target: seekTarget,
+            current: currentPage,
+          });
+          set({ seekTarget: null });
+        }
+      }, 1000);
     },
 
     // ========================================================================
@@ -284,29 +298,16 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     // ========================================================================
 
     loadNextChapter: async () => {
-      const { viewerChapters, currentPage } = get();
+      const { viewerChapters } = get();
 
-      if (!viewerChapters?.nextChapter) {
-        logger.reader.warn("loadNextChapter: No next chapter");
-        return;
-      }
+      if (!viewerChapters?.nextChapter) return;
       if (
         viewerChapters.nextChapter.state === "loading" ||
         viewerChapters.nextChapter.state === "loaded"
-      ) {
-        logger.reader.log("loadNextChapter: Already loading/loaded", {
-          state: viewerChapters.nextChapter.state,
-          chapterId: viewerChapters.nextChapter.chapter.id,
-          currentPage,
-        });
-        return;
-      }
+      ) return;
 
-      logger.reader.log("Loading next chapter...", {
-        chapterId: viewerChapters.nextChapter.chapter.id,
-        chapterNumber: viewerChapters.nextChapter.chapter.number,
-        currentState: viewerChapters.nextChapter.state,
-        currentPage,
+      logger.reader.log("Loading next chapter", {
+        chapter: viewerChapters.nextChapter.chapter.number,
       });
 
       // Update state to loading
@@ -324,18 +325,6 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     },
 
     setNextChapterLoaded: (pages: ReaderPage[]) => {
-      const state = get();
-      logger.reader.log("setNextChapterLoaded() called", {
-        pagesCount: pages.length,
-        currentPage: state.currentPage,
-        totalPages: state.totalPages,
-        currentChapterId: state.viewerChapters?.currChapter?.chapter.id,
-        currentChapterNumber: state.viewerChapters?.currChapter?.chapter.number,
-        nextChapterId: state.viewerChapters?.nextChapter?.chapter.id,
-        nextChapterNumber: state.viewerChapters?.nextChapter?.chapter.number,
-        currentChapterIndex: state.currentChapterIndex,
-      });
-
       set((state) => ({
         viewerChapters: state.viewerChapters
           ? {
@@ -349,7 +338,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
           : null,
       }));
 
-      logger.reader.log("Next chapter marked as loaded");
+      logger.reader.log("Next chapter loaded", { pages: pages.length });
     },
 
     loadPrevChapter: async () => {
@@ -361,7 +350,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
       )
         return;
 
-      logger.reader.log("Loading previous chapter...");
+      logger.reader.log("Loading previous chapter");
       // Update state to loading
       set((state) => ({
         viewerChapters: state.viewerChapters
@@ -389,6 +378,7 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
             }
           : null,
       }));
+      logger.reader.log("Previous chapter loaded", { pages: pages.length });
     },
 
     setNextChapterError: (error: string) => {
@@ -476,60 +466,39 @@ export const useReaderStoreV2 = create<ReaderStoreState & ReaderStoreActionsV2>(
     transitionToNextChapter: () => {
       const { viewerChapters, allChapters, currentChapterIndex } = get();
 
-      if (!viewerChapters) {
-        logger.reader.warn("transitionToNextChapter: No viewer chapters");
-        return;
-      }
-
-      logger.reader.log("transitionToNextChapter (adapter cleanup)", {
-        currentChapterIndex,
-      });
+      if (!viewerChapters) return;
 
       const result = shiftWindowNext(viewerChapters, allChapters, currentChapterIndex);
 
       if (!result) {
-        logger.reader.warn("transitionToNextChapter: shift failed (next not loaded?)");
+        logger.reader.warn("transitionToNextChapter: shift failed");
         return;
       }
 
-      logger.reader.log("Adapter cleanup (next) - shifting ViewerChapters");
+      logger.reader.log("Shifting window to next chapter");
 
       set({
         viewerChapters: result.newViewer,
-        // Note: we don't set currentChapterIndex here because updateActiveChapter 
-        // should have already been called by the UI when scrolling.
-        // However, shiftWindowNext logic assumes we are moving to what was 'next'.
       });
-
-      logger.reader.log("Adapter cleanup (next) complete");
     },
 
     transitionToPrevChapter: () => {
       const { viewerChapters, allChapters, currentChapterIndex } = get();
 
-      if (!viewerChapters) {
-        logger.reader.warn("transitionToPrevChapter: No viewer chapters");
-        return;
-      }
-
-      logger.reader.log("transitionToPrevChapter (adapter cleanup)", {
-        currentChapterIndex,
-      });
+      if (!viewerChapters) return;
 
       const result = shiftWindowPrev(viewerChapters, allChapters, currentChapterIndex);
 
       if (!result) {
-        logger.reader.warn("transitionToPrevChapter: shift failed (prev not loaded?)");
+        logger.reader.warn("transitionToPrevChapter: shift failed");
         return;
       }
 
-      logger.reader.log("Adapter cleanup (prev) - shifting ViewerChapters");
+      logger.reader.log("Shifting window to previous chapter");
 
       set({
         viewerChapters: result.newViewer,
       });
-
-      logger.reader.log("Adapter cleanup (prev) complete");
     },
 
     getCurrentChapter: () => {

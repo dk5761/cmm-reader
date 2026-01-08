@@ -31,36 +31,35 @@ export function ChapterNavigator({
   const seekToPage = useReaderStoreV2((s) => s.seekToPage);
   const setIsSeeking = useReaderStoreV2((s) => s.setIsSeeking);
 
-  // Local display state for slider feedback during seeking
-  // This prevents conflicts with store's isSeeking guard
+  // Local state only for immediate feedback DURING the drag
   const [displayPage, setDisplayPage] = useState(currentPage);
 
-  // Sync display page from store when not seeking
-  useEffect(() => {
-    if (!isSeeking) {
-      setDisplayPage(currentPage);
-    }
-  }, [currentPage, isSeeking]);
+  // The actual value to show in UI (Slider + Text)
+  const activePage = isSeeking ? displayPage : currentPage;
 
   const hasPrevChapter = viewerChapters.prevChapter !== null;
   const hasNextChapter = viewerChapters.nextChapter !== null;
 
   // Handle slider drag start
   const handleSliderStart = useCallback(() => {
+    // console.log("[ChapterNavigator] Slider Start");
+    setDisplayPage(currentPage); // Sync local state to current store value
     setIsSeeking(true);
     triggerSelection();
-  }, [setIsSeeking]);
+  }, [currentPage, setIsSeeking]);
 
   // Handle slider value change (update local display only)
   const handleSliderChange = useCallback((value: number) => {
-    // Update local display immediately for feedback
-    setDisplayPage(Math.round(value));
+    // Update local display immediately for snappy feedback during drag
+    const rounded = Math.round(value);
+    setDisplayPage(rounded);
   }, []);
 
   // Handle slider drag complete (perform seek)
   const handleSliderComplete = useCallback(
     (value: number) => {
       const targetPage = Math.round(value);
+      // console.log("[ChapterNavigator] Slider Complete -> Seek to", targetPage);
       triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
       seekToPage(targetPage);
     },
@@ -114,9 +113,9 @@ export function ChapterNavigator({
 
   return (
     <View className="px-4">
-      {/* Page indicator - uses displayPage for live feedback during seeking */}
+      {/* Page indicator - uses activePage for instant feedback */}
       <Text className="text-white text-sm font-medium text-center mb-2">
-        {displayPage + 1} / {totalPages}
+        {activePage + 1} / {totalPages}
       </Text>
 
       {/* Slider with chapter navigation */}
@@ -139,7 +138,7 @@ export function ChapterNavigator({
             minimumValue={0}
             maximumValue={Math.max(0, totalPages - 1)}
             step={1}
-            value={displayPage}
+            value={activePage}
             onSlidingStart={handleSliderStart}
             onValueChange={handleSliderChange}
             onSlidingComplete={handleSliderComplete}

@@ -126,6 +126,26 @@ async function ensureJsAuth(): Promise<boolean> {
   return false;
 }
 
+// Helper to remove undefined fields recursively
+function sanitizeData<T>(obj: T): T {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeData(item)) as unknown as T;
+  }
+
+  const result: any = {};
+  for (const key in obj) {
+    const value = (obj as any)[key];
+    if (value !== undefined) {
+      result[key] = sanitizeData(value);
+    }
+  }
+  return result as T;
+}
+
 class SyncServiceClass {
   private queue: SyncEvent[] = [];
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -256,7 +276,7 @@ class SyncServiceClass {
           lastUpdated: event.timestamp,
         });
       } else if (event.data) {
-        batch.set(mangaRef, event.data as CloudManga, { merge: true });
+        batch.set(mangaRef, sanitizeData(event.data as CloudManga), { merge: true });
       }
       
       opCount++;
@@ -274,7 +294,7 @@ class SyncServiceClass {
       if (event.type === "category_deleted") {
         batch.delete(catRef);
       } else if (event.data) {
-        batch.set(catRef, event.data as CloudCategory);
+        batch.set(catRef, sanitizeData(event.data as CloudCategory));
       }
 
       opCount++;
@@ -292,7 +312,7 @@ class SyncServiceClass {
           collection(userDocRef, "history"),
           event.entityId
         );
-        batch.set(historyRef, event.data as CloudHistoryEntry);
+        batch.set(historyRef, sanitizeData(event.data as CloudHistoryEntry));
         
         opCount++;
         if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
@@ -363,7 +383,7 @@ class SyncServiceClass {
 
     for (const m of manga) {
       const mangaRef = doc(collection(userDocRef, "manga"), m.id);
-      batch.set(mangaRef, m, { merge: true });
+      batch.set(mangaRef, sanitizeData(m), { merge: true });
       opCount++;
       if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
         await batch.commit();
@@ -374,7 +394,7 @@ class SyncServiceClass {
 
     for (const c of categories) {
       const catRef = doc(collection(userDocRef, "categories"), c.id);
-      batch.set(catRef, c);
+      batch.set(catRef, sanitizeData(c));
       opCount++;
       if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
         await batch.commit();
@@ -385,7 +405,7 @@ class SyncServiceClass {
 
     for (const h of history) {
       const historyRef = doc(collection(userDocRef, "history"), h.id);
-      batch.set(historyRef, h);
+      batch.set(historyRef, sanitizeData(h));
       opCount++;
       if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
         await batch.commit();

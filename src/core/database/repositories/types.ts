@@ -14,15 +14,15 @@ export interface IMangaRepository {
 
 export interface IChapterRepository {
   getChapters(mangaId: string): ChapterSchema[];
-  getChapter(chapterId: string): ChapterSchema | null;
+  getChapter(mangaId: string, chapterId: string): ChapterSchema | null;
   saveChapters(mangaId: string, chapters: Chapter[]): Promise<void>;
-  markAsRead(chapterId: string, isRead: boolean): Promise<void>;
+  markAsRead(mangaId: string, chapterId: string, isRead: boolean): Promise<void>;
   markPreviousAsRead(mangaId: string, chapterNumber: number): Promise<void>;
   markPreviousAsUnread(mangaId: string, chapterNumber: number): Promise<void>;
   saveProgress(mangaId: string, chapterId: string, chapterNumber: number, page: number): Promise<void>;
-  updateProgress(chapterId: string, page: number, totalPages?: number): Promise<void>;
-  getNextChapter(currentChapterId: string): ChapterSchema | null;
-  getPrevChapter(currentChapterId: string): ChapterSchema | null;
+  updateProgress(mangaId: string, chapterId: string, page: number, totalPages?: number): Promise<void>;
+  getNextChapter(mangaId: string, currentChapterId: string): ChapterSchema | null;
+  getPrevChapter(mangaId: string, currentChapterId: string): ChapterSchema | null;
 }
 
 export interface IHistoryRepository {
