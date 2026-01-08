@@ -23,8 +23,11 @@ import {
   StatusBanners,
   MangaActions,
   ChapterListSection,
+  DownloadSheet,
+  type DownloadOption,
 } from "../components";
 import type { ReadingStatus } from "@/core/database";
+import { useDownloadManager } from "@/shared/contexts/DownloadContext";
 
 export function MangaDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -40,8 +43,11 @@ export function MangaDetailScreen() {
   const fgColor = useCSSVariable("--color-foreground");
   const foreground = typeof fgColor === "string" ? fgColor : "#fff";
 
-  // Pull to refresh state
+  // State
   const [refreshing, setRefreshing] = useState(false);
+  const [downloadSheetVisible, setDownloadSheetVisible] = useState(false);
+
+  const { queueDownload } = useDownloadManager();
 
   // Consolidated data hook
   const {
@@ -79,6 +85,31 @@ export function MangaDetailScreen() {
       setRefreshing(false);
     }
   }, [refetch]);
+
+  // Download handler
+  const handleDownloadSelect = useCallback(
+    (option: DownloadOption) => {
+      if (!chapters || chapters.length === 0) return;
+
+      const chaptersToDownload = chapters.filter((chapter) => {
+        if (option === "all") return true;
+        // Check if chapter is read
+        const isRead =
+          libraryManga?.chapters?.find((c) => c.id === chapter.id)?.isRead ??
+          false;
+        return !isRead;
+      });
+
+      // Queue downloads
+      // We reverse to download oldest first (optional, but usually better UX)
+      // Actually chapters are usually Newest -> Oldest. Reversing makes them Oldest -> Newest.
+      // Let's keep existing order or reverse? Let's just queue them.
+      chaptersToDownload.forEach((chapter) => {
+        queueDownload(chapter, libraryId, sourceId || "");
+      });
+    },
+    [chapters, libraryManga, libraryId, sourceId, queueDownload]
+  );
 
   // Loading state (only for non-library manga)
   if (isLoading) {
@@ -142,6 +173,7 @@ export function MangaDetailScreen() {
             sourceBaseUrl={source?.baseUrl}
             headers={imageHeaders}
             isRefreshing={!!isRefreshing}
+            onDownload={() => setDownloadSheetVisible(true)}
           />
 
           {/* Description */}
@@ -181,6 +213,12 @@ export function MangaDetailScreen() {
           mangaUrl={url || ""}
         />
       </ScrollView>
+
+      <DownloadSheet
+        visible={downloadSheetVisible}
+        onSelect={handleDownloadSelect}
+        onClose={() => setDownloadSheetVisible(false)}
+      />
     </View>
   );
 }

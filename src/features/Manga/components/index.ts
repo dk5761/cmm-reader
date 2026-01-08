@@ -5,3 +5,4 @@ export * from "./MangaHeader";
 export * from "./StatusBanners";
 export * from "./MangaActions";
 export * from "./ChapterListSection";
+export * from "./DownloadSheet";

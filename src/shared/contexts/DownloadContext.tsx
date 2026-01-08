@@ -18,7 +18,7 @@ export enum DownloadStatus {
 
 type DownloadContextType = {
   queueDownload: (chapter: Chapter, mangaId: string, sourceId: string) => void;
-  cancelDownload: (chapterId: string) => void;
+  cancelDownload: (chapterId: string, mangaId: string) => void;
   pauseDownloads: () => void;
   resumeDownloads: () => void;
   isDownloading: boolean;
@@ -169,7 +169,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
   };
 
   const queueDownload = useCallback((chapter: Chapter, mangaId: string, sourceId: string) => {
-    const realmChapter = chapterRepo.getChapter(chapter.id);
+    const realmChapter = chapterRepo.getChapter(mangaId, chapter.id);
     if (realmChapter) {
         realm.write(() => {
             realmChapter.downloadStatus = DownloadStatus.QUEUED;
@@ -179,9 +179,9 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
     }
   }, [chapterRepo, realm, processQueue]);
 
-  const cancelDownload = useCallback((chapterId: string) => {
+  const cancelDownload = useCallback((chapterId: string, mangaId: string) => {
     // TODO: Delete files and reset status
-    const realmChapter = chapterRepo.getChapter(chapterId);
+    const realmChapter = chapterRepo.getChapter(mangaId, chapterId);
     if (realmChapter) {
         realm.write(() => {
             realmChapter.downloadStatus = DownloadStatus.NONE;

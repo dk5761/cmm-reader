@@ -151,7 +151,7 @@ export function ChapterListSection({
                 markPreviousAsUnread(chapter.number, chapters)
               }
               onDownload={() => queueDownload(chapter, mangaId, sourceId)}
-              onCancelDownload={() => cancelDownload(chapter.id)}
+              onCancelDownload={() => cancelDownload(chapter.id, mangaId)}
             />
           );
         })}

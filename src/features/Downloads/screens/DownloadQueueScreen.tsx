@@ -40,10 +40,11 @@ export function DownloadQueueScreen() {
       acc.push({
         chapter: ch,
         mangaTitle: manga.title,
+        mangaId: manga.id,
       });
     });
     return acc;
-  }, [] as Array<{ chapter: any; mangaTitle: string }>);
+  }, [] as Array<{ chapter: any; mangaTitle: string; mangaId: string }>);
 
   // Sort: Downloading first, then Queued
   queue.sort((a, b) => {
@@ -89,7 +90,7 @@ export function DownloadQueueScreen() {
             status={item.chapter.downloadStatus}
             progress={item.chapter.downloadedCount}
             total={item.chapter.downloadTotal}
-            onCancel={() => cancelDownload(item.chapter.id)}
+            onCancel={() => cancelDownload(item.chapter.id, item.mangaId)}
           />
         )}
         ListEmptyComponent={

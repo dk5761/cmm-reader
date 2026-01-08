@@ -3,8 +3,9 @@
  * Pure presentational component with no hooks
  */
 
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, Pressable } from "react-native";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import type { Source } from "@/sources";
 
 type GenreChipProps = {
@@ -29,6 +30,7 @@ export type MangaHeaderProps = {
   sourceBaseUrl?: string;
   headers?: Record<string, string>;
   isRefreshing?: boolean;
+  onDownload?: () => void;
 };
 
 export function MangaHeader({
@@ -41,6 +43,7 @@ export function MangaHeader({
   sourceBaseUrl,
   headers,
   isRefreshing,
+  onDownload,
 }: MangaHeaderProps) {
   return (
     <View className="flex-row w-full gap-5">
@@ -67,14 +70,23 @@ export function MangaHeader({
 
       {/* Right Side Info */}
       <View className="flex-1 pt-1">
-        {/* Refreshing indicator */}
-        {isRefreshing && (
-          <View className="absolute top-0 right-0">
+        {/* Actions / Status */}
+        <View className="absolute top-0 right-0 flex-row gap-2">
+          {isRefreshing ? (
             <ActivityIndicator size="small" color="#00d9ff" />
-          </View>
-        )}
+          ) : (
+            onDownload && (
+              <Pressable
+                onPress={onDownload}
+                className="bg-surface p-2 rounded-full border border-border/50 active:opacity-70"
+              >
+                <Ionicons name="download-outline" size={20} color="#00d9ff" />
+              </Pressable>
+            )
+          )}
+        </View>
 
-        <Text className="text-foreground text-2xl font-bold leading-tight">
+        <Text className="text-foreground text-2xl font-bold leading-tight pr-10">
           {title}
         </Text>
 
