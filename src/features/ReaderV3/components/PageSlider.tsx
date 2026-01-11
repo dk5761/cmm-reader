@@ -1,12 +1,19 @@
 /**
- * PageSlider - Slider for page navigation
+ * PageSlider - Slider for page navigation within current chapter
  * Features:
+ * - Shows pages for current chapter only (like header)
  * - Syncs with scroll position when not dragging
  * - During drag: shows preview, doesn't scroll
- * - On release: scrolls to target page
+ * - On release: scrolls to target page within chapter
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { View, Text } from "react-native";
 import Slider from "@react-native-community/slider";
 import { useReaderStore } from "../stores/useReaderStore";
@@ -20,26 +27,36 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
   const currentFlatIndex = useReaderStore((s) => s.currentFlatIndex);
 
   const [isDragging, setIsDragging] = useState(false);
-  const [sliderValue, setSliderValue] = useState(0);
-  const targetIndexRef = useRef<number | null>(null);
+  const [sliderValue, setSliderValue] = useState(0); // Page index within chapter (0-based)
+  const targetPageIndexRef = useRef<number | null>(null);
 
-  const totalPages = flatPages.length;
+  // Get current page info
+  const currentPage = flatPages[currentFlatIndex];
+  const totalPagesInChapter = currentPage?.totalPagesInChapter || 0;
+  const currentPageIndex = currentPage?.pageIndex || 0;
+  const currentChapterId = currentPage?.chapterId;
+
+  // Find the flat index of the first page of current chapter
+  const chapterStartFlatIndex = useMemo(() => {
+    if (!currentChapterId) return 0;
+    return flatPages.findIndex((p) => p.chapterId === currentChapterId);
+  }, [flatPages, currentChapterId]);
 
   // Sync slider with scroll position (only when not dragging and not seeking)
   useEffect(() => {
-    if (!isDragging && totalPages > 0) {
+    if (!isDragging && totalPagesInChapter > 0) {
       // If we're seeking to a target, wait until we reach it
-      if (targetIndexRef.current !== null) {
-        if (currentFlatIndex === targetIndexRef.current) {
-          targetIndexRef.current = null;
-          setSliderValue(currentFlatIndex);
+      if (targetPageIndexRef.current !== null) {
+        if (currentPageIndex === targetPageIndexRef.current) {
+          targetPageIndexRef.current = null;
+          setSliderValue(currentPageIndex);
         }
         // Don't sync until we reach target
         return;
       }
-      setSliderValue(currentFlatIndex);
+      setSliderValue(currentPageIndex);
     }
-  }, [currentFlatIndex, isDragging, totalPages]);
+  }, [currentPageIndex, isDragging, totalPagesInChapter]);
 
   // Handle slider value change during drag
   const handleValueChange = useCallback((value: number) => {
@@ -51,27 +68,30 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
     setIsDragging(true);
   }, []);
 
-  // Handle drag end - scroll to page
+  // Handle drag end - scroll to page within chapter
   const handleSlidingComplete = useCallback(
     (value: number) => {
-      const targetIndex = Math.round(value);
+      const targetPageIndex = Math.round(value);
       setIsDragging(false);
 
-      if (flashListRef.current && targetIndex !== currentFlatIndex) {
+      if (flashListRef.current && targetPageIndex !== currentPageIndex) {
         // Set target so we don't reset slider until we reach it
-        targetIndexRef.current = targetIndex;
-        setSliderValue(targetIndex); // Keep slider at target position
+        targetPageIndexRef.current = targetPageIndex;
+        setSliderValue(targetPageIndex);
+
+        // Calculate the flat index: chapter start + target page index
+        const targetFlatIndex = chapterStartFlatIndex + targetPageIndex;
 
         flashListRef.current.scrollToIndex({
-          index: targetIndex,
+          index: targetFlatIndex,
           animated: true,
         });
       }
     },
-    [flashListRef, currentFlatIndex]
+    [flashListRef, currentPageIndex, chapterStartFlatIndex]
   );
 
-  if (totalPages === 0) return null;
+  if (totalPagesInChapter === 0) return null;
 
   const displayPage = Math.round(sliderValue) + 1;
 
@@ -84,7 +104,7 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
         <Slider
           style={{ flex: 1, height: 40 }}
           minimumValue={0}
-          maximumValue={Math.max(0, totalPages - 1)}
+          maximumValue={Math.max(0, totalPagesInChapter - 1)}
           value={sliderValue}
           onValueChange={handleValueChange}
           onSlidingStart={handleSlidingStart}
@@ -94,7 +114,7 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
           thumbTintColor="#fff"
         />
         <Text className="text-white text-sm font-semibold min-w-[32px] text-center">
-          {totalPages}
+          {totalPagesInChapter}
         </Text>
       </View>
     </View>
