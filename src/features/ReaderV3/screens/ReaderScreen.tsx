@@ -23,7 +23,7 @@ import { useReaderStore, FlatPage } from "../stores/useReaderStore";
 import { PageItem, ReaderOverlay } from "../components";
 import { usePagePreloader } from "../hooks";
 import { useMangaData } from "@/features/Manga/hooks";
-import { useMarkChapterRead } from "@/features/Library/hooks";
+import { useMarkChapterRead, useSaveProgress } from "@/features/Library/hooks";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -36,6 +36,7 @@ export function ReaderScreen() {
     mangaId: string;
     mangaUrl: string;
     mangaTitle: string;
+    initialPage: string; // Last read page (0-based index)
   }>();
 
   const flashListRef = useRef<FlashList<FlatPage>>(null);
@@ -52,7 +53,6 @@ export function ReaderScreen() {
     toggleOverlay,
     hideOverlay,
     loadNextChapter,
-    saveProgress,
     reset,
   } = useReaderStore();
 
@@ -65,6 +65,9 @@ export function ReaderScreen() {
 
   // Mark chapter as read
   const markChapterRead = useMarkChapterRead();
+
+  // Save reading progress
+  const saveProgressToRealm = useSaveProgress();
 
   // Preload next pages
   usePagePreloader(flatPages, currentFlatIndex);
@@ -111,22 +114,68 @@ export function ReaderScreen() {
     displayChapters.length,
   ]);
 
+  // Scroll to initial page (resume from last read)
+  const hasScrolledToInitialRef = useRef(false);
+  useEffect(() => {
+    const initialPage = parseInt(params.initialPage || "0", 10);
+
+    console.log("[ReaderV3] Initial page check:", {
+      initialPage,
+      hasScrolled: hasScrolledToInitialRef.current,
+      flatPagesLen: flatPages.length,
+      hasRef: !!flashListRef.current,
+    });
+
+    // Only scroll once, when pages are loaded and we have an initial page
+    if (
+      !hasScrolledToInitialRef.current &&
+      initialPage > 0 &&
+      flatPages.length > 0 &&
+      flashListRef.current
+    ) {
+      hasScrolledToInitialRef.current = true;
+      console.log("[ReaderV3] Scrolling to initial page:", initialPage);
+
+      // Scroll to the saved page index (without animation for instant jump)
+      setTimeout(() => {
+        flashListRef.current?.scrollToIndex({
+          index: initialPage,
+          animated: false,
+        });
+      }, 100); // Small delay to ensure list is ready
+    }
+  }, [flatPages.length, params.initialPage]);
+
+  // Refs for cleanup - to avoid stale closures in useEffect
+  const flatPagesRef = useRef(flatPages);
+  const currentFlatIndexRef = useRef(currentFlatIndex);
+  flatPagesRef.current = flatPages;
+  currentFlatIndexRef.current = currentFlatIndex;
+
   // Save progress on unmount
   useEffect(() => {
     return () => {
-      // Save progress
-      saveProgress();
+      const pages = flatPagesRef.current;
+      const index = currentFlatIndexRef.current;
+      const currentPage = pages[index];
 
-      // Mark current chapter as read
-      const currentPage = flatPages[currentFlatIndex];
       if (currentPage && params.mangaId) {
+        // Save last page read (0-based index)
+        saveProgressToRealm(
+          params.mangaId,
+          currentPage.chapterId,
+          currentPage.chapterNumber,
+          currentPage.pageIndex
+        );
+
+        // Mark chapter as read
         markChapterRead(params.mangaId, currentPage.chapterId);
       }
 
       // Reset store
       reset();
     };
-  }, []);
+  }, [params.mangaId, saveProgressToRealm, markChapterRead, reset]);
 
   // Track scroll to update current page index
   // Use ref to avoid stale closure in callback
