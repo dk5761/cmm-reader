@@ -5,9 +5,10 @@
  * - Animated fade in/out
  * - Chapter title and page counter
  * - Page slider
+ * - Does NOT block touches to reader below
  */
 
-import React, { useMemo } from "react";
+import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -36,8 +37,18 @@ export function ReaderOverlay({ flashListRef }: ReaderOverlayProps) {
   const pageInChapter = currentPage ? currentPage.pageIndex + 1 : 0;
   const totalInChapter = currentPage ? currentPage.totalPagesInChapter : 0;
 
-  // Animated opacity
-  const animatedStyle = useAnimatedStyle(() => {
+  // Animated opacity for top bar
+  const topBarStyle = useAnimatedStyle(() => {
+    const opacity = withTiming(isOverlayVisible ? 1 : 0, { duration: 200 });
+    return {
+      opacity,
+      // Only capture touches when visible
+      pointerEvents: isOverlayVisible ? "auto" : "none",
+    };
+  }, [isOverlayVisible]);
+
+  // Animated opacity for bottom bar
+  const bottomBarStyle = useAnimatedStyle(() => {
     const opacity = withTiming(isOverlayVisible ? 1 : 0, { duration: 200 });
     return {
       opacity,
@@ -46,22 +57,30 @@ export function ReaderOverlay({ flashListRef }: ReaderOverlayProps) {
   }, [isOverlayVisible]);
 
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
-      {/* Top bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+    <View style={styles.container} pointerEvents="box-none">
+      {/* Top bar - only this captures touches when visible */}
+      <Animated.View
+        style={[styles.topBar, { paddingTop: insets.top + 8 }, topBarStyle]}
+      >
         <Text style={styles.chapterTitle} numberOfLines={1}>
           {chapterTitle || `Chapter ${chapterNumber}`}
         </Text>
         <Text style={styles.pageCounter}>
           {pageInChapter} / {totalInChapter}
         </Text>
-      </View>
+      </Animated.View>
 
-      {/* Bottom bar with slider */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
+      {/* Bottom bar with slider - only this captures touches when visible */}
+      <Animated.View
+        style={[
+          styles.bottomBar,
+          { paddingBottom: insets.bottom + 8 },
+          bottomBarStyle,
+        ]}
+      >
         <PageSlider flashListRef={flashListRef} />
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -69,6 +88,7 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "space-between",
+    // CRITICAL: This allows touches to pass through to the list below
     pointerEvents: "box-none",
   },
   topBar: {

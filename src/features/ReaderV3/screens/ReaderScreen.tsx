@@ -59,6 +59,7 @@ export function ReaderScreen() {
     initReader,
     setCurrentFlatIndex,
     toggleOverlay,
+    hideOverlay,
     loadNextChapter,
     saveProgress,
     reset,
@@ -139,31 +140,38 @@ export function ReaderScreen() {
     };
   }, []);
 
-  // Viewability config for 60% threshold
-  const viewabilityConfig = useRef({
+  // Viewability config for 60% threshold - must be stable ref
+  const viewabilityConfigRef = useRef({
     itemVisiblePercentThreshold: 60,
     minimumViewTime: 100,
-  }).current;
+  });
 
-  // Handle viewable items change
+  // Handle viewable items change - use ref to get latest setCurrentFlatIndex
+  const setCurrentFlatIndexRef = useRef(setCurrentFlatIndex);
+  setCurrentFlatIndexRef.current = setCurrentFlatIndex;
+
+  // Stable callback for onViewableItemsChanged
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      console.log(
+        "[ReaderV3] onViewableItemsChanged called, items:",
+        viewableItems.length
+      );
       if (viewableItems.length > 0 && viewableItems[0].index !== null) {
-        setCurrentFlatIndex(viewableItems[0].index);
+        console.log("[ReaderV3] Viewable changed:", viewableItems[0].index);
+        setCurrentFlatIndexRef.current(viewableItems[0].index);
       }
     },
-    [setCurrentFlatIndex]
+    []
   );
 
-  // Stable ref for onViewableItemsChanged
-  const viewabilityConfigCallbackPairs = useRef([
-    { viewabilityConfig, onViewableItemsChanged },
-  ]);
-
   // Render page item
-  const renderItem = useCallback(({ item }: { item: FlatPage }) => {
-    return <PageItem page={item} />;
-  }, []);
+  const renderItem = useCallback(
+    ({ item }: { item: FlatPage }) => {
+      return <PageItem page={item} onTap={toggleOverlay} />;
+    },
+    [toggleOverlay]
+  );
 
   // Key extractor
   const keyExtractor = useCallback((item: FlatPage) => item.key, []);
@@ -210,24 +218,10 @@ export function ReaderScreen() {
         estimatedItemSize={SCREEN_HEIGHT}
         onEndReached={loadNextChapter}
         onEndReachedThreshold={0.5}
-        viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
+        viewabilityConfig={viewabilityConfigRef.current}
+        onViewableItemsChanged={onViewableItemsChanged}
         showsVerticalScrollIndicator={false}
-      />
-
-      {/* Tap zones for toggle overlay - on left and right edges */}
-      <Pressable
-        style={styles.tapZoneLeft}
-        onPress={() => {
-          console.log("[ReaderScreen] Left tap zone pressed");
-          toggleOverlay();
-        }}
-      />
-      <Pressable
-        style={styles.tapZoneRight}
-        onPress={() => {
-          console.log("[ReaderScreen] Right tap zone pressed");
-          toggleOverlay();
-        }}
+        onScrollBeginDrag={hideOverlay}
       />
 
       {/* Overlay */}

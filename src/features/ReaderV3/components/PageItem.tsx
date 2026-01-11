@@ -4,6 +4,7 @@
  * - Dynamic height based on image dimensions
  * - Skeleton placeholder until dimensions known
  * - Dimension caching to avoid re-measuring
+ * - Tap to toggle overlay
  */
 
 import React, { memo, useState, useEffect } from "react";
@@ -13,6 +14,7 @@ import {
   StyleSheet,
   Image as RNImage,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { Image } from "expo-image";
 import type { FlatPage } from "../stores/useReaderStore";
@@ -24,9 +26,10 @@ const dimensionCache = new Map<string, { width: number; height: number }>();
 
 interface PageItemProps {
   page: FlatPage;
+  onTap?: () => void;
 }
 
-function PageItemComponent({ page }: PageItemProps) {
+function PageItemComponent({ page, onTap }: PageItemProps) {
   const [dimensions, setDimensions] = useState<{
     width: number;
     height: number;
@@ -73,7 +76,10 @@ function PageItemComponent({ page }: PageItemProps) {
   }, [page.imageUrl]);
 
   return (
-    <View style={[styles.container, { height: calculatedHeight }]}>
+    <Pressable
+      style={[styles.container, { height: calculatedHeight }]}
+      onPress={onTap}
+    >
       {/* Skeleton placeholder */}
       {(!dimensions || !imageLoaded) && !error && (
         <View style={styles.placeholder}>
@@ -105,7 +111,7 @@ function PageItemComponent({ page }: PageItemProps) {
           </View>
         </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 

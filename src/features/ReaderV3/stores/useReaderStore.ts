@@ -80,6 +80,7 @@ interface ReaderState {
   initReader: (params: InitParams) => Promise<void>;
   setCurrentFlatIndex: (index: number) => void;
   toggleOverlay: () => void;
+  hideOverlay: () => void;
   loadNextChapter: () => Promise<void>;
   loadPreviousChapter: () => Promise<void>;
   saveProgress: () => void;
@@ -201,6 +202,10 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   toggleOverlay: () => {
     set((state) => ({ isOverlayVisible: !state.isOverlayVisible }));
+  },
+
+  hideOverlay: () => {
+    set({ isOverlayVisible: false });
   },
 
   loadNextChapter: async () => {
