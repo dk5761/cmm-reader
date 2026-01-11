@@ -92,7 +92,11 @@ async function ensureJsAuth(): Promise<boolean> {
     try {
       const credential = GoogleAuthProvider.credential(googleIdToken);
       const userCredential = await signInWithCredential(jsAuth, credential);
-      logger.sync.log(`JS Auth synced with stored token - user: ${userCredential.user?.uid ?? "unknown"}`);
+      logger.sync.log(
+        `JS Auth synced with stored token - user: ${
+          userCredential.user?.uid ?? "unknown"
+        }`
+      );
       return true;
     } catch (e) {
       logger.sync.log("Stored token expired, attempting silent refresh...");
@@ -114,7 +118,11 @@ async function ensureJsAuth(): Promise<boolean> {
         // Sign in to JS SDK
         const credential = GoogleAuthProvider.credential(freshToken);
         const userCredential = await signInWithCredential(jsAuth, credential);
-        logger.sync.log(`JS Auth synced with refreshed token - user: ${userCredential.user?.uid ?? "unknown"}`);
+        logger.sync.log(
+          `JS Auth synced with refreshed token - user: ${
+            userCredential.user?.uid ?? "unknown"
+          }`
+        );
         return true;
       }
     }
@@ -149,6 +157,8 @@ function sanitizeData<T>(obj: T): T {
 class SyncServiceClass {
   private queue: SyncEvent[] = [];
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private periodicSyncTimer: ReturnType<typeof setInterval> | null = null;
+  private realtimeUnsubscribe: (() => void) | null = null;
   private isSyncing = false;
   private listeners: Set<(state: SyncState) => void> = new Set();
 
@@ -185,7 +195,10 @@ class SyncServiceClass {
     this.queue.push(fullEvent);
     await this.persistQueue();
     this.notifyListeners();
-    this.scheduleSync();
+
+    // Sync immediately for all events - no debounce
+    logger.sync.log(`Event ${event.type} queued, syncing immediately`);
+    this.flush();
   }
 
   /**
@@ -195,7 +208,10 @@ class SyncServiceClass {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
-    this.debounceTimer = setTimeout(() => this.flush(), SYNC_CONFIG.DEBOUNCE_MS);
+    this.debounceTimer = setTimeout(
+      () => this.flush(),
+      SYNC_CONFIG.DEBOUNCE_MS
+    );
   }
 
   /**
@@ -256,11 +272,9 @@ class SyncServiceClass {
     );
     const historyEvents = this.queue.filter((e) => e.type === "history_added");
     const categoryEvents = this.queue.filter((e) =>
-      [
-        "category_added",
-        "category_updated",
-        "category_deleted",
-      ].includes(e.type)
+      ["category_added", "category_updated", "category_deleted"].includes(
+        e.type
+      )
     );
 
     let batch = writeBatch(db);
@@ -276,9 +290,11 @@ class SyncServiceClass {
           lastUpdated: event.timestamp,
         });
       } else if (event.data) {
-        batch.set(mangaRef, sanitizeData(event.data as CloudManga), { merge: true });
+        batch.set(mangaRef, sanitizeData(event.data as CloudManga), {
+          merge: true,
+        });
       }
-      
+
       opCount++;
       if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
         await batch.commit();
@@ -290,7 +306,7 @@ class SyncServiceClass {
     // Process category events
     for (const event of categoryEvents) {
       const catRef = doc(collection(userDocRef, "categories"), event.entityId);
-      
+
       if (event.type === "category_deleted") {
         batch.delete(catRef);
       } else if (event.data) {
@@ -313,7 +329,7 @@ class SyncServiceClass {
           event.entityId
         );
         batch.set(historyRef, sanitizeData(event.data as CloudHistoryEntry));
-        
+
         opCount++;
         if (opCount >= SYNC_CONFIG.BATCH_SIZE) {
           await batch.commit();
@@ -358,7 +374,9 @@ class SyncServiceClass {
     const history = historySnap.docs.map((d) => d.data() as CloudHistoryEntry);
     const categories = categorySnap.docs.map((d) => d.data() as CloudCategory);
 
-    logger.sync.log(`Downloaded ${manga.length} manga, ${history.length} history, ${categories.length} categories`);
+    logger.sync.log(
+      `Downloaded ${manga.length} manga, ${history.length} history, ${categories.length} categories`
+    );
     return { manga, history, categories };
   }
 
@@ -419,7 +437,9 @@ class SyncServiceClass {
     }
 
     await this.updateSyncState({ lastSyncTimestamp: Date.now() });
-    logger.sync.log(`Full upload complete: ${manga.length} manga, ${categories.length} categories, ${history.length} history`);
+    logger.sync.log(
+      `Full upload complete: ${manga.length} manga, ${categories.length} categories, ${history.length} history`
+    );
   }
 
   /**
@@ -476,6 +496,103 @@ class SyncServiceClass {
       );
     } catch (e) {
       logger.sync.error("Failed to update state:", { error: e });
+    }
+  }
+
+  /**
+   * Start periodic sync interval (call when app is active and user is logged in)
+   */
+  startPeriodicSync(): void {
+    if (this.periodicSyncTimer) return; // Already running
+
+    logger.sync.log(
+      `Starting periodic sync every ${
+        SYNC_CONFIG.PERIODIC_SYNC_INTERVAL_MS / 1000
+      }s`
+    );
+    this.periodicSyncTimer = setInterval(() => {
+      if (this.queue.length > 0) {
+        logger.sync.log("Periodic sync triggered");
+        this.flush();
+      }
+    }, SYNC_CONFIG.PERIODIC_SYNC_INTERVAL_MS);
+  }
+
+  /**
+   * Stop periodic sync interval (call on logout or app background)
+   */
+  stopPeriodicSync(): void {
+    if (this.periodicSyncTimer) {
+      clearInterval(this.periodicSyncTimer);
+      this.periodicSyncTimer = null;
+      logger.sync.log("Stopped periodic sync");
+    }
+  }
+
+  /**
+   * Setup real-time Firestore listener for incoming changes
+   * This enables bi-directional sync (changes from other devices sync down)
+   */
+  setupRealtimeListener(
+    userId: string,
+    onMangaChange: (manga: CloudManga[]) => void,
+    onHistoryChange: (history: CloudHistoryEntry[]) => void
+  ): () => void {
+    // Clean up existing listener
+    if (this.realtimeUnsubscribe) {
+      this.realtimeUnsubscribe();
+    }
+
+    const db = getFirestoreDb();
+    const userDocRef = doc(db, "users", userId);
+    const mangaCollectionRef = collection(userDocRef, "manga");
+    const historyCollectionRef = collection(userDocRef, "history");
+
+    // Import onSnapshot for real-time updates
+    const { onSnapshot } = require("firebase/firestore");
+
+    const unsubManga = onSnapshot(mangaCollectionRef, (snapshot: any) => {
+      const changes = snapshot.docChanges();
+      if (changes.length > 0) {
+        const manga = snapshot.docs.map((d: any) => d.data() as CloudManga);
+        logger.sync.log(`Real-time: ${changes.length} manga changes received`);
+        onMangaChange(manga);
+      }
+    });
+
+    const unsubHistory = onSnapshot(
+      query(historyCollectionRef, orderBy("timestamp", "desc"), limit(100)),
+      (snapshot: any) => {
+        const changes = snapshot.docChanges();
+        if (changes.length > 0) {
+          const history = snapshot.docs.map(
+            (d: any) => d.data() as CloudHistoryEntry
+          );
+          logger.sync.log(
+            `Real-time: ${changes.length} history changes received`
+          );
+          onHistoryChange(history);
+        }
+      }
+    );
+
+    this.realtimeUnsubscribe = () => {
+      unsubManga();
+      unsubHistory();
+      logger.sync.log("Real-time listener stopped");
+    };
+
+    logger.sync.log("Real-time Firestore listener started");
+    return this.realtimeUnsubscribe;
+  }
+
+  /**
+   * Stop real-time listener
+   */
+  stopRealtimeListener(): void {
+    if (this.realtimeUnsubscribe) {
+      this.realtimeUnsubscribe();
+      this.realtimeUnsubscribe = null;
     }
   }
 }

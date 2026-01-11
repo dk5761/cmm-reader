@@ -50,6 +50,9 @@ export function useSyncManager() {
         bridgeCleanupRef.current();
         bridgeCleanupRef.current = null;
       }
+      // Stop periodic sync and real-time listener on logout
+      SyncService.stopPeriodicSync();
+      SyncService.stopRealtimeListener();
       // Reset the module-level flag on logout
       startupSyncInitiated = false;
       return;
@@ -71,7 +74,7 @@ export function useSyncManager() {
 
         console.log(
           "[useSyncManager] Startup sync check - local manga:",
-          localMangaCount,
+          localMangaCount
         );
 
         // Only do background sync if user has library items
@@ -92,7 +95,7 @@ export function useSyncManager() {
               console.log(
                 "[useSyncManager] Background sync complete:",
                 cloudData.manga.length,
-                "manga",
+                "manga"
               );
             }
           } catch (e) {
@@ -102,6 +105,9 @@ export function useSyncManager() {
           }
         }
       }
+
+      // Start periodic sync for reactive updates
+      SyncService.startPeriodicSync();
     };
 
     init();
@@ -120,17 +126,22 @@ export function useSyncManager() {
     return unsubscribe;
   }, []);
 
-  // Flush sync on app background
+  // Handle app state changes - flush on background, restart periodic on foreground
   useEffect(() => {
     const handleAppState = (state: AppStateStatus) => {
       if (state === "background" || state === "inactive") {
+        // Flush pending changes and stop periodic sync when backgrounded
         SyncService.flush();
+        SyncService.stopPeriodicSync();
+      } else if (state === "active" && user) {
+        // Restart periodic sync when app comes to foreground
+        SyncService.startPeriodicSync();
       }
     };
 
     const subscription = AppState.addEventListener("change", handleAppState);
     return () => subscription.remove();
-  }, []);
+  }, [user]);
 
   /**
    * Force immediate sync (manual trigger)
