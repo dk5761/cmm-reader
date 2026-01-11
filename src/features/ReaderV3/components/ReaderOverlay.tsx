@@ -9,7 +9,7 @@
  */
 
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import Animated, {
   useAnimatedStyle,
   withTiming,
@@ -37,7 +37,6 @@ export function ReaderOverlay({
 
   // Derive current page info (computed, not a selector)
   const currentPage = flatPages[currentFlatIndex];
-  const chapterTitle = currentPage?.chapterTitle || "";
   const chapterNumber = currentPage?.chapterNumber || 0;
   const pageInChapter = currentPage ? currentPage.pageIndex + 1 : 0;
   const totalInChapter = currentPage ? currentPage.totalPagesInChapter : 0;
@@ -62,25 +61,29 @@ export function ReaderOverlay({
   }, [isOverlayVisible]);
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View className="absolute inset-0 justify-between" pointerEvents="box-none">
       {/* Top bar - only this captures touches when visible */}
       <Animated.View
-        style={[styles.topBar, { paddingTop: insets.top + 8 }, topBarStyle]}
+        className="bg-black/80 px-3 pb-3"
+        style={[{ paddingTop: insets.top + 8 }, topBarStyle]}
       >
         {/* Header row with back button */}
-        <View style={styles.headerRow}>
+        <View className="flex-row items-center">
           <Pressable
-            style={styles.backButton}
+            className="p-1 mr-2"
             onPress={() => router.back()}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="chevron-back" size={28} color="#fff" />
           </Pressable>
-          <View style={styles.titleContainer}>
-            <Text style={styles.chapterTitle} numberOfLines={1}>
+          <View className="flex-1">
+            <Text
+              className="text-white text-base font-semibold mb-0.5"
+              numberOfLines={1}
+            >
               {mangaTitle}
             </Text>
-            <Text style={styles.pageCounter}>
+            <Text className="text-zinc-400 text-sm">
               Chapter {chapterNumber} : Page {pageInChapter} / {totalInChapter}
             </Text>
           </View>
@@ -89,53 +92,11 @@ export function ReaderOverlay({
 
       {/* Bottom bar with slider - only this captures touches when visible */}
       <Animated.View
-        style={[
-          styles.bottomBar,
-          { paddingBottom: insets.bottom + 8 },
-          bottomBarStyle,
-        ]}
+        className="bg-black/80 pt-2"
+        style={[{ paddingBottom: insets.bottom + 8 }, bottomBarStyle]}
       >
         <PageSlider flashListRef={flashListRef} />
       </Animated.View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "space-between",
-    // CRITICAL: This allows touches to pass through to the list below
-    pointerEvents: "box-none",
-  },
-  topBar: {
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  backButton: {
-    padding: 4,
-    marginRight: 8,
-  },
-  titleContainer: {
-    flex: 1,
-  },
-  chapterTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  pageCounter: {
-    color: "#aaa",
-    fontSize: 13,
-  },
-  bottomBar: {
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    paddingTop: 8,
-  },
-});

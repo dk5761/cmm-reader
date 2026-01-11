@@ -7,16 +7,12 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import { View, Text } from "react-native";
 import Slider from "@react-native-community/slider";
 import { useReaderStore } from "../stores/useReaderStore";
-import type { FlashList } from "@shopify/flash-list";
-import type { FlatPage } from "../stores/useReaderStore";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface PageSliderProps {
-  flashListRef: React.RefObject<FlashList<FlatPage>>;
+  flashListRef: React.RefObject<any>;
 }
 
 export function PageSlider({ flashListRef }: PageSliderProps) {
@@ -80,11 +76,13 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
   const displayPage = Math.round(sliderValue) + 1;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.sliderRow}>
-        <Text style={styles.pageText}>{displayPage}</Text>
+    <View className="px-4 py-2">
+      <View className="flex-row items-center gap-3">
+        <Text className="text-white text-sm font-semibold min-w-[32px] text-center">
+          {displayPage}
+        </Text>
         <Slider
-          style={styles.slider}
+          style={{ flex: 1, height: 40 }}
           minimumValue={0}
           maximumValue={Math.max(0, totalPages - 1)}
           value={sliderValue}
@@ -95,31 +93,10 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
           maximumTrackTintColor="#666"
           thumbTintColor="#fff"
         />
-        <Text style={styles.pageText}>{totalPages}</Text>
+        <Text className="text-white text-sm font-semibold min-w-[32px] text-center">
+          {totalPages}
+        </Text>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  sliderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  slider: {
-    flex: 1,
-    height: 40,
-  },
-  pageText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    minWidth: 32,
-    textAlign: "center",
-  },
-});

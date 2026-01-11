@@ -11,10 +11,10 @@ import React, { memo, useState, useEffect } from "react";
 import {
   View,
   Dimensions,
-  StyleSheet,
   Image as RNImage,
   ActivityIndicator,
   Pressable,
+  StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
 import type { FlatPage } from "../stores/useReaderStore";
@@ -51,9 +51,10 @@ function PageItemComponent({ page, onTap }: PageItemProps) {
       return;
     }
 
-    // Measure image dimensions
-    RNImage.getSize(
+    // Measure image dimensions with headers
+    RNImage.getSizeWithHeaders(
       page.imageUrl,
+      page.headers || {},
       (width, height) => {
         const dims = { width, height };
         dimensionCache.set(page.imageUrl, dims);
@@ -64,30 +65,31 @@ function PageItemComponent({ page, onTap }: PageItemProps) {
           `[PageItem] Failed to get size for ${page.imageUrl}:`,
           err
         );
-        // Use default aspect ratio on error
+        // Use default aspect ratio on error - still show the image
         const defaultDims = {
           width: SCREEN_WIDTH,
-          height: SCREEN_HEIGHT * 0.8,
+          height: SCREEN_HEIGHT * 1.4,
         };
         dimensionCache.set(page.imageUrl, defaultDims);
         setDimensions(defaultDims);
       }
     );
-  }, [page.imageUrl]);
+  }, [page.imageUrl, page.headers]);
 
   return (
     <Pressable
-      style={[styles.container, { height: calculatedHeight }]}
+      className="bg-black"
+      style={{ width: SCREEN_WIDTH, height: calculatedHeight }}
       onPress={onTap}
     >
       {/* Skeleton placeholder */}
       {(!dimensions || !imageLoaded) && !error && (
-        <View style={styles.placeholder}>
+        <View className="absolute inset-0 bg-zinc-900 items-center justify-center">
           <ActivityIndicator size="large" color="#666" />
         </View>
       )}
 
-      {/* Actual image */}
+      {/* Actual image - use style instead of className for expo-image */}
       {dimensions && (
         <Image
           source={{
@@ -105,8 +107,8 @@ function PageItemComponent({ page, onTap }: PageItemProps) {
 
       {/* Error state */}
       {error && (
-        <View style={styles.errorContainer}>
-          <View style={styles.errorBox}>
+        <View className="absolute inset-0 bg-zinc-900 items-center justify-center">
+          <View className="p-5 bg-zinc-800 rounded-lg">
             <ActivityIndicator size="small" color="#888" />
           </View>
         </View>
@@ -116,30 +118,9 @@ function PageItemComponent({ page, onTap }: PageItemProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: SCREEN_WIDTH,
-    backgroundColor: "#000",
-  },
-  placeholder: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#1a1a1a",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   image: {
     width: "100%",
     height: "100%",
-  },
-  errorContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#1a1a1a",
-  },
-  errorBox: {
-    padding: 20,
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
   },
 });
 

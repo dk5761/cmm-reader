@@ -11,11 +11,10 @@
 import React, { useCallback, useRef, useEffect } from "react";
 import {
   View,
-  StyleSheet,
   Dimensions,
-  Pressable,
   ActivityIndicator,
   Text,
+  Pressable,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -72,6 +71,14 @@ export function ReaderScreen() {
 
   // Initialize reader on mount
   useEffect(() => {
+    console.log("[ReaderV3] Init check:", {
+      chapterId: params.chapterId,
+      url: params.url,
+      sourceId: params.sourceId,
+      mangaId: params.mangaId,
+      displayChaptersLen: displayChapters.length,
+    });
+
     if (
       params.chapterId &&
       params.url &&
@@ -79,6 +86,7 @@ export function ReaderScreen() {
       params.mangaId &&
       displayChapters.length > 0
     ) {
+      console.log("[ReaderV3] Initializing reader...");
       initReader({
         chapterId: params.chapterId,
         chapterUrl: params.url, // Use url param as chapterUrl
@@ -163,10 +171,10 @@ export function ReaderScreen() {
   // Loading state
   if (isLoadingChapter && flatPages.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="flex-1 bg-black items-center justify-center">
         <StatusBar style="light" />
         <ActivityIndicator size="large" color="#fff" />
-        <Text style={styles.loadingText}>Loading chapter...</Text>
+        <Text className="text-zinc-400 mt-4 text-sm">Loading chapter...</Text>
       </View>
     );
   }
@@ -174,18 +182,23 @@ export function ReaderScreen() {
   // Error state
   if (error && flatPages.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="flex-1 bg-black items-center justify-center">
         <StatusBar style="light" />
-        <Text style={styles.errorText}>{error}</Text>
-        <Pressable style={styles.retryButton} onPress={() => router.back()}>
-          <Text style={styles.retryText}>Go Back</Text>
+        <Text className="text-red-400 text-base text-center mx-8 mb-4">
+          {error}
+        </Text>
+        <Pressable
+          className="px-6 py-3 bg-zinc-800 rounded-lg"
+          onPress={() => router.back()}
+        >
+          <Text className="text-white text-sm font-semibold">Go Back</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-black">
       <StatusBar style="light" hidden={!isOverlayVisible} />
 
       {/* FlashList - no Pressable wrapper */}
@@ -211,70 +224,10 @@ export function ReaderScreen() {
 
       {/* Loading indicator for next chapter */}
       {isLoadingChapter && flatPages.length > 0 && (
-        <View style={styles.loadingMore}>
+        <View className="absolute bottom-24 self-center bg-black/70 p-3 rounded-full">
           <ActivityIndicator size="small" color="#fff" />
         </View>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    color: "#aaa",
-    marginTop: 16,
-    fontSize: 14,
-  },
-  errorText: {
-    color: "#ff6b6b",
-    fontSize: 16,
-    textAlign: "center",
-    marginHorizontal: 32,
-    marginBottom: 16,
-  },
-  retryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: "#333",
-    borderRadius: 8,
-  },
-  retryText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  loadingMore: {
-    position: "absolute",
-    bottom: 100,
-    alignSelf: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    padding: 12,
-    borderRadius: 20,
-  },
-  tapZoneLeft: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 60,
-    // backgroundColor: "rgba(255, 0, 0, 0.2)", // Debug: uncomment to see zone
-  },
-  tapZoneRight: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 60,
-    // backgroundColor: "rgba(0, 255, 0, 0.2)", // Debug: uncomment to see zone
-  },
-});
