@@ -33,11 +33,5 @@ export function usePagePreloader(flatPages: FlatPage[], currentIndex: number) {
         // Silently ignore prefetch failures
       });
     }
-
-    console.log(
-      `[Preloader] Prefetching pages ${startIdx + 1} to ${endIdx} of ${
-        flatPages.length
-      }`
-    );
   }, [currentIndex, flatPages]);
 }

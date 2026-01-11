@@ -39,15 +39,6 @@ export function ReaderScreen() {
     mangaTitle: string;
   }>();
 
-  // Debug: Log params
-  console.log("[ReaderV3] Params received:", {
-    chapterId: params.chapterId,
-    url: params.url,
-    sourceId: params.sourceId,
-    mangaId: params.mangaId,
-    mangaUrl: params.mangaUrl,
-  });
-
   const flashListRef = useRef<FlashList<FlatPage>>(null);
 
   // Store state
@@ -73,9 +64,6 @@ export function ReaderScreen() {
     url: params.mangaUrl || "",
   });
 
-  // Debug: Log chapters
-  console.log("[ReaderV3] Display chapters count:", displayChapters.length);
-
   // Mark chapter as read
   const markChapterRead = useMarkChapterRead();
 
@@ -84,14 +72,6 @@ export function ReaderScreen() {
 
   // Initialize reader on mount
   useEffect(() => {
-    console.log("[ReaderV3] Init check:", {
-      chapterId: params.chapterId,
-      url: params.url,
-      sourceId: params.sourceId,
-      mangaId: params.mangaId,
-      chaptersLen: displayChapters.length,
-    });
-
     if (
       params.chapterId &&
       params.url &&
@@ -99,7 +79,6 @@ export function ReaderScreen() {
       params.mangaId &&
       displayChapters.length > 0
     ) {
-      console.log("[ReaderV3] Initializing reader...");
       initReader({
         chapterId: params.chapterId,
         chapterUrl: params.url, // Use url param as chapterUrl
@@ -161,7 +140,6 @@ export function ReaderScreen() {
       firstVisibleIndex !== lastReportedIndexRef.current
     ) {
       lastReportedIndexRef.current = firstVisibleIndex;
-      console.log("[ReaderV3] First visible index:", firstVisibleIndex);
       setCurrentFlatIndexRef.current(firstVisibleIndex);
     }
   }, []);

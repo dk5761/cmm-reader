@@ -31,18 +31,10 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
 
   // Sync slider with scroll position (only when not dragging and not seeking)
   useEffect(() => {
-    console.log("[PageSlider] Sync check:", {
-      isDragging,
-      currentFlatIndex,
-      sliderValue,
-      targetIndex: targetIndexRef.current,
-    });
-
     if (!isDragging && totalPages > 0) {
       // If we're seeking to a target, wait until we reach it
       if (targetIndexRef.current !== null) {
         if (currentFlatIndex === targetIndexRef.current) {
-          console.log("[PageSlider] Reached target, clearing");
           targetIndexRef.current = null;
           setSliderValue(currentFlatIndex);
         }
@@ -60,7 +52,6 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
 
   // Handle drag start
   const handleSlidingStart = useCallback(() => {
-    console.log("[PageSlider] Drag start");
     setIsDragging(true);
   }, []);
 
@@ -68,8 +59,6 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
   const handleSlidingComplete = useCallback(
     (value: number) => {
       const targetIndex = Math.round(value);
-      console.log("[PageSlider] Drag end, target:", targetIndex);
-
       setIsDragging(false);
 
       if (flashListRef.current && targetIndex !== currentFlatIndex) {

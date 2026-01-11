@@ -23,11 +23,7 @@ export function useChapterPages(
         throw new Error(`Source ${sourceId} not found`);
       }
 
-      console.log(
-        `[useChapterPages] Fetching pages for ${chapterUrl.substring(0, 60)}`
-      );
       const pages = await source.getPageList(chapterUrl);
-      console.log(`[useChapterPages] Success: ${pages.length} pages`);
 
       // Attach headers from source
       const headers = source.getImageHeaders();

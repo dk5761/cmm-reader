@@ -290,11 +290,6 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     if (!currentPage) return;
 
     // Progress will be saved by the component using Library hooks
-    console.log(
-      `[ReaderStore] Save progress: Chapter ${
-        currentPage.chapterNumber
-      }, Page ${currentPage.pageIndex + 1}`
-    );
   },
 
   reset: () => {
