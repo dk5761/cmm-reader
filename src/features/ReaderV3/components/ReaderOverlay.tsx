@@ -1,7 +1,7 @@
 /**
  * ReaderOverlay - Floating overlay with chapter info and slider
  * Features:
- * - Tap to toggle visibility
+ * - Back button to navigate back
  * - Animated fade in/out
  * - Chapter title and page counter
  * - Page slider
@@ -9,12 +9,14 @@
  */
 
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useReaderStore } from "../stores/useReaderStore";
 import { PageSlider } from "./PageSlider";
 import type { FlashList } from "@shopify/flash-list";
@@ -25,6 +27,7 @@ interface ReaderOverlayProps {
 }
 
 export function ReaderOverlay({ flashListRef }: ReaderOverlayProps) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const isOverlayVisible = useReaderStore((s) => s.isOverlayVisible);
   const flatPages = useReaderStore((s) => s.flatPages);
@@ -62,12 +65,24 @@ export function ReaderOverlay({ flashListRef }: ReaderOverlayProps) {
       <Animated.View
         style={[styles.topBar, { paddingTop: insets.top + 8 }, topBarStyle]}
       >
-        <Text style={styles.chapterTitle} numberOfLines={1}>
-          {chapterTitle || `Chapter ${chapterNumber}`}
-        </Text>
-        <Text style={styles.pageCounter}>
-          {pageInChapter} / {totalInChapter}
-        </Text>
+        {/* Header row with back button */}
+        <View style={styles.headerRow}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="chevron-back" size={28} color="#fff" />
+          </Pressable>
+          <View style={styles.titleContainer}>
+            <Text style={styles.chapterTitle} numberOfLines={1}>
+              {chapterTitle || `Chapter ${chapterNumber}`}
+            </Text>
+            <Text style={styles.pageCounter}>
+              {pageInChapter} / {totalInChapter}
+            </Text>
+          </View>
+        </View>
       </Animated.View>
 
       {/* Bottom bar with slider - only this captures touches when visible */}
@@ -93,14 +108,25 @@ const styles = StyleSheet.create({
   },
   topBar: {
     backgroundColor: "rgba(0, 0, 0, 0.8)",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingBottom: 12,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  backButton: {
+    padding: 4,
+    marginRight: 8,
+  },
+  titleContainer: {
+    flex: 1,
   },
   chapterTitle: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   pageCounter: {
     color: "#aaa",
