@@ -72,6 +72,15 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
   const handleSlidingComplete = useCallback(
     (value: number) => {
       const targetPageIndex = Math.round(value);
+
+      console.log("[PageSlider] Sliding complete:", {
+        rawValue: value,
+        targetPageIndex,
+        currentPageIndex,
+        chapterStartFlatIndex,
+        targetFlatIndex: chapterStartFlatIndex + targetPageIndex,
+      });
+
       setIsDragging(false);
 
       if (flashListRef.current && targetPageIndex !== currentPageIndex) {
@@ -81,6 +90,8 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
 
         // Calculate the flat index: chapter start + target page index
         const targetFlatIndex = chapterStartFlatIndex + targetPageIndex;
+
+        console.log("[PageSlider] Scrolling to flat index:", targetFlatIndex);
 
         flashListRef.current.scrollToIndex({
           index: targetFlatIndex,

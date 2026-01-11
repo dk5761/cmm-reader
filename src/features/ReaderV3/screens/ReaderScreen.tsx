@@ -8,7 +8,7 @@
  * - Preloading of next 4 pages
  */
 
-import React, { useCallback, useRef, useEffect } from "react";
+import React, { useCallback, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Dimensions,
@@ -114,37 +114,12 @@ export function ReaderScreen() {
     displayChapters.length,
   ]);
 
-  // Scroll to initial page (resume from last read)
-  const hasScrolledToInitialRef = useRef(false);
-  useEffect(() => {
+  // Calculate initial scroll index from route params (only use on first render)
+  const initialScrollIndex = useMemo(() => {
     const initialPage = parseInt(params.initialPage || "0", 10);
-
-    console.log("[ReaderV3] Initial page check:", {
-      initialPage,
-      hasScrolled: hasScrolledToInitialRef.current,
-      flatPagesLen: flatPages.length,
-      hasRef: !!flashListRef.current,
-    });
-
-    // Only scroll once, when pages are loaded and we have an initial page
-    if (
-      !hasScrolledToInitialRef.current &&
-      initialPage > 0 &&
-      flatPages.length > 0 &&
-      flashListRef.current
-    ) {
-      hasScrolledToInitialRef.current = true;
-      console.log("[ReaderV3] Scrolling to initial page:", initialPage);
-
-      // Scroll to the saved page index (without animation for instant jump)
-      setTimeout(() => {
-        flashListRef.current?.scrollToIndex({
-          index: initialPage,
-          animated: false,
-        });
-      }, 100); // Small delay to ensure list is ready
-    }
-  }, [flatPages.length, params.initialPage]);
+    console.log("[ReaderV3] Initial scroll index:", initialPage);
+    return initialPage > 0 ? initialPage : undefined;
+  }, []); // Empty deps - only calculate once on mount
 
   // Refs for cleanup - to avoid stale closures in useEffect
   const flatPagesRef = useRef(flatPages);
@@ -265,6 +240,7 @@ export function ReaderScreen() {
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         estimatedItemSize={SCREEN_HEIGHT}
+        initialScrollIndex={initialScrollIndex}
         onEndReached={loadNextChapter}
         onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
