@@ -1,5 +1,9 @@
-import { ReaderScreenV2 } from "@/features/ReaderV2";
+import { View, Text } from "react-native";
 
 export default function ReaderRoute() {
-  return <ReaderScreenV2 />;
+  return (
+    <View>
+      <Text>Reader</Text>
+    </View>
+  );
 }
