@@ -155,7 +155,15 @@ export function ReaderScreen() {
   // Render page item
   const renderItem = useCallback(
     ({ item }: { item: FlatPage }) => {
-      return <PageItem page={item} onTap={toggleOverlay} />;
+      // Show chapter divider on first page of each chapter (but not the very first page)
+      const showChapterDivider = item.pageIndex === 0 && item.flatIndex > 0;
+      return (
+        <PageItem
+          page={item}
+          onTap={toggleOverlay}
+          showChapterDivider={showChapterDivider}
+        />
+      );
     },
     [toggleOverlay]
   );

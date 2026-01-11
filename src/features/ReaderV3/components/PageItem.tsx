@@ -5,6 +5,7 @@
  * - Skeleton placeholder until dimensions known
  * - Dimension caching to avoid re-measuring
  * - Tap to toggle overlay
+ * - Chapter divider for first page of new chapters
  */
 
 import React, { memo, useState, useEffect } from "react";
@@ -15,6 +16,7 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
+  Text,
 } from "react-native";
 import { Image } from "expo-image";
 import type { FlatPage } from "../stores/useReaderStore";
@@ -27,9 +29,10 @@ const dimensionCache = new Map<string, { width: number; height: number }>();
 interface PageItemProps {
   page: FlatPage;
   onTap?: () => void;
+  showChapterDivider?: boolean;
 }
 
-function PageItemComponent({ page, onTap }: PageItemProps) {
+function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
   const [dimensions, setDimensions] = useState<{
     width: number;
     height: number;
@@ -77,43 +80,62 @@ function PageItemComponent({ page, onTap }: PageItemProps) {
   }, [page.imageUrl, page.headers]);
 
   return (
-    <Pressable
-      className="bg-black"
-      style={{ width: SCREEN_WIDTH, height: calculatedHeight }}
-      onPress={onTap}
-    >
-      {/* Skeleton placeholder */}
-      {(!dimensions || !imageLoaded) && !error && (
-        <View className="absolute inset-0 bg-zinc-900 items-center justify-center">
-          <ActivityIndicator size="large" color="#666" />
+    <View>
+      {/* Chapter Divider */}
+      {showChapterDivider && (
+        <View className="bg-zinc-900 py-6 items-center justify-center border-t border-b border-zinc-700">
+          <Text className="text-zinc-400 text-xs uppercase tracking-wider mb-1">
+            Chapter {page.chapterNumber}
+          </Text>
+          {page.chapterTitle && (
+            <Text
+              className="text-white text-base font-semibold text-center px-4"
+              numberOfLines={2}
+            >
+              {page.chapterTitle}
+            </Text>
+          )}
         </View>
       )}
 
-      {/* Actual image - use style instead of className for expo-image */}
-      {dimensions && (
-        <Image
-          source={{
-            uri: page.imageUrl,
-            headers: page.headers,
-          }}
-          style={styles.image}
-          contentFit="fill"
-          transition={200}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setError(true)}
-          recyclingKey={page.key}
-        />
-      )}
-
-      {/* Error state */}
-      {error && (
-        <View className="absolute inset-0 bg-zinc-900 items-center justify-center">
-          <View className="p-5 bg-zinc-800 rounded-lg">
-            <ActivityIndicator size="small" color="#888" />
+      <Pressable
+        className="bg-black"
+        style={{ width: SCREEN_WIDTH, height: calculatedHeight }}
+        onPress={onTap}
+      >
+        {/* Skeleton placeholder */}
+        {(!dimensions || !imageLoaded) && !error && (
+          <View className="absolute inset-0 bg-zinc-900 items-center justify-center">
+            <ActivityIndicator size="large" color="#666" />
           </View>
-        </View>
-      )}
-    </Pressable>
+        )}
+
+        {/* Actual image - use style instead of className for expo-image */}
+        {dimensions && (
+          <Image
+            source={{
+              uri: page.imageUrl,
+              headers: page.headers,
+            }}
+            style={styles.image}
+            contentFit="fill"
+            transition={200}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setError(true)}
+            recyclingKey={page.key}
+          />
+        )}
+
+        {/* Error state */}
+        {error && (
+          <View className="absolute inset-0 bg-zinc-900 items-center justify-center">
+            <View className="p-5 bg-zinc-800 rounded-lg">
+              <ActivityIndicator size="small" color="#888" />
+            </View>
+          </View>
+        )}
+      </Pressable>
+    </View>
   );
 }
 
