@@ -95,7 +95,7 @@ function PageItemComponent({ page, onTap }: PageItemProps) {
             headers: page.headers,
           }}
           style={styles.image}
-          contentFit="contain"
+          contentFit="fill"
           transition={200}
           onLoad={() => setImageLoaded(true)}
           onError={() => setError(true)}
