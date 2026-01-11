@@ -201,22 +201,34 @@ export function ReaderScreen() {
     <View style={styles.container}>
       <StatusBar style="light" hidden={!isOverlayVisible} />
 
-      {/* Tap handler */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={handleTap}>
-        <FlashList
-          ref={flashListRef}
-          data={flatPages}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          estimatedItemSize={SCREEN_HEIGHT}
-          onEndReached={loadNextChapter}
-          onEndReachedThreshold={0.5}
-          viewabilityConfigCallbackPairs={
-            viewabilityConfigCallbackPairs.current
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      </Pressable>
+      {/* FlashList - no Pressable wrapper */}
+      <FlashList
+        ref={flashListRef}
+        data={flatPages}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        estimatedItemSize={SCREEN_HEIGHT}
+        onEndReached={loadNextChapter}
+        onEndReachedThreshold={0.5}
+        viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* Tap zones for toggle overlay - on left and right edges */}
+      <Pressable
+        style={styles.tapZoneLeft}
+        onPress={() => {
+          console.log("[ReaderScreen] Left tap zone pressed");
+          toggleOverlay();
+        }}
+      />
+      <Pressable
+        style={styles.tapZoneRight}
+        onPress={() => {
+          console.log("[ReaderScreen] Right tap zone pressed");
+          toggleOverlay();
+        }}
+      />
 
       {/* Overlay */}
       <ReaderOverlay flashListRef={flashListRef} />
@@ -272,5 +284,21 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.7)",
     padding: 12,
     borderRadius: 20,
+  },
+  tapZoneLeft: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 60,
+    // backgroundColor: "rgba(255, 0, 0, 0.2)", // Debug: uncomment to see zone
+  },
+  tapZoneRight: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 60,
+    // backgroundColor: "rgba(0, 255, 0, 0.2)", // Debug: uncomment to see zone
   },
 });

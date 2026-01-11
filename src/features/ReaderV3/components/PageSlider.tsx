@@ -6,7 +6,7 @@
  * - On release: scrolls to target page
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, StyleSheet, Dimensions } from "react-native";
 import Slider from "@react-native-community/slider";
 import { useReaderStore } from "../stores/useReaderStore";
@@ -20,15 +20,35 @@ interface PageSliderProps {
 }
 
 export function PageSlider({ flashListRef }: PageSliderProps) {
-  const { flatPages, currentFlatIndex } = useReaderStore();
+  const flatPages = useReaderStore((s) => s.flatPages);
+  const currentFlatIndex = useReaderStore((s) => s.currentFlatIndex);
+
   const [isDragging, setIsDragging] = useState(false);
   const [sliderValue, setSliderValue] = useState(0);
+  const targetIndexRef = useRef<number | null>(null);
 
   const totalPages = flatPages.length;
 
-  // Sync slider with scroll position (only when not dragging)
+  // Sync slider with scroll position (only when not dragging and not seeking)
   useEffect(() => {
+    console.log("[PageSlider] Sync check:", {
+      isDragging,
+      currentFlatIndex,
+      sliderValue,
+      targetIndex: targetIndexRef.current,
+    });
+
     if (!isDragging && totalPages > 0) {
+      // If we're seeking to a target, wait until we reach it
+      if (targetIndexRef.current !== null) {
+        if (currentFlatIndex === targetIndexRef.current) {
+          console.log("[PageSlider] Reached target, clearing");
+          targetIndexRef.current = null;
+          setSliderValue(currentFlatIndex);
+        }
+        // Don't sync until we reach target
+        return;
+      }
       setSliderValue(currentFlatIndex);
     }
   }, [currentFlatIndex, isDragging, totalPages]);
@@ -40,16 +60,23 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
 
   // Handle drag start
   const handleSlidingStart = useCallback(() => {
+    console.log("[PageSlider] Drag start");
     setIsDragging(true);
   }, []);
 
   // Handle drag end - scroll to page
   const handleSlidingComplete = useCallback(
     (value: number) => {
-      setIsDragging(false);
       const targetIndex = Math.round(value);
+      console.log("[PageSlider] Drag end, target:", targetIndex);
+
+      setIsDragging(false);
 
       if (flashListRef.current && targetIndex !== currentFlatIndex) {
+        // Set target so we don't reset slider until we reach it
+        targetIndexRef.current = targetIndex;
+        setSliderValue(targetIndex); // Keep slider at target position
+
         flashListRef.current.scrollToIndex({
           index: targetIndex,
           animated: true,
