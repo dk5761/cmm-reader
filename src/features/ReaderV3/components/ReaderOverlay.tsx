@@ -19,8 +19,6 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useReaderStore } from "../stores/useReaderStore";
 import { PageSlider } from "./PageSlider";
-import type { FlashList } from "@shopify/flash-list";
-import type { FlatPage } from "../stores/useReaderStore";
 
 interface ReaderOverlayProps {
   flashListRef: React.RefObject<any>;
