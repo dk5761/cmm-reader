@@ -160,6 +160,15 @@ export function ReaderScreen() {
   // Track last reported index to avoid unnecessary updates
   const lastReportedIndexRef = useRef(0);
 
+  // Track chapters that have been marked as read (to avoid duplicate calls)
+  const markedChaptersRef = useRef<Set<string>>(new Set());
+
+  // Refs for marking chapter as read
+  const flatPagesForScrollRef = useRef(flatPages);
+  const markChapterReadRef = useRef(markChapterRead);
+  flatPagesForScrollRef.current = flatPages;
+  markChapterReadRef.current = markChapterRead;
+
   // onScroll handler - use FlashList's getFirstVisibleIndex for accurate tracking
   const handleScroll = useCallback(() => {
     if (!flashListRef.current) return;
@@ -173,8 +182,27 @@ export function ReaderScreen() {
     ) {
       lastReportedIndexRef.current = firstVisibleIndex;
       setCurrentFlatIndexRef.current(firstVisibleIndex);
+
+      // Check if user reached last page of a chapter - mark as read
+      const currentPage = flatPagesForScrollRef.current[firstVisibleIndex];
+      if (currentPage && params.mangaId) {
+        const isLastPage =
+          currentPage.pageIndex === currentPage.totalPagesInChapter - 1;
+        const alreadyMarked = markedChaptersRef.current.has(
+          currentPage.chapterId
+        );
+
+        if (isLastPage && !alreadyMarked) {
+          console.log(
+            "[ReaderV3] Reached last page, marking chapter as read:",
+            currentPage.chapterId
+          );
+          markedChaptersRef.current.add(currentPage.chapterId);
+          markChapterReadRef.current(params.mangaId, currentPage.chapterId);
+        }
+      }
     }
-  }, []);
+  }, [params.mangaId]);
 
   // Render page item
   const renderItem = useCallback(
