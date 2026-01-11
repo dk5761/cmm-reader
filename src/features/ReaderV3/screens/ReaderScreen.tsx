@@ -36,6 +36,7 @@ export function ReaderScreen() {
     sourceId: string;
     mangaId: string;
     mangaUrl: string;
+    mangaTitle: string;
   }>();
 
   // Debug: Log params
@@ -225,7 +226,10 @@ export function ReaderScreen() {
       />
 
       {/* Overlay */}
-      <ReaderOverlay flashListRef={flashListRef} />
+      <ReaderOverlay
+        flashListRef={flashListRef}
+        mangaTitle={params.mangaTitle || ""}
+      />
 
       {/* Loading indicator for next chapter */}
       {isLoadingChapter && flatPages.length > 0 && (

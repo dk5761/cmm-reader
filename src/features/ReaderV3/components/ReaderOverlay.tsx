@@ -23,10 +23,14 @@ import type { FlashList } from "@shopify/flash-list";
 import type { FlatPage } from "../stores/useReaderStore";
 
 interface ReaderOverlayProps {
-  flashListRef: React.RefObject<FlashList<FlatPage>>;
+  flashListRef: React.RefObject<any>;
+  mangaTitle: string;
 }
 
-export function ReaderOverlay({ flashListRef }: ReaderOverlayProps) {
+export function ReaderOverlay({
+  flashListRef,
+  mangaTitle,
+}: ReaderOverlayProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isOverlayVisible = useReaderStore((s) => s.isOverlayVisible);
@@ -76,10 +80,10 @@ export function ReaderOverlay({ flashListRef }: ReaderOverlayProps) {
           </Pressable>
           <View style={styles.titleContainer}>
             <Text style={styles.chapterTitle} numberOfLines={1}>
-              {chapterTitle || `Chapter ${chapterNumber}`}
+              {mangaTitle}
             </Text>
             <Text style={styles.pageCounter}>
-              {pageInChapter} / {totalInChapter}
+              Chapter {chapterNumber} : Page {pageInChapter} / {totalInChapter}
             </Text>
           </View>
         </View>
