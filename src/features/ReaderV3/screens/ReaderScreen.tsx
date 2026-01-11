@@ -17,7 +17,7 @@ import {
   ActivityIndicator,
   Text,
 } from "react-native";
-import { FlashList, ViewToken } from "@shopify/flash-list";
+import { FlashList } from "@shopify/flash-list";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useReaderStore, FlatPage } from "../stores/useReaderStore";
@@ -140,30 +140,30 @@ export function ReaderScreen() {
     };
   }, []);
 
-  // Viewability config for 60% threshold - must be stable ref
-  const viewabilityConfigRef = useRef({
-    itemVisiblePercentThreshold: 60,
-    minimumViewTime: 100,
-  });
-
-  // Handle viewable items change - use ref to get latest setCurrentFlatIndex
+  // Track scroll to update current page index
+  // Use ref to avoid stale closure in callback
   const setCurrentFlatIndexRef = useRef(setCurrentFlatIndex);
   setCurrentFlatIndexRef.current = setCurrentFlatIndex;
 
-  // Stable callback for onViewableItemsChanged
-  const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      console.log(
-        "[ReaderV3] onViewableItemsChanged called, items:",
-        viewableItems.length
-      );
-      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
-        console.log("[ReaderV3] Viewable changed:", viewableItems[0].index);
-        setCurrentFlatIndexRef.current(viewableItems[0].index);
-      }
-    },
-    []
-  );
+  // Track last reported index to avoid unnecessary updates
+  const lastReportedIndexRef = useRef(0);
+
+  // onScroll handler - use FlashList's getFirstVisibleIndex for accurate tracking
+  const handleScroll = useCallback(() => {
+    if (!flashListRef.current) return;
+
+    // Use FlashList's built-in method to get accurate first visible index
+    const firstVisibleIndex = flashListRef.current.getFirstVisibleIndex();
+
+    if (
+      firstVisibleIndex !== null &&
+      firstVisibleIndex !== lastReportedIndexRef.current
+    ) {
+      lastReportedIndexRef.current = firstVisibleIndex;
+      console.log("[ReaderV3] First visible index:", firstVisibleIndex);
+      setCurrentFlatIndexRef.current(firstVisibleIndex);
+    }
+  }, []);
 
   // Render page item
   const renderItem = useCallback(
@@ -218,10 +218,10 @@ export function ReaderScreen() {
         estimatedItemSize={SCREEN_HEIGHT}
         onEndReached={loadNextChapter}
         onEndReachedThreshold={0.5}
-        viewabilityConfig={viewabilityConfigRef.current}
-        onViewableItemsChanged={onViewableItemsChanged}
         showsVerticalScrollIndicator={false}
         onScrollBeginDrag={hideOverlay}
+        onScroll={handleScroll}
+        scrollEventThrottle={100}
       />
 
       {/* Overlay */}
