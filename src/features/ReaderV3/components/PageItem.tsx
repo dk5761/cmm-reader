@@ -110,7 +110,7 @@ function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
           </View>
         )}
 
-        {/* Actual image - use style instead of className for expo-image */}
+        {/* Actual image - only show after dimensions loaded to prevent stretching */}
         {dimensions && (
           <Image
             source={{
@@ -118,7 +118,7 @@ function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
               headers: page.headers,
             }}
             style={styles.image}
-            contentFit="fill"
+            contentFit="cover"
             transition={200}
             onLoad={() => setImageLoaded(true)}
             onError={() => setError(true)}
