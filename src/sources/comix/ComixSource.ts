@@ -180,13 +180,21 @@ export class ComixSource extends Source {
       scanlator = "Official";
     }
 
+    // Format date: Unix timestamp -> "Jan 13, 2026"
+    const date = new Date(chapter.updated_at * 1000);
+    const formattedDate = date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
     return {
       id: chapter.chapter_id.toString(),
       mangaId,
       number: chapter.number,
       title,
       url: `title/${mangaId}/${chapter.chapter_id}`,
-      date: new Date(chapter.updated_at * 1000).toISOString(),
+      date: formattedDate,
       scanlator,
     };
   }
