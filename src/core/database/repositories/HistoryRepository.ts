@@ -13,7 +13,15 @@ export class RealmHistoryRepository implements IHistoryRepository {
 
   async addToHistory(entry: Omit<ReadingHistorySchema, "id">): Promise<void> {
     const id = `${entry.mangaId}_${entry.chapterId}`;
-    
+
+    console.log("[HistoryRepository] Adding/updating history entry:", {
+      id,
+      mangaId: entry.mangaId,
+      mangaTitle: entry.mangaTitle,
+      chapterId: entry.chapterId,
+      chapterNumber: entry.chapterNumber,
+    });
+
     this.realm.write(() => {
       this.realm.create(
         ReadingHistorySchema,
@@ -25,10 +33,15 @@ export class RealmHistoryRepository implements IHistoryRepository {
         Realm.UpdateMode.Modified
       );
     });
+
+    console.log("[HistoryRepository] History entry saved successfully");
   }
 
   async removeFromHistory(historyId: string): Promise<void> {
-    const entry = this.realm.objectForPrimaryKey(ReadingHistorySchema, historyId);
+    const entry = this.realm.objectForPrimaryKey(
+      ReadingHistorySchema,
+      historyId
+    );
     if (!entry) return;
 
     this.realm.write(() => {
@@ -40,7 +53,7 @@ export class RealmHistoryRepository implements IHistoryRepository {
     const entries = this.realm
       .objects(ReadingHistorySchema)
       .filtered("sourceId == $0 AND mangaId == $1", sourceId, mangaId);
-      
+
     this.realm.write(() => {
       this.realm.delete(entries);
     });
@@ -58,7 +71,7 @@ export class RealmHistoryRepository implements IHistoryRepository {
       .objects(ReadingHistorySchema)
       .filtered("mangaId == $0", mangaId)
       .sorted("timestamp", true);
-      
+
     return entries.length > 0 ? entries[0] : null;
   }
 }

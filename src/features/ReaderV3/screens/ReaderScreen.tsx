@@ -16,14 +16,18 @@ import {
   Text,
   Pressable,
 } from "react-native";
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, FlashListRef } from "@shopify/flash-list";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useReaderStore, FlatPage } from "../stores/useReaderStore";
 import { PageItem, ReaderOverlay } from "../components";
 import { usePagePreloader } from "../hooks";
 import { useMangaData } from "@/features/Manga/hooks";
-import { useMarkChapterRead, useSaveProgress } from "@/features/Library/hooks";
+import {
+  useMarkChapterRead,
+  useSaveProgress,
+  useAddHistoryEntry,
+} from "@/features/Library/hooks";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -39,7 +43,7 @@ export function ReaderScreen() {
     initialPage: string; // Last read page (0-based index)
   }>();
 
-  const flashListRef = useRef<FlashList<FlatPage>>(null);
+  const flashListRef = useRef<FlashListRef<FlatPage>>(null);
 
   // Store state
   const {
@@ -68,6 +72,9 @@ export function ReaderScreen() {
 
   // Save reading progress
   const saveProgressToRealm = useSaveProgress();
+
+  // Add to history
+  const addHistoryEntry = useAddHistoryEntry();
 
   // Preload next pages
   usePagePreloader(flatPages, currentFlatIndex);
@@ -135,6 +142,13 @@ export function ReaderScreen() {
       const currentPage = pages[index];
 
       if (currentPage && params.mangaId) {
+        console.log("[ReaderV3 Unmount] Saving progress and history", {
+          mangaId: params.mangaId,
+          chapterId: currentPage.chapterId,
+          chapterNumber: currentPage.chapterNumber,
+          pageIndex: currentPage.pageIndex,
+        });
+
         // Save last page read (0-based index)
         saveProgressToRealm(
           params.mangaId,
@@ -145,12 +159,38 @@ export function ReaderScreen() {
 
         // Mark chapter as read
         markChapterRead(params.mangaId, currentPage.chapterId);
+
+        // Add to reading history
+        addHistoryEntry({
+          mangaId: params.mangaId,
+          mangaTitle: params.mangaTitle || "Unknown",
+          mangaCover: undefined, // Will be fetched from manga data if needed
+          mangaUrl: params.mangaUrl,
+          chapterId: currentPage.chapterId,
+          chapterNumber: currentPage.chapterNumber,
+          chapterTitle: currentPage.chapterTitle,
+          chapterUrl: params.url, // Use initial chapter URL from params
+          pageReached: currentPage.pageIndex,
+          totalPages: currentPage.totalPagesInChapter,
+          sourceId: params.sourceId,
+        });
+
+        console.log("[ReaderV3 Unmount] History entry added");
       }
 
       // Reset store
       reset();
     };
-  }, [params.mangaId, saveProgressToRealm, markChapterRead, reset]);
+  }, [
+    params.mangaId,
+    params.mangaTitle,
+    params.mangaUrl,
+    params.sourceId,
+    saveProgressToRealm,
+    markChapterRead,
+    addHistoryEntry,
+    reset,
+  ]);
 
   // Track scroll to update current page index
   // Use ref to avoid stale closure in callback
@@ -267,7 +307,8 @@ export function ReaderScreen() {
         data={flatPages}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        estimatedItemSize={SCREEN_HEIGHT}
+        // estimatedItemSize={SCREEN_HEIGHT}
+
         initialScrollIndex={initialScrollIndex}
         onEndReached={loadNextChapter}
         onEndReachedThreshold={0.5}
