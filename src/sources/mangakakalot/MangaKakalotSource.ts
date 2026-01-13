@@ -8,6 +8,7 @@ import type {
   SearchResult,
   SourceConfig,
 } from "../base/types";
+import { HttpClient } from "@/core/http";
 import { cookieJar } from "@/core/http/CookieJar";
 import { USER_AGENT } from "@/core/http/userAgent";
 
@@ -258,33 +259,66 @@ export class MangaKakalotSource extends Source {
   }
 
   async getChapterList(mangaUrl: string): Promise<Chapter[]> {
-    const html = await this.fetchHtml(mangaUrl);
-    const doc = this.parseHtml(html);
+    console.log("[MangaKakalot] getChapterList URL:", mangaUrl);
 
-    const chapters: Chapter[] = doc.selectAll(
-      this.chapterSelector,
-      (el, index) => {
-        const linkEl = el.querySelector("a");
-        const dateEl =
-          el.querySelector("span:last-child") || el.querySelector("span");
+    // Extract manga slug from URL (e.g., "/manga/in-the-shadow" -> "in-the-shadow")
+    const slug = this.getMangaIdFromUrl(mangaUrl);
 
-        const chapterUrl = linkEl?.getAttribute("href") || "";
-        const chapterTitle = linkEl?.textContent?.trim() || "";
-        const dateText =
-          dateEl?.getAttribute("title") || dateEl?.textContent?.trim();
+    // Fetch chapters from API (they're loaded dynamically via JS, not in HTML)
+    const apiUrl = `${this.baseUrl}/api/manga/${slug}/chapters`;
+    console.log("[MangaKakalot] Fetching chapters from API:", apiUrl);
+
+    try {
+      const response = await HttpClient.getJson<{
+        success: boolean;
+        data: {
+          chapters: Array<{
+            chapter_name: string;
+            chapter_slug: string;
+            chapter_num: number;
+            updated_at: string;
+          }>;
+        };
+      }>(apiUrl);
+
+      console.log(
+        "[MangaKakalot] API response:",
+        JSON.stringify(response).substring(0, 200)
+      );
+
+      if (!response.success || !response.data?.chapters) {
+        console.warn("[MangaKakalot] Invalid API response", response);
+        return [];
+      }
+
+      const chapters: Chapter[] = response.data.chapters.map((ch) => {
+        const chapterUrl = `/manga/${slug}/${ch.chapter_slug}`;
+
+        // Format date: "2026-01-13T18:45:45.000000Z" -> "Jan 13, 2026"
+        const date = new Date(ch.updated_at);
+        const formattedDate = date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
 
         return {
-          id: this.getMangaIdFromUrl(chapterUrl),
-          mangaId: this.getMangaIdFromUrl(mangaUrl),
-          number: this.parseChapterNumber(chapterTitle),
-          title: chapterTitle,
+          id: ch.chapter_slug,
+          mangaId: slug,
+          number: ch.chapter_num,
+          title: ch.chapter_name,
           url: this.absoluteUrl(chapterUrl),
-          date: dateText,
+          date: formattedDate,
         };
-      }
-    );
+      });
 
-    return chapters.filter((ch) => ch.url);
+      console.log("[MangaKakalot] Total chapters found:", chapters.length);
+
+      return chapters;
+    } catch (error) {
+      console.error("[MangaKakalot] Failed to fetch chapters from API:", error);
+      return [];
+    }
   }
 
   async getPageList(chapterUrl: string): Promise<Page[]> {
