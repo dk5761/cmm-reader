@@ -156,8 +156,6 @@ function sanitizeData<T>(obj: T): T {
 
 class SyncServiceClass {
   private queue: SyncEvent[] = [];
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private periodicSyncTimer: ReturnType<typeof setInterval> | null = null;
   private realtimeUnsubscribe: (() => void) | null = null;
   private isSyncing = false;
   private listeners: Set<(state: SyncState) => void> = new Set();
@@ -196,33 +194,15 @@ class SyncServiceClass {
     await this.persistQueue();
     this.notifyListeners();
 
-    // Sync immediately for all events - no debounce
-    logger.sync.log(`Event ${event.type} queued, syncing immediately`);
-    this.flush();
-  }
-
-  /**
-   * Schedule debounced sync
-   */
-  private scheduleSync(): void {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
-    }
-    this.debounceTimer = setTimeout(
-      () => this.flush(),
-      SYNC_CONFIG.DEBOUNCE_MS
+    logger.sync.log(
+      `Event ${event.type} queued (will sync on foreground/restart)`
     );
   }
 
   /**
-   * Force immediate sync (for app background, logout, manual trigger)
+   * Force immediate sync (for app foreground, logout, manual trigger)
    */
   async flush(): Promise<void> {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
-    }
-
     if (this.isSyncing || this.queue.length === 0) return;
 
     const user = auth().currentUser;
@@ -496,36 +476,6 @@ class SyncServiceClass {
       );
     } catch (e) {
       logger.sync.error("Failed to update state:", { error: e });
-    }
-  }
-
-  /**
-   * Start periodic sync interval (call when app is active and user is logged in)
-   */
-  startPeriodicSync(): void {
-    if (this.periodicSyncTimer) return; // Already running
-
-    logger.sync.log(
-      `Starting periodic sync every ${
-        SYNC_CONFIG.PERIODIC_SYNC_INTERVAL_MS / 1000
-      }s`
-    );
-    this.periodicSyncTimer = setInterval(() => {
-      if (this.queue.length > 0) {
-        logger.sync.log("Periodic sync triggered");
-        this.flush();
-      }
-    }, SYNC_CONFIG.PERIODIC_SYNC_INTERVAL_MS);
-  }
-
-  /**
-   * Stop periodic sync interval (call on logout or app background)
-   */
-  stopPeriodicSync(): void {
-    if (this.periodicSyncTimer) {
-      clearInterval(this.periodicSyncTimer);
-      this.periodicSyncTimer = null;
-      logger.sync.log("Stopped periodic sync");
     }
   }
 

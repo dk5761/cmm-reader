@@ -178,23 +178,8 @@ function AccountSection() {
 }
 
 function SyncSection() {
-  const { syncState, syncNow, uploadAll } = useSyncManager();
+  const { uploadAll } = useSyncManager();
   const [syncing, setSyncing] = useState(false);
-
-  const handleSyncNow = async () => {
-    setSyncing(true);
-    try {
-      await syncNow();
-      Alert.alert(
-        "Sync Complete",
-        "Your library has been synced to the cloud."
-      );
-    } catch (e) {
-      Alert.alert("Sync Failed", (e as Error).message);
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const handleFullUpload = async () => {
     Alert.alert(
@@ -225,17 +210,6 @@ function SyncSection() {
 
   return (
     <View>
-      <SettingItem
-        icon="cloud-upload-outline"
-        title="Sync Now"
-        subtitle={
-          syncState.pendingChanges > 0
-            ? `${syncState.pendingChanges} pending changes`
-            : "Library is synced"
-        }
-        onPress={handleSyncNow}
-        loading={syncing}
-      />
       <SettingItem
         icon="refresh-outline"
         title="Full Upload"

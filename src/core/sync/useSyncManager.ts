@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import { useRealm } from "@realm/react";
+import { toast } from "sonner-native";
 import { useAuth } from "@/core/auth";
 import { MangaSchema } from "@/core/database";
 import { SyncService } from "./SyncService";
@@ -50,8 +51,7 @@ export function useSyncManager() {
         bridgeCleanupRef.current();
         bridgeCleanupRef.current = null;
       }
-      // Stop periodic sync and real-time listener on logout
-      SyncService.stopPeriodicSync();
+      // Stop real-time listener on logout
       SyncService.stopRealtimeListener();
       // Reset the module-level flag on logout
       startupSyncInitiated = false;
@@ -63,11 +63,29 @@ export function useSyncManager() {
       await SyncService.initialize();
       bridgeCleanupRef.current = startRealmSyncBridge(realm);
 
-      // Background sync for users with existing library
-      // Empty library case is handled by index.tsx redirecting to sync screen
+      // App restart sync - upload pending queue if exists
       if (!startupSyncInitiated) {
         startupSyncInitiated = true;
 
+        const syncState = SyncService.getState();
+
+        // Upload pending queue on app restart
+        if (syncState.pendingChanges > 0) {
+          console.log(
+            "[useSyncManager] App restart - uploading pending queue:",
+            syncState.pendingChanges
+          );
+          toast.success("Syncing pending changes...");
+          try {
+            await SyncService.flush();
+            toast.success("Sync complete");
+          } catch (e) {
+            console.error("[useSyncManager] App restart sync failed:", e);
+            toast.error("Sync failed");
+          }
+        }
+
+        // Download cloud data on app restart
         const localMangaCount = realm
           .objects(MangaSchema)
           .filtered("inLibrary == true").length;
@@ -105,9 +123,6 @@ export function useSyncManager() {
           }
         }
       }
-
-      // Start periodic sync for reactive updates
-      SyncService.startPeriodicSync();
     };
 
     init();
@@ -126,16 +141,26 @@ export function useSyncManager() {
     return unsubscribe;
   }, []);
 
-  // Handle app state changes - flush on background, restart periodic on foreground
+  // Handle app state changes - sync on foreground (not background)
   useEffect(() => {
-    const handleAppState = (state: AppStateStatus) => {
-      if (state === "background" || state === "inactive") {
-        // Flush pending changes and stop periodic sync when backgrounded
-        SyncService.flush();
-        SyncService.stopPeriodicSync();
-      } else if (state === "active" && user) {
-        // Restart periodic sync when app comes to foreground
-        SyncService.startPeriodicSync();
+    const handleAppState = async (state: AppStateStatus) => {
+      if (state === "active" && user) {
+        // Sync pending changes when app comes to foreground
+        const syncState = SyncService.getState();
+        if (syncState.pendingChanges > 0) {
+          console.log(
+            "[useSyncManager] Foreground - syncing pending changes:",
+            syncState.pendingChanges
+          );
+          toast.success("Syncing...");
+          try {
+            await SyncService.flush();
+            toast.success("Sync complete");
+          } catch (e) {
+            console.error("[useSyncManager] Foreground sync failed:", e);
+            toast.error("Sync failed");
+          }
+        }
       }
     };
 
