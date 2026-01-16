@@ -39,9 +39,13 @@ function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
   } | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [error, setError] = useState(false);
+  const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
+  const [measurementFailed, setMeasurementFailed] = useState(false);
 
-  // Calculate height from dimensions
-  const calculatedHeight = dimensions
+  // Calculate height from dimensions with fallback
+  const calculatedHeight = layoutHeight
+    ? layoutHeight
+    : dimensions
     ? SCREEN_WIDTH * (dimensions.height / dimensions.width)
     : SCREEN_HEIGHT * 0.8; // Placeholder height
 
@@ -62,19 +66,15 @@ function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
         const dims = { width, height };
         dimensionCache.set(page.imageUrl, dims);
         setDimensions(dims);
+        setMeasurementFailed(false);
       },
       (err) => {
         console.warn(
           `[PageItem] Failed to get size for ${page.imageUrl}:`,
           err
         );
-        // Use default aspect ratio on error - still show the image
-        const defaultDims = {
-          width: SCREEN_WIDTH,
-          height: SCREEN_HEIGHT * 1.4,
-        };
-        dimensionCache.set(page.imageUrl, defaultDims);
-        setDimensions(defaultDims);
+        // Don't set default dimensions - wait for onLayout to get actual rendered dimensions
+        setMeasurementFailed(true);
       }
     );
   }, [page.imageUrl, page.headers]);
@@ -111,7 +111,7 @@ function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
         )}
 
         {/* Actual image - only show after dimensions loaded to prevent stretching */}
-        {dimensions && (
+        {(dimensions || measurementFailed) && (
           <Image
             source={{
               uri: page.imageUrl,
@@ -120,9 +120,25 @@ function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
             style={styles.image}
             contentFit="cover"
             transition={200}
-            onLoad={() => setImageLoaded(true)}
+            onLoad={() => {
+              setImageLoaded(true);
+              setMeasurementFailed(false);
+            }}
             onError={() => setError(true)}
             recyclingKey={page.key}
+            onLayout={(e) => {
+              if (measurementFailed || !dimensions) {
+                const { height } = e.nativeEvent.layout;
+                setLayoutHeight(height);
+                // Cache layout-based dimensions for future use
+                if (!dimensions) {
+                  dimensionCache.set(page.imageUrl, {
+                    width: SCREEN_WIDTH,
+                    height,
+                  });
+                }
+              }
+            }}
           />
         )}
 

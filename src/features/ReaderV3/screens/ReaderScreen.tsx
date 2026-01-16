@@ -157,9 +157,6 @@ export function ReaderScreen() {
           currentPage.pageIndex
         );
 
-        // Mark chapter as read
-        markChapterRead(params.mangaId, currentPage.chapterId);
-
         // Add to reading history
         addHistoryEntry({
           mangaId: params.mangaId,
@@ -187,7 +184,6 @@ export function ReaderScreen() {
     params.mangaUrl,
     params.sourceId,
     saveProgressToRealm,
-    markChapterRead,
     addHistoryEntry,
     reset,
   ]);
