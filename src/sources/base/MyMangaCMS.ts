@@ -128,7 +128,7 @@ export abstract class MyMangaCMS extends Source {
    */
   async getLatest(page = 1): Promise<SearchResult> {
     const url = `/tim-kiem?sort=update&page=${page}`;
-    console.log(`[MyMangaCMS] getLatest - ${this.name}:`, this.baseUrl + url);
+    
 
     const html = await this.fetchHtml(url);
     const doc = this.parseHtml(html);
@@ -142,15 +142,7 @@ export abstract class MyMangaCMS extends Source {
       const title = titleEl?.textContent?.trim() || "";
       const cover = imgEl?.getAttribute("data-bg") || "";
 
-      // Debug logging
-      console.log("[MyMangaCMS] Element extraction:", {
-        hasLinkEl: !!linkEl,
-        hasTitleEl: !!titleEl,
-        hasImgEl: !!imgEl,
-        url: url.substring(0, 50),
-        title: title.substring(0, 30),
-        cover: cover.substring(0, 50),
-      });
+            
 
       return {
         id: this.getMangaIdFromUrl(url),
@@ -166,14 +158,9 @@ export abstract class MyMangaCMS extends Source {
         "div.pagination_wrap a.paging_item:last-of-type:not(.disabled)"
       ) !== null;
 
-    console.log(
-      `[MyMangaCMS] getLatest found ${manga.length} manga, hasNext: ${hasNextPage}`
-    );
+    
     if (manga.length > 0) {
-      console.log(
-        "[MyMangaCMS] Sample cover URL:",
-        manga[0].cover?.substring(0, 80)
-      );
+      
     }
 
     return { manga: manga.filter((m) => m.title), hasNextPage };

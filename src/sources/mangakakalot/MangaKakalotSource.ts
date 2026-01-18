@@ -86,12 +86,12 @@ export class MangaKakalotSource extends Source {
           cover = srcMatch[1];
         } else {
           // Debug log if we still can't find it
-          // console.log("Regex failed on:", textContent.substring(0, 100));
+          // 
         }
       }
 
       if (!cover) {
-        console.log("[MangaKakalot] Missing cover for:", title);
+        
       }
 
       return {
@@ -125,7 +125,7 @@ export class MangaKakalotSource extends Source {
       const cover =
         imgEl?.getAttribute("src") || imgEl?.getAttribute("data-src") || "";
 
-      console.log("[MangaKakalot] Cover URL:", cover, "Title:", title);
+      
 
       return {
         id: this.getMangaIdFromUrl(mangaUrl),
@@ -141,7 +141,7 @@ export class MangaKakalotSource extends Source {
       doc.querySelector("a.page_select + a:not(.page_last)") !== null ||
       doc.querySelector("a.page-select + a:not(.page-last)") !== null;
 
-    console.log("[MangaKakalot] Popular results:", manga.length, "titles");
+    
 
     return { manga: manga.filter((m) => m.title), hasNextPage };
   }
@@ -176,7 +176,7 @@ export class MangaKakalotSource extends Source {
   }
 
   async getMangaDetails(url: string): Promise<MangaDetails> {
-    console.log("[MangaKakalot] getMangaDetails URL:", url);
+    
     const html = await this.fetchHtml(url);
     const doc = this.parseHtml(html);
 
@@ -193,10 +193,7 @@ export class MangaKakalotSource extends Source {
       doc.querySelector(".manga-info-top")?.toString() ||
       "No cover container found";
 
-    console.log(
-      "[MangaKakalot] Cover container HTML:",
-      picHtml.substring(0, 500)
-    );
+    
 
     let cover =
       doc.attr("div.manga-info-pic img", "src") ||
@@ -206,7 +203,7 @@ export class MangaKakalotSource extends Source {
       doc.attr(".story-info-left .info-image img", "src") ||
       doc.attr(".story-info-left .info-image img", "data-src");
 
-    console.log("[MangaKakalot] Extracted cover:", cover);
+    
 
     // Fallback: If cover is still missing, try to extract from raw HTML if possible
     // or log it. The main view usually has the image clearly.
@@ -259,14 +256,14 @@ export class MangaKakalotSource extends Source {
   }
 
   async getChapterList(mangaUrl: string): Promise<Chapter[]> {
-    console.log("[MangaKakalot] getChapterList URL:", mangaUrl);
+    
 
     // Extract manga slug from URL (e.g., "/manga/in-the-shadow" -> "in-the-shadow")
     const slug = this.getMangaIdFromUrl(mangaUrl);
 
     // Fetch chapters from API (they're loaded dynamically via JS, not in HTML)
     const apiUrl = `${this.baseUrl}/api/manga/${slug}/chapters`;
-    console.log("[MangaKakalot] Fetching chapters from API:", apiUrl);
+    
 
     try {
       const response = await HttpClient.getJson<{
@@ -281,13 +278,10 @@ export class MangaKakalotSource extends Source {
         };
       }>(apiUrl);
 
-      console.log(
-        "[MangaKakalot] API response:",
-        JSON.stringify(response).substring(0, 200)
-      );
+      
 
       if (!response.success || !response.data?.chapters) {
-        console.warn("[MangaKakalot] Invalid API response", response);
+        
         return [];
       }
 
@@ -312,27 +306,24 @@ export class MangaKakalotSource extends Source {
         };
       });
 
-      console.log("[MangaKakalot] Total chapters found:", chapters.length);
+      
 
       return chapters;
     } catch (error) {
-      console.error("[MangaKakalot] Failed to fetch chapters from API:", error);
+      
       return [];
     }
   }
 
   async getPageList(chapterUrl: string): Promise<Page[]> {
-    console.log("[MangaKakalot] getPageList - Chapter URL:", chapterUrl);
+    
 
     const html = await this.fetchHtml(chapterUrl);
     const doc = this.parseHtml(html);
 
     // Get cookies for image requests
     const cookies = await cookieJar.getCookieString(this.baseUrl);
-    console.log(
-      "[MangaKakalot] getPageList - Cookies:",
-      cookies ? "present" : "none"
-    );
+    
 
     // Try multiple selectors for page images
     const selectors = [
@@ -374,7 +365,7 @@ export class MangaKakalotSource extends Source {
           el.getAttribute("data-original") ||
           "";
 
-        console.log(`[MangaKakalot] getPageList - Page ${index} raw URL:`, src);
+        
 
         return {
           index,
@@ -389,17 +380,13 @@ export class MangaKakalotSource extends Source {
 
       if (pages.length > 0) {
         matchedSelector = selector;
-        console.log(
-          `[MangaKakalot] getPageList - Matched selector: "${selector}", found ${pages.length} images`
-        );
+        
         break;
       }
     }
 
     if (pages.length === 0) {
-      console.log(
-        "[MangaKakalot] getPageList - No images found with any selector!"
-      );
+      
     }
 
     // Filter out empty URLs and advertisement images
@@ -408,19 +395,10 @@ export class MangaKakalotSource extends Source {
       .filter((p) => p.imageUrl)
       .filter((p) => !adPatterns.some((pattern) => pattern.test(p.imageUrl)));
 
-    console.log(
-      `[MangaKakalot] getPageList - After filtering: ${
-        filtered.length
-      } pages (removed ${beforeFilterCount - filtered.length} ads/empty)`
-    );
+    
 
     filtered.forEach((page, idx) => {
-      console.log(`[MangaKakalot] getPageList - Final Page ${idx}:`, {
-        url: page.imageUrl,
-        hasReferer: !!page.headers?.Referer,
-        hasUserAgent: !!page.headers?.["User-Agent"],
-        hasCookie: !!page.headers?.Cookie,
-      });
+      
     });
 
     return filtered;

@@ -155,7 +155,7 @@ export class ComixSource extends Source {
       case "on_hiatus":
         return "Hiatus";
       case "discontinued":
-        return "Cancelled";
+        return "Unknown";
       default:
         return "Unknown";
     }

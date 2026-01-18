@@ -213,7 +213,6 @@ export class MangaKatanaSource extends Source {
     // Pattern: data-src', arrayName where arrayName is the variable name
     const arrayNameMatch = html.match(/data-src['"]\s*,\s*(\w+)/);
     if (!arrayNameMatch) {
-      console.warn("[MangaKatana] Could not find image array name");
       return [];
     }
 
@@ -225,14 +224,12 @@ export class MangaKatanaSource extends Source {
     );
     const arrayMatch = html.match(arrayRegex);
     if (!arrayMatch) {
-      console.warn("[MangaKatana] Could not find image array");
       return [];
     }
 
     // Parse URLs from array content: 'url1','url2'
     const urlMatches = arrayMatch[1].match(/'([^']+)'/g);
     if (!urlMatches) {
-      console.warn("[MangaKatana] Could not parse image URLs");
       return [];
     }
 

@@ -17,6 +17,8 @@ import React, {
 import { View, Text } from "react-native";
 import Slider from "@react-native-community/slider";
 import { useReaderStore } from "../stores/useReaderStore";
+import { READER } from "../constants";
+import { logger } from "@/utils/logger";
 
 interface PageSliderProps {
   flashListRef: React.RefObject<any>;
@@ -73,14 +75,6 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
     (value: number) => {
       const targetPageIndex = Math.round(value);
 
-      console.log("[PageSlider] Sliding complete:", {
-        rawValue: value,
-        targetPageIndex,
-        currentPageIndex,
-        chapterStartFlatIndex,
-        targetFlatIndex: chapterStartFlatIndex + targetPageIndex,
-      });
-
       setIsDragging(false);
 
       if (flashListRef.current && targetPageIndex !== currentPageIndex) {
@@ -90,8 +84,6 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
 
         // Calculate the flat index: chapter start + target page index
         const targetFlatIndex = chapterStartFlatIndex + targetPageIndex;
-
-        console.log("[PageSlider] Scrolling to flat index:", targetFlatIndex);
 
         flashListRef.current.scrollToIndex({
           index: targetFlatIndex,
@@ -113,7 +105,7 @@ export function PageSlider({ flashListRef }: PageSliderProps) {
           {displayPage}
         </Text>
         <Slider
-          style={{ flex: 1, height: 40 }}
+          style={{ flex: 1, height: READER.SLIDER_HEIGHT }}
           minimumValue={0}
           maximumValue={Math.max(0, totalPagesInChapter - 1)}
           value={sliderValue}

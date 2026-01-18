@@ -4,9 +4,16 @@
  */
 export class MockRealm {
   private data: Record<string, any[]> = {};
+  
+  // Mock Realm.UpdateMode
+  static UpdateMode = {
+    Modified: "Modified",
+    All: "All",
+    Never: "Never",
+  };
 
-  objects(name: string | { schema: { name: string } }) {
-    const schemaName = typeof name === 'string' ? name : (name as any).schema.name;
+  objects(name: string | { schema: { name: string } } | Function) {
+    const schemaName = typeof name === 'string' ? name : (name as any)?.schema?.name || (name as any)?.name;
     const items = this.data[schemaName] || [];
     
     // Add basic chainable methods
@@ -27,8 +34,8 @@ export class MockRealm {
     };
   }
 
-  objectForPrimaryKey(name: string | { schema: { name: string } }, key: any) {
-    const schemaName = typeof name === 'string' ? name : (name as any).schema.name;
+  objectForPrimaryKey(name: string | { schema: { name: string } } | Function, key: any) {
+    const schemaName = typeof name === 'string' ? name : (name as any)?.schema?.name || (name as any)?.name;
     const items = this.data[schemaName] || [];
     return items.find(i => i.id === key) || null;
   }
@@ -37,12 +44,12 @@ export class MockRealm {
     callback();
   }
 
-  create(name: string | { schema: { name: string } }, props: any, updateMode?: string) {
-    const schemaName = typeof name === 'string' ? name : (name as any).schema.name;
+  create(name: string | { schema: { name: string } } | Function, props: any, _updateMode?: any) {
+    const schemaName = typeof name === 'string' ? name : (name as any)?.schema?.name || (name as any)?.name;
     if (!this.data[schemaName]) this.data[schemaName] = [];
     
     const existingIdx = this.data[schemaName].findIndex(i => i.id === props.id);
-    if (existingIdx > -1 && updateMode) {
+    if (existingIdx > -1 && _updateMode) {
       this.data[schemaName][existingIdx] = { ...this.data[schemaName][existingIdx], ...props };
       return this.data[schemaName][existingIdx];
     } else {

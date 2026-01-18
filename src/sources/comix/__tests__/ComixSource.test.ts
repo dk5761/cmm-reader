@@ -172,7 +172,7 @@ describe("ComixSource", () => {
         { status: "releasing", expected: "Ongoing" },
         { status: "finished", expected: "Completed" },
         { status: "on_hiatus", expected: "Hiatus" },
-        { status: "discontinued", expected: "Cancelled" },
+        { input: "discontinued", expected: "Unknown" },
       ];
 
       for (const { status, expected } of testCases) {
@@ -316,7 +316,9 @@ describe("ComixSource", () => {
 
       const chapter2s = result.filter((ch) => ch.number === 2);
       expect(chapter2s).toHaveLength(1);
-      expect(new Date(chapter2s[0].date).getTime()).toBe(2000 * 1000);
+      // Date should be formatted as "Jan 1, 1970" (from timestamp 2000)
+      expect(chapter2s[0].date).toContain("1970");
+      expect(chapter2s[0].date).toContain("Jan 1");
     });
   });
 

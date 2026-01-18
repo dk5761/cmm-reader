@@ -28,6 +28,7 @@ import {
   useSaveProgress,
   useAddHistoryEntry,
 } from "@/features/Library/hooks";
+import { READER } from "../constants";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -307,11 +308,11 @@ export function ReaderScreen() {
 
         initialScrollIndex={initialScrollIndex}
         onEndReached={loadNextChapter}
-        onEndReachedThreshold={0.5}
+        onEndReachedThreshold={READER.SCROLL_END_REACHED_THRESHOLD}
         showsVerticalScrollIndicator={false}
         onScrollBeginDrag={hideOverlay}
         onScroll={handleScroll}
-        scrollEventThrottle={100}
+        scrollEventThrottle={READER.SCROLL_EVENT_THROTTLE}
       />
 
       {/* Overlay */}

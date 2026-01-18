@@ -60,7 +60,7 @@ export class ReadComicOnlineSource extends Source {
       url = `/ComicList/${sortPath}?page=${page}`;
     }
 
-    console.log(`[ReadComicOnline] getWithFilters URL: ${url}`);
+    
     const html = await this.fetchHtml(url);
     const doc = this.parseHtml(html);
 
@@ -276,7 +276,7 @@ export class ReadComicOnlineSource extends Source {
   }
 
   async getPageList(chapterUrl: string): Promise<Page[]> {
-    console.log("[ReadComicOnline] getPageList - Chapter URL:", chapterUrl);
+    
 
     // Build URL with quality and server params
     const qualitySuffix =
@@ -291,7 +291,7 @@ export class ReadComicOnlineSource extends Source {
     // Extract and decrypt image URLs
     const pages = await this.decryptPages(html);
 
-    console.log(`[ReadComicOnline] getPageList - Found ${pages.length} pages`);
+    
 
     return pages;
   }
@@ -310,7 +310,7 @@ export class ReadComicOnlineSource extends Source {
     if (varMatch) {
       // Get first 8 chars of the variable name to match push calls
       const arrayPrefix = varMatch[1].substring(0, 8);
-      console.log(`[ReadComicOnline] Found array prefix: ${arrayPrefix}`);
+      
 
       // Match .push('...') calls for this array
       const pushPattern = new RegExp(
@@ -326,14 +326,12 @@ export class ReadComicOnlineSource extends Source {
               imageUrls.push(decodedUrl);
             }
           } catch (e) {
-            console.error(`[ReadComicOnline] Failed to decode URL:`, e);
+            
           }
         }
       }
     } else {
-      console.log(
-        `[ReadComicOnline] No mvn array found, trying fallback pattern`
-      );
+      
       // Fallback: try to find pth assignments with auth tokens
       const pthPattern = /pth\s*=\s*'([^']+\?rhlupa=[^']+)'/g;
 
@@ -344,19 +342,17 @@ export class ReadComicOnlineSource extends Source {
             imageUrls.push(decodedUrl);
           }
         } catch (e) {
-          console.error(`[ReadComicOnline] Failed to decode URL:`, e);
+          
         }
       }
     }
 
-    console.log(`[ReadComicOnline] Matched ${imageUrls.length} URLs`);
+    
     if (imageUrls.length > 0) {
-      console.log(
-        `[ReadComicOnline] First URL: ${imageUrls[0].substring(0, 100)}...`
-      );
+      
     }
 
-    console.log(`[ReadComicOnline] Extracted ${imageUrls.length} image URLs`);
+    
 
     // Convert to Page objects
     const pages: Page[] = imageUrls.map((url, index) => ({
@@ -430,11 +426,11 @@ export class ReadComicOnlineSource extends Source {
       const baseUrl = "https://2.bp.blogspot.com";
       const fullUrl = `${baseUrl}/${path}${queryString}`;
 
-      console.log(`[Decode] Result: ${fullUrl.substring(0, 80)}...`);
+      
 
       return fullUrl;
     } catch (e) {
-      console.error(`[ReadComicOnline] decodeImageUrl error:`, e);
+      
       return null;
     }
   }
@@ -449,7 +445,7 @@ export class ReadComicOnlineSource extends Source {
       const result = eval(code);
       return typeof result === "string" ? result : JSON.stringify(result);
     } catch (error) {
-      console.error("[ReadComicOnline] JS eval error:", error);
+      
       throw new Error(`JS eval failed: ${error}`);
     }
   }

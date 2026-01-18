@@ -5,6 +5,20 @@ import { useRepositories } from "@/core/database/repositories";
 import { getSource } from "@/sources";
 import * as FileSystem from "expo-file-system/legacy";
 import { MockRealm } from "@/core/database/repositories/__tests__/MockRealm";
+import { MangaSchema, ChapterSchema } from "@/core/database/__tests__/MockSchema";
+
+// Mock the schema module to avoid Realm.Object issues
+jest.mock("@/core/database/schema", () => {
+  const { MangaSchema, ChapterSchema } = require("@/core/database/__tests__/MockSchema");
+  return {
+    MangaSchema,
+    ChapterSchema,
+    ReadingProgressSchema: class {},
+    ReadingHistorySchema: class {},
+    CategorySchema: class {},
+    realmSchemas: [MangaSchema, ChapterSchema],
+  };
+});
 
 // Mock dependencies
 jest.mock("@/core/database/repositories", () => ({

@@ -19,6 +19,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useReaderStore } from "../stores/useReaderStore";
 import { PageSlider } from "./PageSlider";
+import { READER } from "../constants";
 
 interface ReaderOverlayProps {
   flashListRef: React.RefObject<any>;
@@ -43,7 +44,7 @@ export function ReaderOverlay({
 
   // Animated opacity for top bar
   const topBarStyle = useAnimatedStyle(() => {
-    const opacity = withTiming(isOverlayVisible ? 1 : 0, { duration: 200 });
+    const opacity = withTiming(isOverlayVisible ? 1 : 0, { duration: READER.OVERLAY_FADE_DURATION });
     return {
       opacity,
       // Only capture touches when visible
@@ -53,7 +54,7 @@ export function ReaderOverlay({
 
   // Animated opacity for bottom bar
   const bottomBarStyle = useAnimatedStyle(() => {
-    const opacity = withTiming(isOverlayVisible ? 1 : 0, { duration: 200 });
+    const opacity = withTiming(isOverlayVisible ? 1 : 0, { duration: READER.OVERLAY_FADE_DURATION });
     return {
       opacity,
       pointerEvents: isOverlayVisible ? "auto" : "none",

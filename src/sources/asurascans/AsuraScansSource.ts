@@ -120,7 +120,7 @@ export class AsuraScansSource extends Source {
 
   async getPopular(page = 1): Promise<SearchResult> {
     const url = `/series?genres=&status=-1&types=-1&order=rating&page=${page}`;
-    console.log("[AsuraScans] getPopular called, URL:", url);
+    
     const html = await this.fetchHtml(url);
     const doc = this.parseHtml(html);
 
@@ -151,7 +151,7 @@ export class AsuraScansSource extends Source {
 
   async getLatest(page = 1): Promise<SearchResult> {
     const url = `/series?genres=&status=-1&types=-1&order=update&page=${page}`;
-    console.log("[AsuraScans] getLatest called, URL:", url);
+    
     const html = await this.fetchHtml(url);
     const doc = this.parseHtml(html);
 
@@ -296,7 +296,7 @@ export class AsuraScansSource extends Source {
   }
 
   async getChapterList(mangaUrl: string): Promise<Chapter[]> {
-    console.log("[AsuraScans] Getting chapter list for:", mangaUrl);
+    
     const html = await this.fetchHtml(mangaUrl);
     const doc = this.parseHtml(html);
 
@@ -308,15 +308,6 @@ export class AsuraScansSource extends Source {
       const chapterUrl = linkEl?.getAttribute("href") || "";
       const chapterNumber = numberEl?.textContent?.trim() || "";
       const absoluteChapterUrl = this.absoluteUrl(chapterUrl);
-
-      // Log first 3 chapters for debugging
-      if (idx < 3) {
-        console.log(`[AsuraScans] Chapter ${idx}:`, {
-          rawHref: chapterUrl,
-          absoluteUrl: absoluteChapterUrl,
-          chapterNumber,
-        });
-      }
 
       // Collect title spans
       const titleSpans = el.querySelectorAll(this.selectors.chapterTitle);
@@ -342,9 +333,9 @@ export class AsuraScansSource extends Source {
       };
     });
 
-    console.log("[AsuraScans] Total chapters found:", chapters.length);
+    
     if (chapters.length > 0) {
-      console.log("[AsuraScans] First chapter URL:", chapters[0].url);
+      
     }
 
     return chapters.filter((ch) => ch.url);
@@ -371,20 +362,17 @@ export class AsuraScansSource extends Source {
   }
 
   async getPageList(chapterUrl: string): Promise<Page[]> {
-    console.log("[AsuraScans] Fetching chapter URL:", chapterUrl);
+    
     const html = await this.fetchHtml(chapterUrl);
-    console.log("[AsuraScans] Chapter HTML length:", html.length);
+    
 
     // Log a sample of the HTML to see what we're working with
     const sampleStart = html.indexOf("self.__next_f");
     if (sampleStart > 0) {
-      console.log(
-        "[AsuraScans] Sample around __next_f:",
-        html.substring(sampleStart, sampleStart + 500)
-      );
+      
     } else {
-      console.log("[AsuraScans] __next_f not found in HTML!");
-      console.log("[AsuraScans] HTML preview:", html.substring(0, 1000));
+      
+      
     }
 
     // Extract pages from Next.js script tags
@@ -392,21 +380,18 @@ export class AsuraScansSource extends Source {
     const scriptRegex =
       /<script[^>]*>self\.__next_f\.push\((\[[\s\S]*?\])\)<\/script>/g;
     const matches = Array.from(html.matchAll(scriptRegex));
-    console.log("[AsuraScans] Found script matches:", matches.length);
+    
 
     if (matches.length === 0) {
       // Try alternative: look for all script content containing self.__next_f.push
       const altRegex =
         /<script[^>]*>([\s\S]*?self\.__next_f\.push[\s\S]*?)<\/script>/g;
       const altMatches = Array.from(html.matchAll(altRegex));
-      console.log("[AsuraScans] Alt regex matches:", altMatches.length);
+      
       if (altMatches.length > 0) {
-        console.log(
-          "[AsuraScans] First alt match:",
-          altMatches[0][1].substring(0, 300)
-        );
+        
       }
-      console.warn("[AsuraScans] No Next.js scripts found");
+      
       return [];
     }
 
@@ -414,10 +399,7 @@ export class AsuraScansSource extends Source {
     const scriptData = matches
       .map((match, idx) => {
         const arrayStr = match[1] || "";
-        console.log(
-          `[AsuraScans] Match ${idx} array:`,
-          arrayStr.substring(0, 100)
-        );
+        
         try {
           // Parse the array [1, "content"]
           const parsed = JSON.parse(arrayStr);
@@ -429,17 +411,14 @@ export class AsuraScansSource extends Source {
             return parsed[1];
           }
         } catch (e) {
-          console.log(`[AsuraScans] Match ${idx} parse error:`, e);
+          
         }
         return "";
       })
       .join("");
 
-    console.log("[AsuraScans] Script data length:", scriptData.length);
-    console.log(
-      "[AsuraScans] Script data preview:",
-      scriptData.substring(0, 500)
-    );
+    
+    
 
     // Find pages array - try both escaped and unescaped patterns
     // Escaped: \"pages\":  (when content is still raw from script)
@@ -454,40 +433,28 @@ export class AsuraScansSource extends Source {
     }
 
     if (!pagesMatch) {
-      console.warn("[AsuraScans] Failed to find pages in script data");
-      console.log(
-        "[AsuraScans] Contains escaped 'pages':",
-        scriptData.includes('\\"pages\\"')
-      );
-      console.log(
-        "[AsuraScans] Contains unescaped 'pages':",
-        scriptData.includes('"pages"')
-      );
+      
+      
+      
       // Log more of the data to understand structure
-      console.log(
-        "[AsuraScans] Full script data (first 2000 chars):",
-        scriptData.substring(0, 2000)
-      );
+      
       return [];
     }
 
-    console.log(
-      "[AsuraScans] Found pages match, length:",
-      pagesMatch[1].length
-    );
-    console.log("[AsuraScans] Pages preview:", pagesMatch[1].substring(0, 200));
-    console.log("[AsuraScans] Needs unescape:", needsUnescape);
+    
+    
+    
 
     // Unescape if needed: replace \x with x (like Tachiyomi's UNESCAPE_REGEX)
     const unescaped = needsUnescape
       ? pagesMatch[1].replace(/\\(.)/g, "$1")
       : pagesMatch[1];
-    console.log("[AsuraScans] Unescaped preview:", unescaped.substring(0, 200));
+    
 
     try {
       const pagesData: Array<{ order: number; url: string }> =
         JSON.parse(unescaped);
-      console.log("[AsuraScans] Parsed pages count:", pagesData.length);
+      
 
       // Sort by order and map to Page objects
       const sortedPages = pagesData.sort((a, b) => a.order - b.order);
@@ -504,8 +471,8 @@ export class AsuraScansSource extends Source {
         },
       }));
     } catch (e) {
-      console.error("[AsuraScans] Failed to parse pages JSON:", e);
-      console.log("[AsuraScans] Raw unescaped:", unescaped);
+      
+      
       return [];
     }
   }

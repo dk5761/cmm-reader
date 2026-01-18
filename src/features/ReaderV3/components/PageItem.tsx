@@ -19,12 +19,17 @@ import {
   Text,
 } from "react-native";
 import { Image } from "expo-image";
+import { LRUCache } from "lru-cache";
+import { READER } from "../constants";
 import type { FlatPage } from "../stores/useReaderStore";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// Global dimension cache to persist across re-renders
-const dimensionCache = new Map<string, { width: number; height: number }>();
+// Global LRU dimension cache to prevent memory leaks
+const dimensionCache = new LRUCache<string, { width: number; height: number }>({
+  max: READER.DIMENSION_CACHE_MAX_SIZE,
+  ttl: READER.DIMENSION_CACHE_TTL_MS,
+});
 
 interface PageItemProps {
   page: FlatPage;
@@ -47,7 +52,7 @@ function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
     ? layoutHeight
     : dimensions
     ? SCREEN_WIDTH * (dimensions.height / dimensions.width)
-    : SCREEN_HEIGHT * 0.8; // Placeholder height
+    : SCREEN_HEIGHT * READER.PLACEHOLDER_HEIGHT_RATIO;
 
   // Measure dimensions on mount
   useEffect(() => {
@@ -83,7 +88,10 @@ function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
     <View>
       {/* Chapter Divider */}
       {showChapterDivider && (
-        <View className="bg-zinc-900 py-6 items-center justify-center border-t border-b border-zinc-700">
+        <View
+          className="bg-zinc-900 items-center justify-center border-t border-b border-zinc-700"
+          style={{ paddingTop: READER.CHAPTER_DIVIDER_PADDING_Y / 2, paddingBottom: READER.CHAPTER_DIVIDER_PADDING_Y / 2 }}
+        >
           <Text className="text-zinc-400 text-xs uppercase tracking-wider mb-1">
             Chapter {page.chapterNumber}
           </Text>
@@ -119,7 +127,7 @@ function PageItemComponent({ page, onTap, showChapterDivider }: PageItemProps) {
             }}
             style={styles.image}
             contentFit="cover"
-            transition={200}
+            transition={READER.IMAGE_TRANSITION_DURATION}
             onLoad={() => {
               setImageLoaded(true);
               setMeasurementFailed(false);

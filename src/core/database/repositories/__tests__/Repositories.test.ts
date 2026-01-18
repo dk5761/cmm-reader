@@ -4,8 +4,37 @@ import { RealmChapterRepository } from "../ChapterRepository";
 import { RealmHistoryRepository } from "../HistoryRepository";
 import { RealmCategoryRepository } from "../CategoryRepository";
 import { MockRealm } from "./MockRealm";
-import { MangaSchema } from "../../schema";
+import { MangaSchema } from "../../__tests__/MockSchema";
 import type { MangaDetails, Chapter } from "@/sources";
+
+// Mock the schema module to avoid Realm.Object issues
+jest.mock("@/core/database/schema", () => {
+  const { MangaSchema, ChapterSchema } = require("@/core/database/__tests__/MockSchema");
+  return {
+    MangaSchema,
+    ChapterSchema,
+    ReadingProgressSchema: class {},
+    ReadingHistorySchema: class {},
+    CategorySchema: class {},
+    realmSchemas: [MangaSchema, ChapterSchema],
+  };
+});
+
+// Mock realm package to avoid native issues
+jest.mock("realm", () => {
+  return class MockRealm {
+    static UpdateMode: { Modified: string; All: string; Never: string } = {
+      Modified: "Modified",
+      All: "All",
+      Never: "Never",
+    };
+    objects() { return { filtered: () => [], sorted: () => [], length: 0 }; }
+    objectForPrimaryKey() { return null; }
+    write() {}
+    create() {}
+    delete() {}
+  };
+});
 
 describe("Repositories", () => {
   let realm: MockRealm;
@@ -89,9 +118,9 @@ describe("Repositories", () => {
       await mangaRepo.addManga({ id: rawMangaId, title: "Test", url: "u", sourceId: sourceId, cover: "" }, true);
       await chapterRepo.saveChapters(mangaId, chapters);
       
-      await chapterRepo.markAsRead("ch1", true);
+      await chapterRepo.markAsRead(mangaId, "ch1", true);
       
-      const chapter = chapterRepo.getChapter("ch1");
+      const chapter = chapterRepo.getChapter(mangaId, "ch1");
       expect(chapter?.isRead).toBe(true);
     });
   });
