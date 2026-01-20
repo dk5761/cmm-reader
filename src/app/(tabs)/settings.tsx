@@ -16,6 +16,8 @@ import { MangaSyncListItem } from "@/features/Library/components/MangaSyncListIt
 import { SyncDetailsModal } from "@/features/Library/components/SyncDetailsModal";
 import { useBackup } from "@/core/backup";
 import { useAppSettingsStore } from "@/shared/stores";
+import { useAuth } from "@/shared/contexts/AuthContext";
+import { Image } from "expo-image";
 
 type SettingItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -318,6 +320,78 @@ function SyncHistorySection() {
   );
 }
 
+function AccountSection() {
+  const { user, signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+  const mutedColor = useCSSVariable("--color-muted");
+  const muted = typeof mutedColor === "string" ? mutedColor : "#71717a";
+
+  const handleSignOut = async () => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            setSigningOut(true);
+            try {
+              await signOut();
+            } catch (e) {
+              Alert.alert("Error", (e as Error).message);
+            } finally {
+              setSigningOut(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <View>
+      {/* User Info */}
+      <View className="flex-row items-center px-4 py-4">
+        {user?.photoURL ? (
+          <Image
+            source={{ uri: user.photoURL }}
+            style={{ width: 48, height: 48, borderRadius: 24 }}
+          />
+        ) : (
+          <View className="w-12 h-12 bg-surface rounded-full items-center justify-center">
+            <Ionicons name="person" size={24} color={muted} />
+          </View>
+        )}
+        <View className="flex-1 ml-3">
+          <Text className="text-foreground font-medium">
+            {user?.displayName || "User"}
+          </Text>
+          <Text className="text-muted text-sm">{user?.email}</Text>
+        </View>
+      </View>
+
+      {/* Sign Out */}
+      <Pressable
+        onPress={handleSignOut}
+        disabled={signingOut}
+        className="flex-row items-center px-4 py-4 active:bg-surface/50"
+        style={{ opacity: signingOut ? 0.6 : 1 }}
+      >
+        <View className="w-10 h-10 bg-red-500/10 rounded-lg items-center justify-center mr-3">
+          {signingOut ? (
+            <ActivityIndicator size="small" color="#ef4444" />
+          ) : (
+            <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+          )}
+        </View>
+        <Text className="text-red-500 font-medium">Sign Out</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -336,6 +410,14 @@ export default function SettingsScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
       >
+        {/* Account Section */}
+        <View className="mt-4">
+          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+            Account
+          </Text>
+          <AccountSection />
+        </View>
+
         {/* Downloads Section */}
         <View className="mt-4">
           <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">

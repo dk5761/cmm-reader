@@ -1,8 +1,8 @@
 import "../global.css";
 
 import { useEffect } from "react";
-import { useColorScheme } from "react-native";
-import { Stack } from "expo-router";
+import { useColorScheme, View, ActivityIndicator } from "react-native";
+import { Slot, useRouter, useSegments } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as SplashScreen from "expo-splash-screen";
@@ -14,9 +14,40 @@ import { DatabaseProvider } from "@/core/database";
 import { UpdateScreen } from "@/shared/components/UpdateScreen";
 import { requestNotificationPermissions } from "@/shared/services/notifications";
 import { pruneCache } from "@/core/services/ImageCacheService";
+import { AuthProvider, useAuth } from "@/shared/contexts/AuthContext";
 
 // Keep splash screen visible while app loads
 SplashScreen.preventAutoHideAsync();
+
+function AuthGate() {
+  const { isLoading, isAuthenticated } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inLoginGroup = segments[0] === "login";
+
+    if (!isAuthenticated && !inLoginGroup) {
+      // Redirect to login if not authenticated
+      router.replace("/login");
+    } else if (isAuthenticated && inLoginGroup) {
+      // Redirect to main app if authenticated and on login
+      router.replace("/(tabs)/library");
+    }
+  }, [isLoading, isAuthenticated, segments]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator size="large" color="#00d9ff" />
+      </View>
+    );
+  }
+
+  return <Slot />;
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -36,42 +67,22 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView className="flex-1">
       <SafeAreaProvider>
-        <DatabaseProvider>
-          <QueryProvider>
-            <SessionProvider>
-              <DownloadProvider>
-                <WebViewFetcherProvider>
-                  <Stack
-                    screenOptions={{
-                      headerShown: true,
-                      headerStyle: {
-                        backgroundColor: isDark ? "#0a0a0f" : "#ffffff",
-                      },
-                      headerTintColor: isDark ? "#fff" : "#000",
-                      headerTitleStyle: { fontWeight: "600" },
-                      headerShadowVisible: false,
-                      headerBackTitle: "",
-                    }}
-                  >
-                    {/* Hide header for tabs - tabs have their own headers */}
-                    <Stack.Screen
-                      name="(tabs)"
-                      options={{ headerShown: false, title: "" }}
-                    />
-                    {/* Hide header for reader - full screen experience */}
-                    <Stack.Screen
-                      name="reader/[chapterId]"
-                      options={{ headerShown: false }}
-                    />
-                  </Stack>
+        <AuthProvider>
+          <DatabaseProvider>
+            <QueryProvider>
+              <SessionProvider>
+                <DownloadProvider>
+                  <WebViewFetcherProvider>
+                    <AuthGate />
 
-                  {/* Force Update Screen - blocks app until update is applied */}
-                  <UpdateScreen />
-                </WebViewFetcherProvider>
-              </DownloadProvider>
-            </SessionProvider>
-          </QueryProvider>
-        </DatabaseProvider>
+                    {/* Force Update Screen - blocks app until update is applied */}
+                    <UpdateScreen />
+                  </WebViewFetcherProvider>
+                </DownloadProvider>
+              </SessionProvider>
+            </QueryProvider>
+          </DatabaseProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
