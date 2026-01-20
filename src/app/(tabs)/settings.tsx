@@ -345,15 +345,9 @@ export default function SettingsScreen() {
           </Text>
           <SettingItem
             icon="bug-outline"
-            title="Debug Realm Database"
-            subtitle="View all stored manga and chapters"
+            title="Debug Tools"
+            subtitle="Access debug utilities and logs"
             onPress={() => router.push("/debug")}
-          />
-          <SettingItem
-            icon="document-text-outline"
-            title="CF Debug Logs"
-            subtitle="View Cloudflare challenge logs"
-            onPress={() => router.push("/debug/cf")}
           />
         </View>
       </ScrollView>

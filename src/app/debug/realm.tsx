@@ -5,7 +5,7 @@ import { MangaSchema } from "@/core/database";
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 
-export default function DebugRealmScreen() {
+export default function RealmDebugScreen() {
   const insets = useSafeAreaInsets();
   const allManga = useQuery(MangaSchema);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -16,20 +16,20 @@ export default function DebugRealmScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <View
-        className="px-4 border-b border-border"
-        style={{ paddingTop: insets.top + 8, paddingBottom: 12 }}
-      >
-        <Text className="text-foreground text-xl font-bold">Realm Debug</Text>
-        <Text className="text-muted text-xs mt-1">
-          {allManga.length} manga in library
-        </Text>
-      </View>
-
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 100 }}
       >
+        <View className="px-4 mb-4 bg-surface rounded-lg py-3">
+          <Text className="text-muted text-xs font-bold uppercase">Database Info</Text>
+          <View className="flex-row items-center gap-2 mt-2">
+            <Ionicons name="information-circle" size={16} color="#00d9ff" />
+            <Text className="text-foreground font-semibold">
+              {allManga.length} manga in library
+            </Text>
+          </View>
+        </View>
+
         {allManga.length === 0 ? (
           <View className="p-4">
             <Text className="text-muted text-center">No data in Realm</Text>
@@ -37,7 +37,6 @@ export default function DebugRealmScreen() {
         ) : (
           allManga.map((manga) => (
             <View key={manga.id} className="border-b border-border/30">
-              {/* Manga Header */}
               <Pressable
                 onPress={() => toggleExpand(manga.id)}
                 className="p-4 flex-row items-center justify-between"
@@ -64,10 +63,8 @@ export default function DebugRealmScreen() {
                 />
               </Pressable>
 
-              {/* Expanded Details */}
               {expandedId === manga.id && (
                 <View className="px-4 pb-4 bg-surface/30">
-                  {/* Progress */}
                   <Text className="text-primary text-xs font-bold mt-2">
                     PROGRESS
                   </Text>
@@ -77,7 +74,6 @@ export default function DebugRealmScreen() {
                       : "No progress"}
                   </Text>
 
-                  {/* Chapters */}
                   <Text className="text-primary text-xs font-bold mt-3">
                     CHAPTERS ({manga.chapters.length})
                   </Text>
@@ -113,7 +109,6 @@ export default function DebugRealmScreen() {
                     )}
                   </View>
 
-                  {/* Raw Data */}
                   <Text className="text-primary text-xs font-bold mt-3">
                     RAW DATA
                   </Text>
