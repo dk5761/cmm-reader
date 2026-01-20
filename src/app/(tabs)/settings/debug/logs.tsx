@@ -8,24 +8,22 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import Share from "react-native-share";
 import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { cfLogger } from "@/utils/cfDebugLogger";
 
-// Compact Log Item for Terminal Feel
 const LogItem = React.memo(({ item }: { item: string }) => {
   const isError =
     item.includes("✗") || item.includes("failed") || item.includes("Error");
   const isSuccess = item.includes("✓") || item.includes("SUCCESS");
   const isHeader = item.startsWith("[");
 
-  // Colors
   const errorColor = "#ef4444";
   const successColor = "#22c55e";
-  const textColor = "#e4e4e7"; // zinc-200
-  const dimColor = "#a1a1aa"; // zinc-400
+  const textColor = "#e4e4e7";
+  const dimColor = "#a1a1aa";
 
   return (
     <View className="mb-0.5">
@@ -38,7 +36,7 @@ const LogItem = React.memo(({ item }: { item: string }) => {
             : isHeader
             ? textColor
             : dimColor,
-          fontFamily: "Menlo", // On iOS this looks like code
+          fontFamily: "Menlo",
           fontSize: 11,
           lineHeight: 16,
         }}
@@ -56,7 +54,6 @@ export default function CFDebugScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Theme Colors - Default to dark mode values if var not found
   const bgColor = (useCSSVariable("--color-background") as string) || "#000000";
   const surfaceColor =
     (useCSSVariable("--color-surface") as string) || "#18181b";
@@ -124,7 +121,9 @@ export default function CFDebugScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: bgColor }}>
+    <>
+      <Stack.Screen options={{ title: "CF Debug Logs" }} />
+      <View style={{ flex: 1, backgroundColor: bgColor }}>
 
       {/* Toolbar Area */}
       <View
@@ -218,5 +217,6 @@ export default function CFDebugScreen() {
         style={{ backgroundColor: surfaceColor }}
       />
     </View>
+    </>
   );
 }

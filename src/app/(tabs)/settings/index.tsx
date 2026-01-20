@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { useBackup } from "@/core/backup";
@@ -269,88 +269,91 @@ export default function SettingsScreen() {
   const { showNsfwSources, toggleNsfwSources } = useAppSettingsStore();
 
   return (
-    <View className="flex-1 bg-background">
-      <View
-        className="px-4 border-b border-border"
-        style={{ paddingTop: insets.top + 8, paddingBottom: 12 }}
-      >
-        <Text className="text-foreground text-2xl font-bold">More</Text>
-        <Text className="text-muted text-sm mt-1">Settings & preferences</Text>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View className="flex-1 bg-background">
+        <View
+          className="px-4 border-b border-border"
+          style={{ paddingTop: insets.top + 8, paddingBottom: 12 }}
+        >
+          <Text className="text-foreground text-2xl font-bold">More</Text>
+          <Text className="text-muted text-sm mt-1">Settings & preferences</Text>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        >
+          {/* Account Section */}
+          <View className="mt-4">
+            <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+              Account
+            </Text>
+            <AccountSection />
+          </View>
+
+          {/* Downloads Section */}
+          <View className="mt-4">
+            <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+              Downloads
+            </Text>
+            <SettingItem
+              icon="download-outline"
+              title="Download Queue"
+              subtitle="Manage active downloads"
+              onPress={() => router.push("/(tabs)/settings/downloads")}
+            />
+          </View>
+
+          {/* Content Preferences Section */}
+          <View className="mt-4">
+            <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+              Content Preferences
+            </Text>
+            <ToggleSettingItem
+              icon="eye-off-outline"
+              title="Show NSFW Sources"
+              subtitle="Adult content sources (18+)"
+              value={showNsfwSources}
+              onToggle={toggleNsfwSources}
+              warning
+            />
+          </View>
+
+          {/* Backup & Restore Section */}
+          <View className="mt-4">
+            <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+              Backup & Restore
+            </Text>
+            <BackupSection />
+          </View>
+
+          {/* Sync History Section */}
+          <View className="mt-4">
+            <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+              Sync
+            </Text>
+            <SettingItem
+              icon="time-outline"
+              title="Sync History"
+              subtitle="View past sync operations"
+              onPress={() => router.push("/(tabs)/settings/sync")}
+            />
+          </View>
+
+          {/* Debug Section */}
+          <View className="mt-4">
+            <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+              Developer
+            </Text>
+            <SettingItem
+              icon="bug-outline"
+              title="Debug Tools"
+              subtitle="Access debug utilities and logs"
+              onPress={() => router.push("/(tabs)/settings/debug")}
+            />
+          </View>
+        </ScrollView>
       </View>
-
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-      >
-        {/* Account Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Account
-          </Text>
-          <AccountSection />
-        </View>
-
-        {/* Downloads Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Downloads
-          </Text>
-          <SettingItem
-            icon="download-outline"
-            title="Download Queue"
-            subtitle="Manage active downloads"
-            onPress={() => router.push("/downloads")}
-          />
-        </View>
-
-        {/* Content Preferences Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Content Preferences
-          </Text>
-          <ToggleSettingItem
-            icon="eye-off-outline"
-            title="Show NSFW Sources"
-            subtitle="Adult content sources (18+)"
-            value={showNsfwSources}
-            onToggle={toggleNsfwSources}
-            warning
-          />
-        </View>
-
-        {/* Backup & Restore Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Backup & Restore
-          </Text>
-          <BackupSection />
-        </View>
-
-        {/* Sync History Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Sync
-          </Text>
-          <SettingItem
-            icon="time-outline"
-            title="Sync History"
-            subtitle="View past sync operations"
-            onPress={() => router.push("/sync-history")}
-          />
-        </View>
-
-        {/* Debug Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Developer
-          </Text>
-          <SettingItem
-            icon="bug-outline"
-            title="Debug Tools"
-            subtitle="Access debug utilities and logs"
-            onPress={() => router.push("/debug")}
-          />
-        </View>
-      </ScrollView>
-    </View>
+    </>
   );
 }

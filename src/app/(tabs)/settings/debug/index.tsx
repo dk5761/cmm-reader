@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, Pressable } from "react-native";
-import { useRouter } from "expo-router";
-import {Ionicons } from "@expo/vector-icons";
+import { useRouter, Stack } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { useQuery } from "@realm/react";
 import { MangaSchema } from "@/core/database";
@@ -38,31 +38,34 @@ export default function DebugMenuScreen() {
   const allManga = useQuery(MangaSchema);
 
   return (
-    <View className="flex-1 bg-background">
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingTop: 16 }}
-      >
-        <View className="px-4 mb-4">
-          <Text className="text-foreground text-sm">
-            Select a debug utility to view detailed information
-          </Text>
-        </View>
+    <>
+      <Stack.Screen options={{ title: "Debug Tools" }} />
+      <View className="flex-1 bg-background">
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingTop: 16 }}
+        >
+          <View className="px-4 mb-4">
+            <Text className="text-foreground text-sm">
+              Select a debug utility to view detailed information
+            </Text>
+          </View>
 
-        <SettingItem
-          icon="bug-outline"
-          title="Realm Database"
-          subtitle={`${allManga.length} manga in library`}
-          onPress={() => router.push("/debug/realm")}
-        />
+          <SettingItem
+            icon="bug-outline"
+            title="Realm Database"
+            subtitle={`${allManga.length} manga in library`}
+            onPress={() => router.push("/(tabs)/settings/debug/realm")}
+          />
 
-        <SettingItem
-          icon="document-text-outline"
-          title="CF Debug Logs"
-          subtitle="View Cloudflare challenge logs"
-          onPress={() => router.push("/debug/logs")}
-        />
-      </ScrollView>
-    </View>
+          <SettingItem
+            icon="document-text-outline"
+            title="CF Debug Logs"
+            subtitle="View Cloudflare challenge logs"
+            onPress={() => router.push("/(tabs)/settings/debug/logs")}
+          />
+        </ScrollView>
+      </View>
+    </>
   );
 }

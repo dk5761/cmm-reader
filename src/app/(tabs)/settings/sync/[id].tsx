@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { useSyncStore } from "@/features/Library/stores/useSyncStore";
@@ -48,12 +48,13 @@ export default function SyncHistoryDetailScreen() {
   const primary = typeof primaryColor === "string" ? primaryColor : "#00d9ff";
 
   return (
-    <View className="flex-1 bg-background">
+    <>
+      <Stack.Screen options={{ title: "Sync Details" }} />
+      <View className="flex-1 bg-background">
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
       >
-        {/* Summary Section */}
         <View className="px-4 py-4 bg-surface/50">
           <Text className="text-foreground font-medium mb-2">
             {formatTimeAgo(sync.timestamp)}
@@ -74,7 +75,6 @@ export default function SyncHistoryDetailScreen() {
           </View>
         </View>
 
-        {/* Updated Manga */}
         {sync.mangaUpdates.length > 0 && (
           <View className="mt-2">
             <Text className="px-4 py-2 text-muted text-xs font-bold uppercase">
@@ -90,7 +90,6 @@ export default function SyncHistoryDetailScreen() {
           </View>
         )}
 
-        {/* Failed Items */}
         {sync.failed.length > 0 && (
           <View className="mt-4 px-4 py-3 ml-4 mr-4 bg-red-500/10 rounded-lg">
             <Text className="text-red-500 text-sm font-bold mb-2">
@@ -107,7 +106,6 @@ export default function SyncHistoryDetailScreen() {
           </View>
         )}
 
-        {/* Skipped Sources */}
         {sync.skippedSources.length > 0 && (
           <View className="mt-4 px-4 py-3 ml-4 mr-4 bg-yellow-500/10 rounded-lg">
             <Text className="text-yellow-500 text-sm font-bold mb-2">
@@ -122,7 +120,6 @@ export default function SyncHistoryDetailScreen() {
         )}
       </ScrollView>
 
-      {/* Details Modal */}
       {selectedMangaId && (
         <Pressable
           className="absolute inset-0 bg-black/60"
@@ -145,5 +142,6 @@ export default function SyncHistoryDetailScreen() {
         </Pressable>
       )}
     </View>
+    </>
   );
 }

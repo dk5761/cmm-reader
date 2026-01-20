@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { useSyncStore } from "@/features/Library/stores/useSyncStore";
@@ -12,38 +12,44 @@ export default function SyncHistoryScreen() {
   const { syncHistory } = useSyncStore();
 
   const handlePressSync = (index: number) => {
-    router.push(`/sync-history/${index}`);
+    router.push({
+      pathname: '/(tabs)/settings/sync/[id]',
+      params: { id: index.toString() }
+    });
   };
 
   return (
-    <View className="flex-1 bg-background">
-      {syncHistory.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <EmptyState
-            icon="sync"
-            title="No sync history"
-            description="Sync your library to see updates here"
-          />
-        </View>
-      ) : (
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{
-            paddingTop: 16,
-            paddingBottom: insets.bottom + 32
-          }}
-        >
-          {syncHistory.map((sync, index) => (
-            <SyncSummaryCard
-              key={sync.timestamp}
-              sync={sync}
-              index={index}
-              onPress={() => handlePressSync(index)}
+    <>
+      <Stack.Screen options={{ title: "Sync History" }} />
+      <View className="flex-1 bg-background">
+        {syncHistory.length === 0 ? (
+          <View className="flex-1 items-center justify-center px-8">
+            <EmptyState
+              icon="sync"
+              title="No sync history"
+              description="Sync your library to see updates here"
             />
-          ))}
-        </ScrollView>
-      )}
-    </View>
+          </View>
+        ) : (
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{
+              paddingTop: 16,
+              paddingBottom: insets.bottom + 32
+            }}
+          >
+            {syncHistory.map((sync, index) => (
+              <SyncSummaryCard
+                key={sync.timestamp}
+                sync={sync}
+                index={index}
+                onPress={() => handlePressSync(index)}
+              />
+            ))}
+          </ScrollView>
+        )}
+      </View>
+    </>
   );
 }
 

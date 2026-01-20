@@ -4,6 +4,7 @@ import { useQuery } from "@realm/react";
 import { MangaSchema } from "@/core/database";
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import { Stack } from "expo-router";
 
 export default function RealmDebugScreen() {
   const insets = useSafeAreaInsets();
@@ -15,7 +16,9 @@ export default function RealmDebugScreen() {
   };
 
   return (
-    <View className="flex-1 bg-background">
+    <>
+      <Stack.Screen options={{ title: "Realm Database" }} />
+      <View className="flex-1 bg-background">
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 100 }}
@@ -142,7 +145,8 @@ export default function RealmDebugScreen() {
             </View>
           ))
         )}
-      </ScrollView>
-    </View>
+</ScrollView>
+      </View>
+    </>
   );
 }
