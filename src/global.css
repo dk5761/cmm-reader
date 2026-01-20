@@ -40,26 +40,25 @@
   --radius-full: 9999px;
 }
 
-/* Theme Variables (Dark/Light) */
 @layer theme {
   :root {
     @variant dark {
-      /* Backgrounds */
+      /* Backgrounds - Dark Mode */
       --color-background: #000000;
       --color-background-secondary: #0a0a0a;
       --color-surface: #18181b;
       --color-card: #1e293b;
 
-      /* Text */
+      /* Text - Dark Mode */
       --color-foreground: #ffffff;
       --color-foreground-secondary: #a1a1aa;
       --color-muted: #71717a;
 
-      /* Borders */
+      /* Borders - Dark Mode */
       --color-border: #27272a;
       --color-border-subtle: #3f3f46;
 
-      /* Tab bar specific */
+      /* Tab bar specific - Dark Mode */
       --color-tab-bg: #1e293b;
       --color-tab-border: #334155;
       --color-tab-active: #22d3ee;
@@ -67,26 +66,20 @@
     }
 
     @variant light {
-      /* Backgrounds */
-      --color-background: #ffffff;
-      --color-background-secondary: #f4f4f5;
-      --color-surface: #fafafa;
-      --color-card: #ffffff;
-
-      /* Text */
-      --color-foreground: #09090b;
-      --color-foreground-secondary: #52525b;
-      --color-muted: #a1a1aa;
-
-      /* Borders */
-      --color-border: #e4e4e7;
-      --color-border-subtle: #f4f4f5;
-
-      /* Tab bar specific */
-      --color-tab-bg: #f4f4f5;
-      --color-tab-border: #e4e4e7;
-      --color-tab-active: #0891b2;
-      --color-tab-inactive: #71717a;
+      /* Light mode uses same dark colors */
+      --color-background: #000000;
+      --color-background-secondary: #0a0a0a;
+      --color-surface: #18181b;
+      --color-card: #1e293b;
+      --color-foreground: #ffffff;
+      --color-foreground-secondary: #a1a1aa;
+      --color-muted: #71717a;
+      --color-border: #27272a;
+      --color-border-subtle: #3f3f46;
+      --color-tab-bg: #1e293b;
+      --color-tab-border: #334155;
+      --color-tab-active: #22d3ee;
+      --color-tab-inactive: #94a3b8;
     }
   }
 }

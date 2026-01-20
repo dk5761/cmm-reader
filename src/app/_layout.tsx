@@ -1,9 +1,10 @@
 import "../global.css";
 
 import { useEffect } from "react";
-import { useColorScheme, View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Uniwind } from "uniwind";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as SplashScreen from "expo-splash-screen";
 import { QueryProvider } from "@/core/providers";
@@ -18,6 +19,11 @@ import { AuthProvider, useAuth } from "@/shared/contexts/AuthContext";
 
 // Keep splash screen visible while app loads
 SplashScreen.preventAutoHideAsync();
+
+// Force dark theme and disable adaptive mode
+if (typeof Uniwind !== 'undefined') {
+  Uniwind.setTheme('dark');
+}
 
 function AuthGate() {
   const { isLoading, isAuthenticated } = useAuth();
@@ -50,9 +56,6 @@ function AuthGate() {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
   // Request notification permissions, hide splash, and clean cache
   useEffect(() => {
     requestNotificationPermissions();

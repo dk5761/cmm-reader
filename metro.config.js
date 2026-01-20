@@ -10,6 +10,8 @@ const uniwindConfig = withUniwindConfig(config, {
   cssEntryFile: "./src/global.css",
   // optional: path to typings
   dtsFile: "./src/uniwind-types.d.ts",
+  // Force dark theme initial
+  initialTheme: 'dark',
 });
 
 module.exports = uniwindConfig;
