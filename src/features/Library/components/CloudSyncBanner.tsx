@@ -1,6 +1,6 @@
 /**
  * CloudSyncBanner - Shows cloud sync progress on app startup
- * Displays when syncing with Firebase in background
+ * Displays when syncing with cloud service (for future implementation)
  */
 
 import { View, Text } from "react-native";

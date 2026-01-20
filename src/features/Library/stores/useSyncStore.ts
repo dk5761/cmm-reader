@@ -45,7 +45,7 @@ type SyncState = {
   currentManga: string | null;
   lastSync: SyncResult | null;
   syncHistory: SyncResult[]; // Keep last 10
-  // Cloud sync (Firebase) state
+  // Cloud sync state (for future implementation)
   isCloudSyncing: boolean;
   cloudSyncStatus: string | null;
 };

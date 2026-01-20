@@ -16,8 +16,6 @@ import { MangaSyncListItem } from "@/features/Library/components/MangaSyncListIt
 import { SyncDetailsModal } from "@/features/Library/components/SyncDetailsModal";
 import { useBackup } from "@/core/backup";
 import { useAppSettingsStore } from "@/shared/stores";
-import { useAuth } from "@/core/auth";
-import { useSyncManager } from "@/core/sync";
 
 type SettingItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -133,92 +131,6 @@ function formatTimeAgo(timestamp: number): string {
   if (minutes < 60) return `${minutes} min ago`;
   if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
   return `${days} day${days > 1 ? "s" : ""} ago`;
-}
-
-function AccountSection() {
-  const { user, signOut } = useAuth();
-  const [loading, setLoading] = useState(false);
-
-  const handleSignOut = async () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          setLoading(true);
-          try {
-            await signOut();
-            // AuthGuard will handle redirect
-          } catch (e) {
-            Alert.alert("Error", "Failed to sign out");
-            setLoading(false);
-          }
-        },
-      },
-    ]);
-  };
-
-  if (!user) return null;
-
-  return (
-    <View>
-      <View className="px-4 py-2 mb-2">
-        <Text className="text-foreground font-medium">{user.email}</Text>
-        <Text className="text-muted text-xs">Signed in with Google</Text>
-      </View>
-      <SettingItem
-        icon="log-out-outline"
-        title="Sign Out"
-        onPress={handleSignOut}
-        loading={loading}
-      />
-    </View>
-  );
-}
-
-function SyncSection() {
-  const { uploadAll } = useSyncManager();
-  const [syncing, setSyncing] = useState(false);
-
-  const handleFullUpload = async () => {
-    Alert.alert(
-      "Full Upload",
-      "This will upload your entire library to the cloud, replacing any existing data.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Upload",
-          onPress: async () => {
-            setSyncing(true);
-            try {
-              await uploadAll();
-              Alert.alert(
-                "Upload Complete",
-                "Your entire library has been uploaded."
-              );
-            } catch (e) {
-              Alert.alert("Upload Failed", (e as Error).message);
-            } finally {
-              setSyncing(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  return (
-    <View>
-      <SettingItem
-        icon="refresh-outline"
-        title="Full Upload"
-        subtitle="Upload entire library to cloud"
-        onPress={handleFullUpload}
-        loading={syncing}
-      />
-    </View>
-  );
 }
 
 function BackupSection() {
@@ -424,22 +336,6 @@ export default function SettingsScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
       >
-        {/* Account Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Account
-          </Text>
-          <AccountSection />
-        </View>
-
-        {/* Cloud Sync Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Cloud Sync
-          </Text>
-          <SyncSection />
-        </View>
-
         {/* Downloads Section */}
         <View className="mt-4">
           <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
@@ -500,12 +396,6 @@ export default function SettingsScreen() {
             title="CF Debug Logs"
             subtitle="View Cloudflare challenge logs"
             onPress={() => router.push("/debug/cf")}
-          />
-          <SettingItem
-            icon="sync-outline"
-            title="Debug Sync Queue"
-            subtitle="View pending sync events"
-            onPress={() => router.push("/debug/sync")}
           />
         </View>
       </ScrollView>
