@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,11 +8,11 @@ import {
   LibraryGrid,
   SyncProgressBanner,
   SyncCompletionToast,
-  LibrarySearchBar,
   CloudSyncBanner,
   LibraryHeaderRight,
 } from "../components";
-import { EmptyState } from "@/shared/components";
+import { EmptyState, SearchBar } from "@/shared/components";
+import { useDebounce } from "@/shared/hooks/useDebounce";
 import { useAppSettingsStore } from "@/shared/stores";
 import { isNsfwSource } from "@/sources";
 import { useLibraryStore } from "../stores/useLibraryStore";
@@ -24,8 +24,36 @@ export function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const fgColor = useCSSVariable("--color-foreground");
   const foreground = typeof fgColor === "string" ? fgColor : "#fff";
-  const { activeCategory, searchQuery, activeSource, sortBy, sortAscending } =
-    useLibraryStore();
+
+  // Get store state
+  const libraryState = useLibraryStore();
+  const storeSearchQuery = libraryState.searchQuery;
+  const activeCategory = libraryState.activeCategory;
+  const activeSource = libraryState.activeSource;
+  const sortBy = libraryState.sortBy;
+  const sortAscending = libraryState.sortAscending;
+
+  // Local search state for immediate UI feedback
+  const [localSearchQuery, setLocalSearchQuery] = useState(storeSearchQuery);
+  const [debouncedSearchQuery] = useDebounce(localSearchQuery, 300);
+
+  // Update store with debounced search query
+  useEffect(() => {
+    if (debouncedSearchQuery !== storeSearchQuery) {
+      libraryState.setSearchQuery(debouncedSearchQuery);
+    }
+  }, [debouncedSearchQuery, storeSearchQuery, libraryState]);
+
+  // Sync local state when store changes externally
+  useEffect(() => {
+    setLocalSearchQuery(storeSearchQuery);
+  }, [storeSearchQuery]);
+
+  // Clear search
+  const handleClearSearch = useCallback(() => {
+    setLocalSearchQuery("");
+    libraryState.setSearchQuery("");
+  }, [libraryState]);
   const { showNsfwSources } = useAppSettingsStore();
 
   // Fetch from Realm database
@@ -41,8 +69,8 @@ export function LibraryScreen() {
     }
 
     // Search filter (case-insensitive title match)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (storeSearchQuery.trim()) {
+      const query = storeSearchQuery.toLowerCase();
       result = result.filter((manga) =>
         manga.title.toLowerCase().includes(query)
       );
@@ -107,7 +135,7 @@ export function LibraryScreen() {
     return result;
   }, [
     libraryManga,
-    searchQuery,
+    storeSearchQuery,
     activeSource,
     activeCategory,
     showNsfwSources,
@@ -180,14 +208,14 @@ export function LibraryScreen() {
 
   // Empty state message based on active filters
   const emptyMessage = useMemo(() => {
-    if (searchQuery.trim()) {
-      return `No manga matching "${searchQuery}"`;
+    if (storeSearchQuery.trim()) {
+      return `No manga matching "${storeSearchQuery}"`;
     }
     if (activeCategory === "All") {
       return "Add manga from Browse tab";
     }
     return `No titles in "${activeCategory}"`;
-  }, [searchQuery, activeCategory]);
+  }, [storeSearchQuery, activeCategory]);
 
   return (
     <View className="flex-1 bg-background">
@@ -209,7 +237,14 @@ export function LibraryScreen() {
         onMangaPress={handleMangaPress}
         ListHeaderComponent={
           <View className="pt-6 pb-4 px-4">
-            <LibrarySearchBar />
+            {/* Search bar with clear button */}
+
+            <SearchBar
+              placeholder="Search library..."
+              value={localSearchQuery}
+              onChangeText={setLocalSearchQuery}
+            />
+
             <CloudSyncBanner />
             <SyncProgressBanner />
             <SyncCompletionToast />

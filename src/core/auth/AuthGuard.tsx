@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSegments } from "expo-router";
 import { useAuth } from "./AuthContext";
 
@@ -14,9 +14,20 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [hasEverHadUser, setHasEverHadUser] = useState(false);
+
+  // Track if we've ever had a user session (to handle Firebase re-init on hot refresh)
+  useEffect(() => {
+    if (user) {
+      setHasEverHadUser(true);
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (loading) return;
+    // Don't redirect while loading or if we're restoring a previous session
+    if (loading || (hasEverHadUser && !user)) {
+      return;
+    }
 
     const inAuthGroup = segments[0] === "(auth)";
     const inMainGroup = segments[0] === "(main)";
@@ -34,7 +45,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
       // Signed in and visiting sign-in -> redirect to library
       router.replace("/(main)/(tabs)/library");
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, hasEverHadUser]);
 
   // Show nothing while loading auth state
   if (loading) return null;
