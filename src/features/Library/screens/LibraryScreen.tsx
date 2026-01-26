@@ -1,12 +1,16 @@
 import { useMemo } from "react";
-import { View } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useCSSVariable } from "uniwind";
 import {
   LibraryGrid,
   SyncProgressBanner,
   SyncCompletionToast,
   LibrarySearchBar,
   CloudSyncBanner,
+  LibraryHeaderRight,
 } from "../components";
 import { EmptyState } from "@/shared/components";
 import { useAppSettingsStore } from "@/shared/stores";
@@ -17,6 +21,9 @@ import { parseChapterDate } from "@/core/utils/dateParser";
 
 export function LibraryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const fgColor = useCSSVariable("--color-foreground");
+  const foreground = typeof fgColor === "string" ? fgColor : "#fff";
   const { activeCategory, searchQuery, activeSource, sortBy, sortAscending } =
     useLibraryStore();
   const { showNsfwSources } = useAppSettingsStore();
@@ -160,7 +167,7 @@ export function LibraryScreen() {
       };
 
       router.push({
-        pathname: "/manga/[id]",
+        pathname: "/(main)/manga/[id]",
         params: {
           id: manga.id.replace(`${manga.sourceId}_`, ""),
           sourceId: manga.sourceId,
@@ -184,12 +191,24 @@ export function LibraryScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Grid with search as list header */}
+      {/* Header */}
+      <View
+        className="flex-row items-center justify-between px-4 border-b border-border"
+        style={{ paddingTop: insets.top + 8, paddingBottom: 12 }}
+      >
+        <View>
+          <Text className="text-foreground text-2xl font-bold">Library</Text>
+          <Text className="text-muted text-sm mt-1">Your collection</Text>
+        </View>
+        <LibraryHeaderRight />
+      </View>
+
+      {/* Grid with search bar and banners as list header */}
       <LibraryGrid
         manga={gridData}
         onMangaPress={handleMangaPress}
         ListHeaderComponent={
-          <View className="pb-4">
+          <View className="pt-6 pb-4 px-4">
             <LibrarySearchBar />
             <CloudSyncBanner />
             <SyncProgressBanner />

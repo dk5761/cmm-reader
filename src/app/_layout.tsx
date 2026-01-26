@@ -1,6 +1,6 @@
 import "../global.css";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -22,18 +22,31 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const [ready, setReady] = useState(false);
 
-  // Request notification permissions, configure auth, hide splash, and clean cache
   useEffect(() => {
-    configureGoogleSignIn();
-    requestNotificationPermissions();
-    
-    // Prune image cache (500MB limit)
-    pruneCache(500).catch(err => console.error("Failed to prune cache:", err));
+    async function prepare() {
+      configureGoogleSignIn();
+      requestNotificationPermissions();
 
-    // Hide splash screen after a brief delay to ensure providers are ready
-    SplashScreen.hideAsync();
+      // Prune image cache (500MB limit)
+      pruneCache(500).catch(err => console.error("Failed to prune cache:", err));
+
+      setReady(true);
+    }
+
+    prepare();
   }, []);
+
+  useEffect(() => {
+    if (ready) {
+      SplashScreen.hideAsync();
+    }
+  }, [ready]);
+
+  if (!ready) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView className="flex-1">
@@ -57,25 +70,20 @@ export default function RootLayout() {
                           headerBackTitle: "",
                         }}
                       >
-                        {/* Hide header for tabs - tabs have their own headers */}
+                        {/* Auth routes - shown when not authenticated */}
                         <Stack.Screen
-                          name="(tabs)"
-                          options={{ headerShown: false, title: "" }}
-                        />
-                        {/* Hide header for reader - full screen experience */}
-                        <Stack.Screen
-                          name="reader/[chapterId]"
+                          name="(auth)"
                           options={{ headerShown: false }}
                         />
-                        {/* Sign-in screen */}
+                        {/* Main protected app routes - shown when authenticated */}
                         <Stack.Screen
-                          name="sign-in"
-                          options={{ headerShown: false, title: "Sign In" }}
+                          name="(main)"
+                          options={{ headerShown: false }}
                         />
-                        {/* Sync screen - post login/logout */}
+                        {/* Debug routes - development only */}
                         <Stack.Screen
-                          name="sync"
-                          options={{ headerShown: false, gestureEnabled: false }}
+                          name="(debug)"
+                          options={{ headerShown: false }}
                         />
                       </Stack>
 

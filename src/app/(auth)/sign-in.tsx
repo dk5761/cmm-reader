@@ -25,7 +25,7 @@ export default function SignInScreen() {
     setError(null);
     try {
       await signInWithGoogle();
-      router.replace("/sync?action=login");
+      router.replace("/(main)/(tabs)/library");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Sign-in failed";
       setError(message);
@@ -56,7 +56,7 @@ export default function SignInScreen() {
           className="text-base mt-2 opacity-60"
           style={{ color: isDark ? "#fff" : "#000" }}
         >
-          Sign in to sync your library
+          Sign in to access your library
         </Text>
       </View>
 

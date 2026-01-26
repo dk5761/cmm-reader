@@ -178,6 +178,7 @@ function AccountSection() {
 }
 
 function SyncSection() {
+  const router = useRouter();
   const { uploadAll } = useSyncManager();
   const [syncing, setSyncing] = useState(false);
 
@@ -210,6 +211,12 @@ function SyncSection() {
 
   return (
     <View>
+      <SettingItem
+        icon="cloud-download-outline"
+        title="Sync Library from Cloud"
+        subtitle="Download your library from cloud"
+        onPress={() => router.push("/(auth)/sync?action=manual")}
+      />
       <SettingItem
         icon="refresh-outline"
         title="Full Upload"
@@ -406,7 +413,7 @@ function SyncHistorySection() {
   );
 }
 
-export default function SettingsScreen() {
+export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { showNsfwSources, toggleNsfwSources } = useAppSettingsStore();
@@ -449,7 +456,7 @@ export default function SettingsScreen() {
             icon="download-outline"
             title="Download Queue"
             subtitle="Manage active downloads"
-            onPress={() => router.push("/downloads")}
+            onPress={() => router.push("/(main)/(tabs)/settings/downloads")}
           />
         </View>
 
@@ -493,19 +500,19 @@ export default function SettingsScreen() {
             icon="bug-outline"
             title="Debug Realm Database"
             subtitle="View all stored manga and chapters"
-            onPress={() => router.push("/debug")}
+            onPress={() => router.push("/(debug)/debug")}
           />
           <SettingItem
             icon="document-text-outline"
             title="CF Debug Logs"
             subtitle="View Cloudflare challenge logs"
-            onPress={() => router.push("/debug/cf")}
+            onPress={() => router.push("/(debug)/cf")}
           />
           <SettingItem
             icon="sync-outline"
             title="Debug Sync Queue"
             subtitle="View pending sync events"
-            onPress={() => router.push("/debug/sync")}
+            onPress={() => router.push("/(debug)/sync")}
           />
         </View>
       </ScrollView>

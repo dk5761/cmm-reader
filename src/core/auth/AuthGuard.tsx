@@ -19,16 +19,20 @@ export function AuthGuard({ children }: AuthGuardProps) {
     if (loading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
-    const isSignIn = segments[0] === "sign-in";
-    const isSync = segments[0] === "sync";
-    const isPublic = isSignIn || isSync; // Public routes don't require auth
+    const inMainGroup = segments[0] === "(main)";
+    const inDebugGroup = segments[0] === "(debug)";
+
+    // Check if user is on sign-in or sync screen (within auth group)
+    const isSignIn = segments.at(1) === "sign-in";
+    const isSync = segments.at(1) === "sync";
+    const isPublic = inAuthGroup || inDebugGroup; // Auth and debug groups are public
 
     if (!user && !isPublic) {
       // Not signed in and trying to access protected route -> redirect to sign-in
-      router.replace("/sign-in");
+      router.replace("/(auth)/sign-in");
     } else if (user && isSignIn) {
-      // Signed in and visiting sign-in -> redirect to sync for initial data load
-      router.replace("/sync?action=login");
+      // Signed in and visiting sign-in -> redirect to library
+      router.replace("/(main)/(tabs)/library");
     }
   }, [user, loading, segments]);
 

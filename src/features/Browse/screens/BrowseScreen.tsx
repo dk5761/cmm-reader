@@ -1,4 +1,5 @@
 import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import axios from "axios";
@@ -24,7 +25,7 @@ export function BrowseScreen() {
   }));
 
   const handleView = (id: string) => {
-    router.push(`/source/${id}`);
+    router.push(`/(main)/(tabs)/browse/${id}`);
   };
 
   const testAxios = async () => {
@@ -43,14 +44,23 @@ export function BrowseScreen() {
 
   return (
     <View className="flex-1 bg-background">
+      {/* Header */}
+      <View
+        className="px-4 border-b border-border"
+        style={{ paddingTop: insets.top + 8, paddingBottom: 12 }}
+      >
+        <Text className="text-foreground text-2xl font-bold">Browse</Text>
+        <Text className="text-muted text-sm mt-1">Discover new manga</Text>
+      </View>
+
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Global Search Button */}
-        <View className="px-4 pb-3">
+        <View className="px-4 pt-6 pb-3">
           <Pressable
-            onPress={() => router.push("/global-search")}
+            onPress={() => router.push("/(main)/(tabs)/browse/global-search")}
             className="bg-surface border border-border rounded-lg p-4 flex-row items-center"
           >
             <View className="flex-1">

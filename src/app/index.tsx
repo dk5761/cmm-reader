@@ -1,24 +1,19 @@
 import { Redirect } from "expo-router";
-import { useQuery } from "@realm/react";
-import { MangaSchema } from "@/core/database";
 import { useAuth } from "@/core/auth";
 
 /**
  * Root index - decides where to redirect based on app state.
- * If user is logged in and has empty library, go directly to sync screen.
- * Otherwise, go to library.
+ * If user is logged in, go to library. Otherwise, go to sign-in.
  */
 export default function Index() {
   const { user } = useAuth();
-  const libraryManga = useQuery(MangaSchema, (collection) =>
-    collection.filtered("inLibrary == true"),
-  );
 
-  // If user is logged in and library is empty, go to sync screen
-  // This prevents showing empty library before sync completes
-  if (user && libraryManga.length === 0) {
-    return <Redirect href="/sync?action=startup" />;
+  // If not logged in, go to sign-in
+  if (!user) {
+    return <Redirect href="/(auth)/sign-in" />;
   }
 
-  return <Redirect href="/(tabs)/library" />;
+  // Logged in users always go to library
+  // Users can manually sync from Settings if needed
+  return <Redirect href="/(main)/(tabs)/library" />;
 }

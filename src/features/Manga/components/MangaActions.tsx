@@ -76,7 +76,7 @@ export function MangaActions({
     const initialPage = isResuming ? (libraryManga?.progress?.lastPage ?? 0) : 0;
 
     router.push({
-      pathname: "/reader/[chapterId]",
+      pathname: "/(main)/reader/[chapterId]",
       params: {
         chapterId: targetChapter.id,
         sourceId: sourceId,

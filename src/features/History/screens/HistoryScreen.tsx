@@ -178,7 +178,7 @@ export function HistoryScreen() {
 
   const handleMangaPress = (item: MangaHistoryItemProps["item"]) => {
     router.push({
-      pathname: "/history/[mangaId]",
+      pathname: "/(main)/(tabs)/updates/[mangaId]",
       params: {
         mangaId: item.mangaId,
         sourceId: item.sourceId,

@@ -171,7 +171,7 @@ export function HistoryDetailScreen() {
 
   const handleContinueReading = (item: ChapterHistoryItemProps["item"]) => {
     router.push({
-      pathname: "/reader/[chapterId]",
+      pathname: "/(main)/reader/[chapterId]",
       params: {
         chapterId: item.chapterId,
         sourceId: sourceId,

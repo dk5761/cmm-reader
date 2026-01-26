@@ -33,7 +33,7 @@ export function GlobalSearchResultSection({
 
   const handleMangaPress = (manga: Manga) => {
     router.push({
-      pathname: "/manga/[id]",
+      pathname: "/(main)/manga/[id]",
       params: {
         id: manga.id,
         sourceId: result.sourceId,
@@ -43,7 +43,7 @@ export function GlobalSearchResultSection({
   };
 
   const handleViewMore = () => {
-    router.push(`/source/${result.sourceId}`);
+    router.push(`/(main)/(tabs)/browse/${result.sourceId}`);
   };
 
   // Don't render if no results and not loading/error

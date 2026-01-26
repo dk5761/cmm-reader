@@ -92,7 +92,7 @@ export function ChapterListSection({
       initialPage: number = 0
     ) => {
       router.push({
-        pathname: "/reader/[chapterId]",
+        pathname: "/(main)/reader/[chapterId]",
         params: {
           chapterId,
           sourceId,

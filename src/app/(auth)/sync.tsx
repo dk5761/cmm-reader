@@ -12,7 +12,7 @@ export default function SyncScreen() {
   const isDark = colorScheme === "dark";
   const router = useRouter();
   const { action } = useLocalSearchParams<{
-    action?: "login" | "logout" | "startup";
+    action?: "login" | "logout" | "startup" | "manual";
   }>();
 
   const { downloadAndMerge, clearLocalData, clearSyncQueue, uploadAll } =
@@ -32,7 +32,7 @@ export default function SyncScreen() {
           await clearLocalData();
           await clearSyncQueue();
           setStatus("Complete!");
-          router.replace("/sign-in");
+          router.replace("/(auth)/sign-in");
           return;
         }
 
@@ -45,7 +45,20 @@ export default function SyncScreen() {
 
           // Brief pause to show completion
           await new Promise((r) => setTimeout(r, 800));
-          router.replace("/(tabs)/library");
+          router.replace("/(main)/(tabs)/library");
+          return;
+        }
+
+        if (action === "manual") {
+          // Manual sync: user initiated sync from settings
+          setStatus("Syncing your library...");
+          const result = await downloadAndMerge();
+          setProgress({ manga: result.mangaCount, history: result.historyCount });
+          setStatus("Sync complete!");
+
+          // Brief pause to show completion
+          await new Promise((r) => setTimeout(r, 800));
+          router.replace("/(main)/(tabs)/library");
           return;
         }
 
@@ -57,7 +70,7 @@ export default function SyncScreen() {
 
         // Brief pause to show completion
         await new Promise((r) => setTimeout(r, 1000));
-        router.replace("/(tabs)/library");
+        router.replace("/(main)/(tabs)/library");
       } catch (e) {
         console.error("[SyncScreen] Error:", e);
         setError((e as Error).message);

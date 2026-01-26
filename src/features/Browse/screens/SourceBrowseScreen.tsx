@@ -132,7 +132,7 @@ export function SourceBrowseScreen() {
   const handleMangaPress = useCallback(
     (manga: Manga) => {
       router.push({
-        pathname: "/manga/[id]",
+        pathname: "/(main)/manga/[id]",
         params: {
           id: manga.id,
           sourceId: sourceId,
