@@ -87,6 +87,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await AsyncStorage.removeItem(GOOGLE_OAUTH_TOKEN_KEY);
       await GoogleSignin.signOut();
       await auth().signOut();
+
+      // Clear the hasHadUserSession flag
+      await AsyncStorage.removeItem("@has_had_user_session");
+
       console.log("[AuthContext] Sign-out successful");
     } catch (error) {
       console.error("[AuthContext] Sign-out failed:", error);

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSegments } from "expo-router";
 import { useAuth } from "./AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const HAS_HAD_USER_SESSION_KEY = "@has_had_user_session";
 
 type AuthGuardProps = {
   children: React.ReactNode;
@@ -16,10 +19,21 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const [hasEverHadUser, setHasEverHadUser] = useState(false);
 
+  // Check AsyncStorage on mount if we've ever had a user session
+  useEffect(() => {
+    AsyncStorage.getItem(HAS_HAD_USER_SESSION_KEY).then((value) => {
+      if (value === "true") {
+        setHasEverHadUser(true);
+      }
+    });
+  }, []);
+
   // Track if we've ever had a user session (to handle Firebase re-init on hot refresh)
   useEffect(() => {
     if (user) {
       setHasEverHadUser(true);
+      // Persist to AsyncStorage so it survives React component destruction
+      AsyncStorage.setItem(HAS_HAD_USER_SESSION_KEY, "true");
     }
   }, [user]);
 
