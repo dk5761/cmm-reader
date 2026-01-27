@@ -18,7 +18,7 @@ export default function BrowseStackLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="[sourceId]" options={{ title: "Source", headerBackTitle: "Browse" }} />
+      <Stack.Screen name="[sourceId]" options={{ headerBackTitle: "Browse" }} />
       <Stack.Screen name="global-search" options={{ title: "Search", headerBackTitle: "Browse" }} />
     </Stack>
   );

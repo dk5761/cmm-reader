@@ -8,8 +8,8 @@ export default function MainLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="manga/[id]" />
-      <Stack.Screen name="reader/[chapterId]" />
+      <Stack.Screen name="manga/[id]" options={{ headerBackTitle: "Back" }} />
+      <Stack.Screen name="reader/[chapterId]" options={{ headerBackTitle: "Manga" }} />
     </Stack>
   );
 }
