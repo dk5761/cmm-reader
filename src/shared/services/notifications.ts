@@ -7,7 +7,41 @@
 import * as Notifications from "expo-notifications";
 import * as LiveActivity from "expo-live-activity";
 import { Platform } from "react-native";
-import type { SyncResult } from "@/features/Library/stores/useSyncStore";
+
+// Local types for source sync (checking for new chapters from sources)
+export interface SyncFailure {
+  mangaId: string;
+  mangaTitle: string;
+  error: string;
+}
+
+export interface ChapterUpdate {
+  chapterId: string;
+  chapterNumber: number;
+  chapterTitle: string | undefined;
+  addedAt: number;
+}
+
+export interface MangaUpdate {
+  mangaId: string;
+  mangaTitle: string;
+  cover: string | undefined;
+  sourceId: string;
+  sourceName: string;
+  newChapters: ChapterUpdate[];
+  previousChapterCount: number;
+  currentChapterCount: number;
+  syncedAt: number;
+}
+
+export interface SyncResult {
+  timestamp: number;
+  updated: number;
+  newChapters: number;
+  failed: SyncFailure[];
+  skippedSources: string[];
+  mangaUpdates: MangaUpdate[];
+}
 
 // Unique ID for sync progress notification (so we can update it)
 const SYNC_PROGRESS_NOTIFICATION_ID = "sync-progress";

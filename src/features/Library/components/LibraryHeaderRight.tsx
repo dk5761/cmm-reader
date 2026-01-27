@@ -3,7 +3,6 @@ import { View, Pressable, Animated, Easing } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { useSyncLibrary } from "../hooks";
-import { useSyncStore } from "../stores/useSyncStore";
 import { useLibraryStore } from "../stores/useLibraryStore";
 import { FilterSheet } from "./FilterSheet";
 
@@ -14,18 +13,16 @@ export function LibraryHeaderRight() {
   const primary = typeof primaryColor === "string" ? primaryColor : "#8b5cf6";
 
   const { syncLibrary, isSyncing } = useSyncLibrary();
-  const { isCloudSyncing } = useSyncStore();
   const { activeCategory, activeSource } = useLibraryStore();
 
-  // Disable sync button during both library update sync and cloud sync
-  const syncDisabled = isSyncing || isCloudSyncing;
+  const syncDisabled = isSyncing;
 
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
 
   // Check if any filters are active (not default)
   const hasActiveFilters = activeCategory !== "All" || activeSource !== "all";
 
-  // Rotation animation for sync icon
+  // Rotation animation for sync icon (source sync - checking for new chapters)
   const spinValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

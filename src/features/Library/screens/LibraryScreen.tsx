@@ -6,9 +6,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import {
   LibraryGrid,
-  SyncProgressBanner,
-  SyncCompletionToast,
-  CloudSyncBanner,
   LibraryHeaderRight,
 } from "../components";
 import { EmptyState, SearchBar } from "@/shared/components";
@@ -244,10 +241,6 @@ export function LibraryScreen() {
               value={localSearchQuery}
               onChangeText={setLocalSearchQuery}
             />
-
-            <CloudSyncBanner />
-            <SyncProgressBanner />
-            <SyncCompletionToast />
           </View>
         }
       />

@@ -11,13 +11,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
-import { useSyncStore } from "@/features/Library/stores/useSyncStore";
-import { MangaSyncListItem } from "@/features/Library/components/MangaSyncListItem";
-import { SyncDetailsModal } from "@/features/Library/components/SyncDetailsModal";
 import { useBackup } from "@/core/backup";
 import { useAppSettingsStore } from "@/shared/stores";
 import { useAuth } from "@/core/auth";
-import { useSyncManager } from "@/core/sync";
 
 type SettingItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -177,57 +173,6 @@ function AccountSection() {
   );
 }
 
-function SyncSection() {
-  const router = useRouter();
-  const { uploadAll } = useSyncManager();
-  const [syncing, setSyncing] = useState(false);
-
-  const handleFullUpload = async () => {
-    Alert.alert(
-      "Full Upload",
-      "This will upload your entire library to the cloud, replacing any existing data.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Upload",
-          onPress: async () => {
-            setSyncing(true);
-            try {
-              await uploadAll();
-              Alert.alert(
-                "Upload Complete",
-                "Your entire library has been uploaded."
-              );
-            } catch (e) {
-              Alert.alert("Upload Failed", (e as Error).message);
-            } finally {
-              setSyncing(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  return (
-    <View>
-      <SettingItem
-        icon="cloud-download-outline"
-        title="Sync Library from Cloud"
-        subtitle="Download your library from cloud"
-        onPress={() => router.push("/(auth)/sync?action=manual")}
-      />
-      <SettingItem
-        icon="refresh-outline"
-        title="Full Upload"
-        subtitle="Upload entire library to cloud"
-        onPress={handleFullUpload}
-        loading={syncing}
-      />
-    </View>
-  );
-}
-
 function BackupSection() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -298,121 +243,6 @@ function BackupSection() {
   );
 }
 
-function SyncHistorySection() {
-  const { lastSync, syncHistory, clearHistory } = useSyncStore();
-  const [selectedMangaId, setSelectedMangaId] = useState<string | null>(null);
-  const primaryColor = useCSSVariable("--color-primary");
-  const primary = typeof primaryColor === "string" ? primaryColor : "#00d9ff";
-
-  if (!lastSync) {
-    return (
-      <View className="px-4 py-4">
-        <Text className="text-muted text-sm">No sync history yet</Text>
-      </View>
-    );
-  }
-
-  const hasMangaUpdates =
-    lastSync.mangaUpdates && lastSync.mangaUpdates.length > 0;
-
-  return (
-    <View>
-      {/* Summary Header */}
-      <View className="px-4 py-3 bg-surface/50">
-        <View className="flex-row justify-between items-center mb-2">
-          <Text className="text-foreground font-medium">Last Sync</Text>
-          <Text className="text-muted text-xs">
-            {formatTimeAgo(lastSync.timestamp)}
-          </Text>
-        </View>
-
-        <View className="flex-row gap-4">
-          <View className="flex-1">
-            <Text style={{ color: primary }} className="text-2xl font-bold">
-              {lastSync.updated}
-            </Text>
-            <Text className="text-muted text-xs">manga updated</Text>
-          </View>
-          <View className="flex-1">
-            <Text style={{ color: primary }} className="text-2xl font-bold">
-              {lastSync.newChapters}
-            </Text>
-            <Text className="text-muted text-xs">new chapters</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Manga Updates List */}
-      {hasMangaUpdates && (
-        <View className="mt-2">
-          <Text className="px-4 py-2 text-muted text-xs font-medium">
-            UPDATED MANGA
-          </Text>
-          {lastSync.mangaUpdates.slice(0, 10).map((update) => (
-            <MangaSyncListItem
-              key={update.mangaId}
-              update={update}
-              onPress={() => setSelectedMangaId(update.mangaId)}
-            />
-          ))}
-          {lastSync.mangaUpdates.length > 10 && (
-            <Text className="px-4 py-2 text-muted text-xs text-center">
-              +{lastSync.mangaUpdates.length - 10} more
-            </Text>
-          )}
-        </View>
-      )}
-
-      {/* Failed */}
-      {lastSync.failed.length > 0 && (
-        <View className="px-4 py-3 mt-2 bg-red-500/10">
-          <Text className="text-red-500 text-sm font-medium mb-1">
-            ⚠️ {lastSync.failed.length} failed
-          </Text>
-          {lastSync.failed.slice(0, 3).map((f, i) => (
-            <Text key={i} className="text-muted text-xs">
-              • {f.mangaTitle}: {f.error}
-            </Text>
-          ))}
-        </View>
-      )}
-
-      {/* Skipped Sources */}
-      {lastSync.skippedSources.length > 0 && (
-        <View className="px-4 py-3 mt-2 bg-yellow-500/10">
-          <Text className="text-yellow-500 text-sm font-medium mb-1">
-            ⏭️ {lastSync.skippedSources.length} sources skipped
-          </Text>
-          {lastSync.skippedSources.map((s, i) => (
-            <Text key={i} className="text-muted text-xs">
-              • {s} (session expired)
-            </Text>
-          ))}
-        </View>
-      )}
-
-      {/* Clear History */}
-      {syncHistory.length > 0 && (
-        <Pressable onPress={clearHistory} className="py-3">
-          <Text className="text-red-500 text-sm text-center">
-            Clear sync history
-          </Text>
-        </Pressable>
-      )}
-
-      {/* Details Modal */}
-      {selectedMangaId && (
-        <SyncDetailsModal
-          visible={selectedMangaId !== null}
-          onClose={() => setSelectedMangaId(null)}
-          mangaId={selectedMangaId}
-          syncHistory={syncHistory}
-        />
-      )}
-    </View>
-  );
-}
-
 export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -437,14 +267,6 @@ export function SettingsScreen() {
             Account
           </Text>
           <AccountSection />
-        </View>
-
-        {/* Cloud Sync Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Cloud Sync
-          </Text>
-          <SyncSection />
         </View>
 
         {/* Downloads Section */}
@@ -483,14 +305,6 @@ export function SettingsScreen() {
           <BackupSection />
         </View>
 
-        {/* Sync History Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Sync History
-          </Text>
-          <SyncHistorySection />
-        </View>
-
         {/* Debug Section */}
         <View className="mt-4">
           <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
@@ -507,12 +321,6 @@ export function SettingsScreen() {
             title="CF Debug Logs"
             subtitle="View Cloudflare challenge logs"
             onPress={() => router.push("/(debug)/cf")}
-          />
-          <SettingItem
-            icon="sync-outline"
-            title="Debug Sync Queue"
-            subtitle="View pending sync events"
-            onPress={() => router.push("/(debug)/sync")}
           />
         </View>
       </ScrollView>

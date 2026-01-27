@@ -1,13 +1,47 @@
-import { useCallback } from "react";
+import { useCallback, useState, useRef } from "react";
 import { useRealm, useQuery } from "@realm/react";
 import { MangaSchema, ChapterSchema } from "@/core/database";
 import { getSource } from "@/sources";
-import { useSyncStore, SyncResult, SyncFailure } from "../stores/useSyncStore";
 import {
   startSyncProgress,
   updateSyncProgress,
   completeSyncProgress,
 } from "@/shared/services/notifications";
+
+// Local types for source sync (checking for new chapters from sources)
+export interface SyncFailure {
+  mangaId: string;
+  mangaTitle: string;
+  error: string;
+}
+
+export interface ChapterUpdate {
+  chapterId: string;
+  chapterNumber: number;
+  chapterTitle: string | undefined;
+  addedAt: number;
+}
+
+export interface MangaUpdate {
+  mangaId: string;
+  mangaTitle: string;
+  cover: string | undefined;
+  sourceId: string;
+  sourceName: string;
+  newChapters: ChapterUpdate[];
+  previousChapterCount: number;
+  currentChapterCount: number;
+  syncedAt: number;
+}
+
+export interface SyncResult {
+  timestamp: number;
+  updated: number;
+  newChapters: number;
+  failed: SyncFailure[];
+  skippedSources: string[];
+  mangaUpdates: MangaUpdate[];
+}
 
 /**
  * Hook to sync all library manga and check for new chapters
@@ -17,8 +51,8 @@ import {
 export function useSyncLibrary() {
   const realm = useRealm();
   const allManga = useQuery(MangaSchema);
-  const { isSyncing, startSync, setWarmingUp, updateProgress, completeSync } =
-    useSyncStore();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const progressRef = useRef({ current: 0, total: 0, sourceName: "", mangaTitle: "" });
 
   const syncLibrary = useCallback(async () => {
     if (isSyncing) return;
@@ -45,7 +79,7 @@ export function useSyncLibrary() {
       "sources"
     );
 
-    startSync(mangaList.length);
+    setIsSyncing(true);
 
     // Start Live Activity / notification
     await startSyncProgress(mangaList.length);
@@ -76,7 +110,12 @@ export function useSyncLibrary() {
       // Sync each manga in this source
       for (const manga of sourceManga) {
         processedCount++;
-        updateProgress(processedCount, source.name, manga.title);
+        progressRef.current = {
+          current: processedCount,
+          total: mangaList.length,
+          sourceName: source.name,
+          mangaTitle: manga.title,
+        };
 
         // Update progress notification / Live Activity
         await updateSyncProgress(
@@ -222,7 +261,7 @@ export function useSyncLibrary() {
       }
     }
 
-    completeSync(result);
+    setIsSyncing(false);
     console.log("[Sync] Complete:", result);
 
     // Show completion notification / stop Live Activity
@@ -233,7 +272,7 @@ export function useSyncLibrary() {
     }
 
     return result;
-  }, [allManga, isSyncing, realm, startSync, updateProgress, completeSync]);
+  }, [allManga, isSyncing, realm]);
 
   return {
     syncLibrary,
