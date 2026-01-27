@@ -20,7 +20,7 @@ export function SearchBar({
     typeof mutedColor === "string" ? mutedColor : "#71717a";
 
   return (
-    <View className="flex-row items-center bg-surface rounded-full px-4 py-1 gap-2 mx-4 h-12">
+    <View className="flex-row items-center bg-surface rounded-full px-4 py-1 gap-2  h-12">
       <Ionicons name="search" size={20} color={placeholderColor} />
       <TextInput
         className="flex-1 text-foreground text-base h-full"
@@ -31,7 +31,8 @@ export function SearchBar({
         textAlignVertical="center"
         onSubmitEditing={onSubmitEditing}
         returnKeyType="search"
-        style={{ includeFontPadding: false }} // Android text alignment fix
+
+        style={{ includeFontPadding: false, paddingBottom: 6 }} // Android text alignment fix
       />
     </View>
   );

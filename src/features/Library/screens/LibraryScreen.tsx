@@ -236,7 +236,7 @@ export function LibraryScreen() {
         manga={gridData}
         onMangaPress={handleMangaPress}
         ListHeaderComponent={
-          <View className="pt-6 pb-4 px-4">
+          <View className="pt-2">
             {/* Search bar with clear button */}
 
             <SearchBar
