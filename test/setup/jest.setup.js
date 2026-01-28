@@ -25,9 +25,16 @@ jest.mock('@react-native-firebase/app', () => ({
   default: jest.fn(() => ({})),
 }));
 
-jest.mock('@react-native-firebase/auth', () => ({
+// Mock Firebase JS SDK
+jest.mock('firebase/auth', () => ({
   __esModule: true,
-  default: jest.fn(() => ({})),
+  getAuth: jest.fn(() => ({ currentUser: null })),
+  onAuthStateChanged: jest.fn(() => jest.fn()),
+  signInWithCredential: jest.fn(),
+  GoogleAuthProvider: {
+    credential: jest.fn(),
+  },
+  signOut: jest.fn(),
 }));
 
 // Mock native modules

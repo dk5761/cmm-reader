@@ -9,7 +9,6 @@
     "@react-native-community/slider": "^5.0.1",
     "@react-native-cookies/cookies": "^6.2.1",
     "@react-native-firebase/app": "^23.7.0",
-    "@react-native-firebase/auth": "^23.7.0",
     "@react-native-google-signin/google-signin": "^16.1.1",
     "@realm/react": "^0.20.0",
     "@shopify/flash-list": "^2.0.2",

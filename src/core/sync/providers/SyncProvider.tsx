@@ -5,12 +5,13 @@
  * Initializes Firebase when the app starts and manages sync based on auth state.
  *
  * This should be wrapped around the authenticated portion of the app.
+ * Authentication is now managed by AuthContext using Firebase JS SDK directly.
  */
 
 import { useEffect, useState, useRef } from "react";
 import type React from "react";
 import { ActivityIndicator, View, Text } from "react-native";
-import { initializeFirebase, refreshAuthentication } from "../firebase/FirebaseClient";
+import { initializeFirebase } from "../firebase/FirebaseClient";
 import { isFirebaseConfigured } from "../firebase/firebaseConfig";
 import { useRealm } from "@realm/react";
 import { useAuth } from "@/core/auth";
@@ -74,27 +75,15 @@ export function SyncProvider({ children }: SyncProviderProps) {
     };
   }, []);
 
-  // Refresh authentication when user signs in or out
+  // Log user state changes (for debugging)
   useEffect(() => {
-    if (!firebaseInitializedRef.current || !isFirebaseConfigured()) {
-      return;
-    }
-
-    async function handleUserChange() {
+    if (firebaseInitializedRef.current) {
       if (user) {
-        console.log("[SyncProvider] User signed in, refreshing sync authentication...");
-        try {
-          await refreshAuthentication();
-          console.log("[SyncProvider] Sync authentication refreshed successfully");
-        } catch (err) {
-          console.warn("[SyncProvider] Failed to refresh sync authentication:", err);
-        }
+        console.log("[SyncProvider] User authenticated, sync system ready");
       } else {
-        console.log("[SyncProvider] User signed out");
+        console.log("[SyncProvider] User not authenticated");
       }
     }
-
-    handleUserChange();
   }, [user?.uid]);
 
   // Render children when ready, or show loading/error state

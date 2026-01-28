@@ -2,20 +2,16 @@
  * Firebase Client
  *
  * Firebase SDK initialization and configuration for the sync system.
- * Uses Firebase JS SDK for Firestore to avoid native build issues.
+ * Uses Firebase JS SDK for both Auth and Firestore.
  *
- * Note: This bridges authentication with the native Firebase Auth by using
- * the stored Google OAuth token from the app's main auth system.
+ * Note: Authentication is now managed by AuthContext using the JS SDK directly.
+ * This client provides access to the Firebase instances for the sync system.
  */
 
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getFirestore, Firestore, initializeFirestore, persistentLocalCache } from "firebase/firestore";
 import { getAuth, Auth, signInWithCredential, GoogleAuthProvider, signOut as firebaseSignOut, onAuthStateChanged, User } from "firebase/auth";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { firebaseConfig, isFirebaseConfigured } from "./firebaseConfig";
-
-// Google OAuth token key (must match the one in AuthContext)
-const GOOGLE_OAUTH_TOKEN_KEY = "@google_oauth_id_token";
 
 /**
  * Firebase configuration interface
@@ -34,11 +30,10 @@ export interface FirebaseConfig {
  * Manages Firebase app, Firestore, and Auth instances
  */
 export class FirebaseClient {
-  private app: FirebaseApp | null = null;
+  private _app: FirebaseApp | null = null;
   private firestore: Firestore | null = null;
   private auth: Auth | null = null;
   private initialized = false;
-  private authUnsubscribe: (() => void) | null = null;
 
   constructor(private config: FirebaseConfig) {}
 
@@ -60,13 +55,13 @@ export class FirebaseClient {
 
       // Initialize Firebase app
       if (!getApps().length) {
-        this.app = initializeApp(this.config);
+        this._app = initializeApp(this.config);
       } else {
-        this.app = getApps()[0];
+        this._app = getApps()[0];
       }
 
       // Initialize Firestore with persistent cache
-      this.firestore = initializeFirestore(this.app, {
+      this.firestore = initializeFirestore(this._app, {
         localCache: persistentLocalCache(/* settings */ {
           // Use AsyncStorage for cache persistence
           cacheSizeBytes: 10 * 1024 * 1024, // 10MB
@@ -74,12 +69,8 @@ export class FirebaseClient {
       });
 
       // Initialize Auth
-      this.auth = getAuth(this.app);
+      this.auth = getAuth(this._app);
       this.auth.useDeviceLanguage();
-
-      // Bridge authentication: Check if user is already authenticated via native Firebase
-      // by looking for the stored Google OAuth token
-      await this.bridgeAuthentication();
 
       this.initialized = true;
       console.log("[FirebaseClient] Initialized successfully");
@@ -90,34 +81,13 @@ export class FirebaseClient {
   }
 
   /**
-   * Bridge authentication from native Firebase Auth to JS SDK
-   * Uses the stored Google OAuth token to sign in to the JS SDK
+   * Get the Firebase app instance
    */
-  private async bridgeAuthentication(): Promise<void> {
-    try {
-      // Check if already authenticated in JS SDK
-      if (this.auth!.currentUser) {
-        console.log("[FirebaseClient] Already authenticated in JS SDK");
-        return;
-      }
-
-      // Get stored Google OAuth token
-      const idToken = await AsyncStorage.getItem(GOOGLE_OAUTH_TOKEN_KEY);
-
-      if (!idToken) {
-        console.log("[FirebaseClient] No stored Google OAuth token found");
-        return;
-      }
-
-      // Sign in to JS SDK using the stored token
-      const credential = GoogleAuthProvider.credential(idToken);
-      await signInWithCredential(this.auth!, credential);
-
-      console.log("[FirebaseClient] Successfully bridged authentication to JS SDK");
-    } catch (error) {
-      console.warn("[FirebaseClient] Failed to bridge authentication:", error);
-      // Don't throw - authentication can be retried later
+  get app(): FirebaseApp {
+    if (!this._app) {
+      throw new Error("Firebase app not initialized. Call initialize() first.");
     }
+    return this._app;
   }
 
   /**
@@ -188,18 +158,6 @@ export class FirebaseClient {
   isAuthenticated(): boolean {
     return this.auth?.currentUser != null;
   }
-
-  /**
-   * Refresh/bridge authentication from native Firebase Auth
-   * Call this when the user signs in via the native auth system
-   */
-  async refreshAuthentication(): Promise<void> {
-    if (!this.initialized) {
-      console.warn("[FirebaseClient] Cannot refresh auth - client not initialized");
-      return;
-    }
-    await this.bridgeAuthentication();
-  }
 }
 
 /**
@@ -263,13 +221,4 @@ export function requireUserId(): string {
 export function getUserId(): string | null {
   const client = getFirebaseClient();
   return client.getCurrentUserId();
-}
-
-/**
- * Refresh authentication bridge from native Firebase Auth
- * Call this when the user signs in via the native auth system
- */
-export async function refreshAuthentication(): Promise<void> {
-  const client = getFirebaseClient();
-  await client.refreshAuthentication();
 }

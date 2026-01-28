@@ -46,7 +46,6 @@ export { EventEmitter } from "./utils/EventEmitter";
 // Firebase client
 export * from "./firebase/FirebaseClient";
 export { firebaseConfig, isFirebaseConfigured, getFirebaseConfig } from "./firebase/firebaseConfig";
-export { refreshAuthentication } from "./firebase/FirebaseClient";
 
 // Firestore indexes
 export * from "./firestore/indexes";
