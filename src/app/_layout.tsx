@@ -13,7 +13,6 @@ import { DownloadProvider } from "@/shared/contexts/DownloadContext";
 import { DatabaseProvider } from "@/core/database";
 import { UpdateScreen } from "@/shared/components/UpdateScreen";
 import { requestNotificationPermissions } from "@/shared/services/notifications";
-import { AuthProvider, AuthGuard, configureGoogleSignIn } from "@/core/auth";
 import { pruneCache } from "@/core/services/ImageCacheService";
 
 // Keep splash screen visible while app loads
@@ -26,7 +25,6 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function prepare() {
-      configureGoogleSignIn();
       requestNotificationPermissions();
 
       // Prune image cache (500MB limit)
@@ -53,47 +51,38 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <DatabaseProvider>
           <QueryProvider>
-            <AuthProvider>
-              <AuthGuard>
-                <SessionProvider>
-                  <DownloadProvider>
-                    <WebViewFetcherProvider>
-                      <Stack
-                        screenOptions={{
-                          headerShown: true,
-                          headerStyle: {
-                            backgroundColor: isDark ? "#0a0a0f" : "#ffffff",
-                          },
-                          headerTintColor: isDark ? "#fff" : "#000",
-                          headerTitleStyle: { fontWeight: "600" },
-                          headerShadowVisible: false,
-                          headerBackTitle: "",
-                        }}
-                      >
-                        {/* Auth routes - shown when not authenticated */}
-                        <Stack.Screen
-                          name="(auth)"
-                          options={{ headerShown: false }}
-                        />
-                        {/* Main protected app routes - shown when authenticated */}
-                        <Stack.Screen
-                          name="(main)"
-                          options={{ headerShown: false }}
-                        />
-                        {/* Debug routes - development only */}
-                        <Stack.Screen
-                          name="(debug)"
-                          options={{ headerShown: false }}
-                        />
-                      </Stack>
+            <SessionProvider>
+              <DownloadProvider>
+                <WebViewFetcherProvider>
+                  <Stack
+                    screenOptions={{
+                      headerShown: true,
+                      headerStyle: {
+                        backgroundColor: isDark ? "#0a0a0f" : "#ffffff",
+                      },
+                      headerTintColor: isDark ? "#fff" : "#000",
+                      headerTitleStyle: { fontWeight: "600" },
+                      headerShadowVisible: false,
+                      headerBackTitle: "",
+                    }}
+                  >
+                    {/* Main app routes */}
+                    <Stack.Screen
+                      name="(main)"
+                      options={{ headerShown: false }}
+                    />
+                    {/* Debug routes - development only */}
+                    <Stack.Screen
+                      name="(debug)"
+                      options={{ headerShown: false }}
+                    />
+                  </Stack>
 
-                      {/* Force Update Screen - blocks app until update is applied */}
-                      <UpdateScreen />
-                    </WebViewFetcherProvider>
-                  </DownloadProvider>
-                </SessionProvider>
-              </AuthGuard>
-            </AuthProvider>
+                  {/* Force Update Screen - blocks app until update is applied */}
+                  <UpdateScreen />
+                </WebViewFetcherProvider>
+              </DownloadProvider>
+            </SessionProvider>
           </QueryProvider>
         </DatabaseProvider>
       </SafeAreaProvider>

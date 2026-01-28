@@ -13,7 +13,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCSSVariable } from "uniwind";
 import { useBackup } from "@/core/backup";
 import { useAppSettingsStore } from "@/shared/stores";
-import { useAuth } from "@/core/auth";
 
 type SettingItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -131,48 +130,6 @@ function formatTimeAgo(timestamp: number): string {
   return `${days} day${days > 1 ? "s" : ""} ago`;
 }
 
-function AccountSection() {
-  const { user, signOut } = useAuth();
-  const [loading, setLoading] = useState(false);
-
-  const handleSignOut = async () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          setLoading(true);
-          try {
-            await signOut();
-            // AuthGuard will handle redirect
-          } catch (e) {
-            Alert.alert("Error", "Failed to sign out");
-            setLoading(false);
-          }
-        },
-      },
-    ]);
-  };
-
-  if (!user) return null;
-
-  return (
-    <View>
-      <View className="px-4 py-2 mb-2">
-        <Text className="text-foreground font-medium">{user.email}</Text>
-        <Text className="text-muted text-xs">Signed in with Google</Text>
-      </View>
-      <SettingItem
-        icon="log-out-outline"
-        title="Sign Out"
-        onPress={handleSignOut}
-        loading={loading}
-      />
-    </View>
-  );
-}
-
 function BackupSection() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -261,14 +218,6 @@ export function SettingsScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
       >
-        {/* Account Section */}
-        <View className="mt-4">
-          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
-            Account
-          </Text>
-          <AccountSection />
-        </View>
-
         {/* Downloads Section */}
         <View className="mt-4">
           <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
