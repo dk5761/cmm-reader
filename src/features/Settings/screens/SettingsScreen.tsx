@@ -14,6 +14,7 @@ import { useCSSVariable } from "uniwind";
 import { useBackup } from "@/core/backup";
 import { useAppSettingsStore } from "@/shared/stores";
 import { useAuth } from "@/core/auth";
+import { SyncSettings } from "@/core/sync/components/SyncSettings";
 
 type SettingItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -278,7 +279,7 @@ export function SettingsScreen() {
             icon="download-outline"
             title="Download Queue"
             subtitle="Manage active downloads"
-            onPress={() => router.push("/(main)/(tabs)/settings/downloads")}
+            onPress={() => router.push("/downloads")}
           />
         </View>
 
@@ -295,6 +296,14 @@ export function SettingsScreen() {
             onToggle={toggleNsfwSources}
             warning
           />
+        </View>
+
+        {/* Cloud Sync Section */}
+        <View className="mt-4">
+          <Text className="text-muted text-xs font-bold uppercase px-4 mb-2">
+            Cloud Sync
+          </Text>
+          <SyncSettings />
         </View>
 
         {/* Backup & Restore Section */}

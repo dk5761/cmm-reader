@@ -15,6 +15,7 @@ import { UpdateScreen } from "@/shared/components/UpdateScreen";
 import { requestNotificationPermissions } from "@/shared/services/notifications";
 import { AuthProvider, AuthGuard, configureGoogleSignIn } from "@/core/auth";
 import { pruneCache } from "@/core/services/ImageCacheService";
+import { SyncProvider } from "@/core/sync";
 
 // Keep splash screen visible while app loads
 SplashScreen.preventAutoHideAsync();
@@ -55,9 +56,10 @@ export default function RootLayout() {
           <QueryProvider>
             <AuthProvider>
               <AuthGuard>
-                <SessionProvider>
-                  <DownloadProvider>
-                    <WebViewFetcherProvider>
+                <SyncProvider>
+                  <SessionProvider>
+                    <DownloadProvider>
+                      <WebViewFetcherProvider>
                       <Stack
                         screenOptions={{
                           headerShown: true,
@@ -92,8 +94,9 @@ export default function RootLayout() {
                     </WebViewFetcherProvider>
                   </DownloadProvider>
                 </SessionProvider>
-              </AuthGuard>
-            </AuthProvider>
+              </SyncProvider>
+            </AuthGuard>
+          </AuthProvider>
           </QueryProvider>
         </DatabaseProvider>
       </SafeAreaProvider>
