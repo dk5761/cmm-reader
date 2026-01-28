@@ -139,3 +139,14 @@ Dark mode is handled automatically by `useColorScheme()`.
 - Shared components in `src/shared/components/`
 - Core utilities in `src/core/`
 - Source implementations in `src/sources/`
+
+
+## Flow to follow :
+
+- Always get the required context regarding and around the user ask.
+- Always create a plan, dont directly implement anything
+- Ask the user to confirm the plan and then implement.
+- Always use skills wherever possible and relevant 
+- Use subagents for parallel processing in independent actions / tasks.
+- Be descriptive when explaining the plan
+- Always try to get the latest information regarding the frameworks and libraries from the internet.
